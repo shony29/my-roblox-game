@@ -20,6 +20,8 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ModeConfig = require(Shared:WaitForChild("Config"):WaitForChild("ModeConfig"))
 local MatchState = require(Shared:WaitForChild("Match"):WaitForChild("MatchState"))
 local Net = require(Shared:WaitForChild("Net"):WaitForChild("Net"))
+local GameContract = require(Shared:WaitForChild("Net"):WaitForChild("GameContract"))
+local Progression = require(Shared:WaitForChild("Data"):WaitForChild("Progression"))
 local UIFolder = script.Parent.Parent:WaitForChild("UI")
 local Theme = require(UIFolder:WaitForChild("Theme"))
 local UIHelpers = require(UIFolder:WaitForChild("UIHelpers"))
@@ -139,7 +141,9 @@ function LobbyController.start()
 			action.Text = "CANCEL"
 			action.BackgroundColor3 = Colors.Coral
 		else
-			statusLabel.Text = "Choose a mode, then find a match"
+			local level, into, needed = Progression.levelFromXp(UIHelpers.numberAttribute(player, GameContract.PlayerAttributes.XP))
+			title.Text = `PLAY · LEVEL {level}`
+			statusLabel.Text = `{into}/{needed} XP to level {level + 1}`
 			action.Text = "FIND MATCH"
 			action.BackgroundColor3 = Colors.Mint
 		end

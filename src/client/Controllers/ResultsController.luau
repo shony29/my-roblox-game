@@ -29,7 +29,7 @@ local ATTR = MatchState.Attr
 local ROW_HEIGHT = 30
 local MAX_ROWS = 8
 
-type Row = { name: string, team: MatchState.TeamId, eliminations: number, deaths: number, damage: number, coins: number }
+type Row = { name: string, team: MatchState.TeamId, eliminations: number, deaths: number, damage: number, coins: number, xp: number }
 
 local ResultsController = {}
 local started = false
@@ -54,6 +54,7 @@ local function readRows(raw: unknown): { Row }
 				deaths = num(item.deaths),
 				damage = num(item.damage),
 				coins = num(item.coins),
+				xp = num(item.xp),
 			})
 		end
 	end
@@ -119,7 +120,7 @@ function ResultsController.start()
 		row.Size = UDim2.new(1, 0, 0, ROW_HEIGHT)
 		row.LayoutOrder = order
 		row.Parent = list
-		local widths = { 0.4, 0.15, 0.15, 0.15, 0.15 }
+		local widths = { 0.34, 0.12, 0.12, 0.14, 0.28 }
 		local x = 0
 		for i, text in cells do
 			local cell = UIHelpers.label("Cell" .. i, text, if bold then 15 else 17, if bold then Theme.Fonts.Body else Theme.Fonts.Title)
@@ -191,14 +192,14 @@ function ResultsController.start()
 		local mvp = if typeof(results.mvp) == "string" then string.sub(results.mvp, 1, 24) else ""
 		mvpLabel.Text = if mvp ~= "" then `MVP: {mvp}` else ""
 
-		addRow(0, { "PLAYER", "ELIMS", "DEATHS", "DAMAGE", "COINS" }, Colors.Sky, true)
+		addRow(0, { "PLAYER", "ELIMS", "DEATHS", "DAMAGE", "REWARDS" }, Colors.Sky, true)
 		for index, row in readRows(results.players) do
 			addRow(index, {
 				row.name,
 				tostring(row.eliminations),
 				tostring(row.deaths),
 				tostring(math.floor(row.damage)),
-				`+{row.coins}`,
+				`+{row.coins} coins  +{row.xp} XP`,
 			}, MatchState.teamInfo(row.team).Color, false)
 		end
 

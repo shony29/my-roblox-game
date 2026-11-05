@@ -28,6 +28,7 @@ local SpawnConfig = require(Shared.Config.SpawnConfig)
 local MatchState = require(Shared.Match.MatchState)
 local MapConfig = require(Shared.Config.MapConfig)
 local Schema = require(Shared.Data.PlayerDataSchema)
+local Progression = require(Shared.Data.Progression)
 local Net = require(Shared.Net.Net)
 local GameContract = require(Shared.Net.GameContract)
 local Components = script.Parent.Parent.Components
@@ -388,6 +389,7 @@ local function sendResults(match: Match, winner: TeamId?)
 			deaths = participant.deaths,
 			damage = math.floor(participant.damage),
 			coins = participant.eliminations * Schema.COINS_PER_ELIMINATION,
+			xp = Progression.matchXp(participant.eliminations, winner ~= nil and participant.team == winner),
 		})
 		if mvp == nil
 			or participant.eliminations > mvp.eliminations
@@ -453,9 +455,11 @@ local function runMatch(match: Match, players: { Player })
 		or (if scoreA > scoreB then "A" elseif scoreB > scoreA then "B" else nil)
 	stateFolder:SetAttribute(ATTR.MatchWinner, winner or "")
 	for player, participant in match.participants do
-		if winner and participant.team == winner then
+		local won = winner ~= nil and participant.team == winner
+		if won then
 			PlayerDataService.recordWin(player)
 		end
+		PlayerDataService.addXp(player, Progression.matchXp(participant.eliminations, won))
 	end
 	sendResults(match, winner)
 

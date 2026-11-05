@@ -31,6 +31,7 @@ GameContract.PlayerAttributes = {
 	LifetimeEliminations = "LifetimeEliminations",
 	Wins = "Wins",
 	Coins = "Coins",
+	XP = "XP", -- total experience (saved); level comes from Data/Progression
 	DataLoaded = "DataLoaded",
 	-- This round only
 	RoundEliminations = "RoundEliminations",

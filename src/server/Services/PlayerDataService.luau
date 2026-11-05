@@ -140,6 +140,7 @@ local function publishAttributes(profile: Profile)
 	player:SetAttribute(ATTR.LifetimeEliminations, profile.data.eliminations)
 	player:SetAttribute(ATTR.Wins, profile.data.wins)
 	player:SetAttribute(ATTR.Coins, profile.data.coins)
+	player:SetAttribute(ATTR.XP, profile.data.xp)
 	-- Shop: what they own and wear (everyone can see these, which is fine).
 	player:SetAttribute(ATTR.OwnedItems, table.concat(profile.data.ownedItems, ","))
 	player:SetAttribute(ATTR.EquippedColor, profile.data.equippedItems.Color)
@@ -422,6 +423,22 @@ function PlayerDataService.getData(player: Player): PlayerData?
 end
 
 -- Adds coins. Only whole, positive amounts are accepted.
+-- Adds experience. Only whole, positive amounts are accepted (server only).
+function PlayerDataService.addXp(player: Player, amount: number): boolean
+	local profile = profiles[player]
+	if profile == nil or typeof(amount) ~= "number" or amount ~= amount then
+		return false
+	end
+	amount = math.floor(amount)
+	if amount <= 0 then
+		return false
+	end
+	profile.data.xp = math.min(profile.data.xp + amount, Schema.MAX_STAT_VALUE)
+	profile.dirty = true
+	publishAttributes(profile)
+	return true
+end
+
 function PlayerDataService.addCoins(player: Player, amount: number): boolean
 	local profile = profiles[player]
 	if profile == nil or typeof(amount) ~= "number" or amount ~= amount then
