@@ -41,13 +41,24 @@ local MovementConfig = {
 	FovLerpSpeed = 12, -- how quickly the field of view eases back
 
 	-- BLOB LOOKS ---------------------------------------------------------
-	BlobBodySize = Vector3.new(4.2, 3.6, 4.2), -- a slightly squashed ball
-	BlobEyeSize = 1.1,
-	BlobPupilSize = 0.55,
-	BlobSmileDotSize = 0.28,
-	BlobSmileDots = 5,
-	BlobColorSaturation = 0.75, -- 0 = grey, 1 = very vivid
-	BlobColorBrightness = 1, -- 0 = black, 1 = very bright
+	-- The shape itself is built in server/Movement/BlobCharacter.luau.
+	BlobColorSaturation = 0.5, -- 0 = grey, 1 = very vivid (0.5 = soft candy colours)
+	BlobColorBrightness = 0.95, -- 0 = black, 1 = very bright
+	BlobHitboxSize = Vector3.new(4.6, 3.8, 4.4), -- the invisible box bullets hit
+
+	-- BLOB JIGGLE (purely visual, runs on each player's screen) ------------
+	JiggleStiffness = 120, -- higher = snappier wobble, lower = gooier
+	JiggleDamping = 8, -- higher = settles faster, lower = wobbles longer
+	SquashStiffness = 170,
+	SquashDamping = 9,
+	LeanAmount = 0.014, -- how far the top trails behind when moving
+	MaxLean = 0.8, -- studs
+	StretchAmount = 0.006, -- how much the blob stretches tall when jumping/falling
+	MaxStretch = 0.28,
+	SpeedFlatten = 0.2, -- how much it flattens at full dash speed
+	BreatheAmount = 0.03, -- gentle idle "breathing"
+	BreatheSpeed = 2.2,
+	JiggleDistance = 160, -- only animate blobs closer than this (studs), to save work
 
 	-- SERVER CHECKS (fairness) -------------------------------------------
 	-- These keep cheaters from moving faster or higher than the rules allow,
