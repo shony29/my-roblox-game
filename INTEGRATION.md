@@ -70,6 +70,8 @@ Folders each system creates in ReplicatedStorage at runtime (no clashes):
 | 13 | Two game titles ("Jelly Blitz" on main, "SHELL PARTY" placeholder on ui-data). | Menu title is now "JELLY BLITZ". |
 | 14 | Different config styles (one `Config.luau`, `MovementConfig`, `WeaponConfig`, `RoundConfig`, `PlayerDataSchema`). | Kept one config file per system, each in its own `Shared/<System>` folder. This table is the map. |
 | 15 | PlayerDataService only fetched the KillFeed remote inside `start()`. Separate Scripts run in any order, so an early elimination could miss the kill feed. | It now fetches the remote on first use. |
+| 16 | Coins were only shown on the main menu, which is hidden during play. | Added a small coin counter to the HUD (top left). |
+| 17 | `getPhase()` in the rounds HUD returned an `unknown` value as a `Phase`, which `--!strict` rejects. | Returns the exact phase words instead. |
 
 ## 3. Safety rules check (server is in charge)
 
@@ -82,7 +84,16 @@ Folders each system creates in ReplicatedStorage at runtime (no clashes):
 | Play button | Sends no data; rate-limited. |
 | Kill feed text | Client escapes RichText, so player names can't inject formatting. |
 
-## 4. Rojo layout (`default.project.json`)
+## 4. Still to test in Studio
+
+These could not be run here (no Roblox Studio in the cloud, and the type
+checker could not be downloaded), so they were checked by reading the code:
+
+- A full 2–3 player "Start" test (see README, Step 6 checklist).
+- Run luau-lsp / Studio's Script Analysis once to confirm there are no `--!strict` warnings.
+- Blob hitbox and headshots feel right (tune `BLOB_HEADSHOT_FRACTION` in `Shared/Combat/HitGroups`).
+
+## 5. Rojo layout (`default.project.json`)
 
 ```
 src/shared  → ReplicatedStorage.Shared          (Data, Combat, Movement, Rounds, Weapons)
