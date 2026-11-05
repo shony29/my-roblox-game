@@ -299,6 +299,14 @@ local function onFire(player: Player, weaponIdRaw: unknown, originRaw: unknown, 
 		local healthBefore = humanoid.Health
 		humanoid:TakeDamage(info.damage)
 		local killed = humanoid.Health <= 0
+		local victimCharacter = humanoid.Parent
+		if killed and victimCharacter then
+			-- The victim bursts into the shooter's topping (client/Effects/ToppingEffects).
+			local shooterData = PlayerDataService.getData(player)
+			if shooterData then
+				victimCharacter:SetAttribute("BurstTopping", shooterData.equippedItems.Topping)
+			end
+		end
 		-- Report what was really dealt (a spawn-protection bubble blocks it all).
 		local dealt = healthBefore - math.max(humanoid.Health, 0)
 		if dealt > 0 then

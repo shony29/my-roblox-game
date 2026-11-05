@@ -56,6 +56,9 @@ end)
 run("DailyService", function()
 	require(Services.DailyService).start()
 end)
+run("RobuxService", function()
+	require(Services.RobuxService).start() -- Robux purchases (monthly themed items)
+end)
 
 -- 4. Gameplay systems.
 run("MovementService", function()

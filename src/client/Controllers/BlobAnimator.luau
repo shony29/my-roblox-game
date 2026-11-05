@@ -8,7 +8,7 @@
 	  Jumping   stretches tall while rising/falling, wobbles in the air
 	  Landing   squishes on impact (harder after bigger falls), springs back
 	  Damage    quick jelly ripple and squinting eyes
-	  Death     collapses and bursts into a puff of particles
+	  Death     collapses and bursts into the eliminator's topping (Effects/ToppingEffects)
 
 	How: the server (Components/BlobCharacter) builds each blob from pieces
 	welded to the character and tags it "Blob". Every frame we move those
@@ -26,6 +26,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
+local ToppingEffects = require(script.Parent.Parent:WaitForChild("Effects"):WaitForChild("ToppingEffects"))
 local MovementConfig =
 	require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("MovementConfig"))
 
@@ -125,30 +126,6 @@ local function setEyesHeight(blob: Blob, heightScale: number?)
 	end
 end
 
--- A small puff of jelly particles where a slime was eliminated (local only).
-local function burst(position: Vector3, color: Color3)
-	-- Terrain sits at the world origin, so Position here is a world position.
-	local holder = Instance.new("Attachment")
-	holder.Position = position
-	holder.Parent = Workspace.Terrain
-	local emitter = Instance.new("ParticleEmitter")
-	emitter.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-	emitter.Color = ColorSequence.new(color)
-	emitter.LightEmission = 0.3
-	emitter.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.9), NumberSequenceKeypoint.new(1, 0) })
-	emitter.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.1), NumberSequenceKeypoint.new(1, 1) })
-	emitter.Lifetime = NumberRange.new(0.45, 0.8)
-	emitter.Speed = NumberRange.new(10, 22)
-	emitter.SpreadAngle = Vector2.new(180, 180)
-	emitter.Acceleration = Vector3.new(0, -45, 0)
-	emitter.Enabled = false
-	emitter.Parent = holder
-	emitter:Emit(burstCount)
-	task.delay(1.5, function()
-		holder:Destroy()
-	end)
-end
-
 local function onBlobRemoved(instance: Instance)
 	if not instance:IsA("Model") then
 		return
@@ -181,7 +158,14 @@ local function watchHealth(blob: Blob)
 		local root = blob.root
 		local dome = blob.model:FindFirstChild("Dome")
 		if root then
-			burst(root.Position, if dome and dome:IsA("BasePart") then dome.Color else Color3.new(1, 1, 1))
+			local position = root.Position
+			local color = if dome and dome:IsA("BasePart") then dome.Color else Color3.new(1, 1, 1)
+			-- The server tags the eliminated slime with the eliminator's topping
+			-- (kill effect); give that a moment to arrive, then burst.
+			task.delay(0.1, function()
+				local topping = if character then character:GetAttribute("BurstTopping") else nil
+				ToppingEffects.play(position, if typeof(topping) == "string" then topping else nil, color, burstCount < 28)
+			end)
 		end
 	end))
 end

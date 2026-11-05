@@ -20,6 +20,7 @@ export type EquippedItems = {
 	Color: string,
 	Hat: string,
 	Skin: string,
+	Topping: string, -- kill effect
 }
 
 export type PlayerData = {
@@ -29,13 +30,14 @@ export type PlayerData = {
 	coins: number, -- spendable coins
 	xp: number, -- total experience (the level is worked out from this, see Data/Progression)
 	lastDailyAt: number, -- os.time() of the last Daily Squishy claim (0 = never)
+	receipts: { string }, -- Robux purchases already granted (so one is never granted twice)
 	ownedItems: { string }, -- shop item Ids the player bought (free items are always owned)
 	equippedItems: EquippedItems, -- shop items the player is wearing
 }
 
 local Schema = {}
 
-Schema.VERSION = 4 -- 2: added ownedItems and equippedItems (the shop). 3: added xp. 4: added lastDailyAt
+Schema.VERSION = 5 -- 2: shop items. 3: xp. 4: lastDailyAt. 5: toppings and Robux receipts
 
 -- How many coins a player earns for each elimination.
 Schema.COINS_PER_ELIMINATION = 5
@@ -55,11 +57,13 @@ function Schema.default(): PlayerData
 		coins = 0,
 		xp = 0,
 		lastDailyAt = 0,
+		receipts = {},
 		ownedItems = {},
 		equippedItems = {
 			Color = ShopConfig.Defaults.Color,
 			Hat = ShopConfig.Defaults.Hat,
 			Skin = ShopConfig.Defaults.Skin,
+			Topping = ShopConfig.Defaults.Topping,
 		},
 	}
 end
@@ -137,7 +141,21 @@ function Schema.reconcile(raw: unknown): PlayerData
 		Color = cleanEquipped(equipped.Color, "Color", data.ownedItems),
 		Hat = cleanEquipped(equipped.Hat, "Hat", data.ownedItems),
 		Skin = cleanEquipped(equipped.Skin, "Skin", data.ownedItems),
+		Topping = cleanEquipped(equipped.Topping, "Topping", data.ownedItems), -- older saves: the default
 	}
+	-- Receipts: keep the newest 100 purchase ids (plenty to catch a retried purchase).
+	local receipts: { string } = {}
+	if typeof(source.receipts) == "table" then
+		for _, id in source.receipts :: { unknown } do
+			if typeof(id) == "string" and #id <= 100 then
+				table.insert(receipts, id)
+			end
+		end
+	end
+	while #receipts > 100 do
+		table.remove(receipts, 1)
+	end
+	data.receipts = receipts
 	data.schemaVersion = Schema.VERSION
 	return data
 end
@@ -150,12 +168,14 @@ function Schema.copy(data: PlayerData): PlayerData
 		coins = data.coins,
 		xp = data.xp,
 		lastDailyAt = data.lastDailyAt,
+		receipts = table.clone(data.receipts),
 		-- New tables, so a save snapshot never changes while it is being written.
 		ownedItems = table.clone(data.ownedItems),
 		equippedItems = {
 			Color = data.equippedItems.Color,
 			Hat = data.equippedItems.Hat,
 			Skin = data.equippedItems.Skin,
+			Topping = data.equippedItems.Topping,
 		},
 	}
 end

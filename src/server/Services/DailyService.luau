@@ -7,8 +7,10 @@
 	are just animation). The server checks the player's data is loaded and
 	the 24 hours have passed (PlayerDataService.tryClaimDaily, which can't
 	be claimed twice), then picks the prize itself:
-	  * a random item they don't own yet: a colour, hat, skin or gun
-	    (guns are rarer), added to their items for free;
+	  * first a rarity is rolled: 40% Common, 30% Uncommon, 20% Rare,
+	    8% Epic, 2% Legendary (Config/ShopConfig.Rarities),
+	  * then a random item of that rarity they don't own yet (a colour,
+	    squishy, skin, topping or gun), added to their items for free;
 	  * or, if they already own everything, 150 coins.
 ]]
 
@@ -22,13 +24,6 @@ local PlayerDataService = require(script.Parent.PlayerDataService)
 
 type Category = ShopConfig.Category
 
--- How likely each kind of prize is (guns are rarer).
-local CATEGORY_WEIGHTS: { { category: Category, weight: number } } = {
-	{ category = "Color", weight = 35 },
-	{ category = "Hat", weight = 25 },
-	{ category = "Skin", weight = 25 },
-	{ category = "Weapon", weight = 15 },
-}
 local FALLBACK_COINS = 150
 
 local DailyService = {}
@@ -37,41 +32,62 @@ local random = Random.new()
 local limiter = RateLimiter.new(1, 2) -- one claim attempt per 2 seconds
 local started = false
 
-local function itemsIn(category: Category): { { Id: string, Price: number } }
+local CATEGORIES: { Category } = { "Color", "Hat", "Skin", "Weapon", "Topping" }
+
+local function itemsIn(category: Category): { { Id: string, Price: number, Robux: number? } }
 	if category == "Color" then
 		return ShopConfig.Colors :: any
 	elseif category == "Hat" then
 		return ShopConfig.Hats :: any
 	elseif category == "Skin" then
 		return ShopConfig.Skins :: any
+	elseif category == "Topping" then
+		return ShopConfig.Toppings :: any
 	end
 	return ShopConfig.Weapons :: any
 end
 
--- Picks a prize the player doesn't own yet, or nil if they own everything.
-local function pickItem(player: Player): ShopConfig.ShopItem?
-	local choices: { { category: Category, weight: number, ids: { string } } } = {}
-	local total = 0
-	for _, entry in CATEGORY_WEIGHTS do
-		local ids: { string } = {}
-		for _, item in itemsIn(entry.category) do
-			if item.Price > 0 and not PlayerDataService.ownsItem(player, item.Id) then
-				table.insert(ids, item.Id)
+-- Every coin item the player doesn't own yet, grouped by rarity name.
+local function unownedByRarity(player: Player): { [string]: { ShopConfig.ShopItem } }
+	local groups: { [string]: { ShopConfig.ShopItem } } = {}
+	for _, category in CATEGORIES do
+		for _, raw in itemsIn(category) do
+			local item = ShopConfig.getItem(raw.Id)
+			-- Coin items only: Robux (themed) and free items are never given away.
+			if item and item.Price > 0 and item.Robux == nil and not PlayerDataService.ownsItem(player, item.Id) then
+				local rarity = ShopConfig.rarityOf(item).Name
+				groups[rarity] = groups[rarity] or {}
+				table.insert(groups[rarity], item)
 			end
 		end
-		if #ids > 0 then
-			table.insert(choices, { category = entry.category, weight = entry.weight, ids = ids })
-			total += entry.weight
+	end
+	return groups
+end
+
+--[[
+	Rolls a rarity (40% Common, 30% Uncommon, 20% Rare, 8% Epic, 2% Legendary,
+	from ShopConfig.Rarities), then picks an unowned item of that rarity. If
+	they own every item of that rarity, the nearest rarity that still has
+	something (lower first) is used. Returns nil if they own everything.
+]]
+local function pickItem(player: Player): ShopConfig.ShopItem?
+	local groups = unownedByRarity(player)
+	local roll = random:NextNumber(0, 100)
+	local rolled = #ShopConfig.Rarities
+	for index, rarity in ShopConfig.Rarities do
+		roll -= rarity.Chance
+		if roll <= 0 then
+			rolled = index
+			break
 		end
 	end
-	if total == 0 then
-		return nil
-	end
-	local roll = random:NextNumber(0, total)
-	for _, choice in choices do
-		roll -= choice.weight
-		if roll <= 0 or choice == choices[#choices] then
-			return ShopConfig.getItem(choice.ids[random:NextInteger(1, #choice.ids)])
+	for distance = 0, #ShopConfig.Rarities do
+		for _, index in { rolled - distance, rolled + distance } do
+			local rarity = ShopConfig.Rarities[index]
+			local group = rarity and groups[rarity.Name]
+			if group and #group > 0 then
+				return group[random:NextInteger(1, #group)]
+			end
 		end
 	end
 	return nil
@@ -92,7 +108,14 @@ local function claim(player: Player): { [string]: any }
 	if item then
 		PlayerDataService.purchaseItem(player, item.Id, 0) -- a free gift: adds it, costs nothing
 		PlayerDataService.saveNow(player)
-		return { ok = true, kind = "Item", itemId = item.Id, displayName = item.DisplayName, category = item.Category }
+		return {
+			ok = true,
+			kind = "Item",
+			itemId = item.Id,
+			displayName = item.DisplayName,
+			category = item.Category,
+			rarity = ShopConfig.rarityOf(item).Name,
+		}
 	end
 	PlayerDataService.addCoins(player, FALLBACK_COINS)
 	PlayerDataService.saveNow(player)

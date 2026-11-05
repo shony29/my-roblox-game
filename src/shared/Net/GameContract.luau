@@ -44,6 +44,7 @@ GameContract.PlayerAttributes = {
 	EquippedColor = "EquippedColor",
 	EquippedHat = "EquippedHat",
 	EquippedSkin = "EquippedSkin",
+	EquippedTopping = "EquippedTopping",
 }
 
 GameContract.WeaponAttributes = {

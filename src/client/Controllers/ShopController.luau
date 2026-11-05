@@ -15,6 +15,7 @@
 	your coins all come from attributes the server sets on your Player.
 ]]
 
+local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -54,6 +55,7 @@ local TABS: { { category: Category, title: string } } = {
 	{ category = "Hat", title = "Squishies" },
 	{ category = "Skin", title = "Skins" },
 	{ category = "Weapon", title = "Guns" },
+	{ category = "Topping", title = "Toppings" },
 }
 
 local ShopController = {}
@@ -93,6 +95,7 @@ local function equippedId(category: Category): string
 	local attribute = if category == "Color"
 		then ATTR.EquippedColor
 		elseif category == "Hat" then ATTR.EquippedHat
+		elseif category == "Topping" then ATTR.EquippedTopping
 		else ATTR.EquippedSkin
 	local value = player:GetAttribute(attribute)
 	return if typeof(value) == "string" then value else ShopConfig.defaultFor(category)
@@ -151,15 +154,23 @@ end
 
 -- Updating the cards ---------------------------------------------------------
 
+local MONTH_NAMES = { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" }
+
 local function refreshCards()
 	local owned = ownedIds()
 	local myCoins = coins()
+	local month = ShopConfig.currentMonth()
 	for _, card in cards do
 		local item = card.item
 		local isGun = item.Category == "Weapon" -- guns are owned (in your loadout), not worn
 		local isEquipped = not isGun and equippedId(item.Category) == item.Id
 		local isOwned = item.Price <= 0 or owned[item.Id] == true
 		local status, button = card.status, card.button
+		-- Monthly themed items only show during their month (or once you own them).
+		local cardFrame = button.Parent
+		if cardFrame and cardFrame:IsA("GuiObject") then
+			cardFrame.Visible = isOwned or ShopConfig.isOnSale(item, month)
+		end
 
 		if isEquipped then
 			status.Text = "Equipped"
@@ -171,6 +182,12 @@ local function refreshCards()
 			status.TextColor3 = Colors.SkyDeep
 			button.Text = if isGun then "OWNED" else "EQUIP"
 			button.BackgroundColor3 = if isGun then Colors.Mint else Colors.SkyDeep
+		elseif item.Robux then
+			local onSale = (item.ProductId or 0) > 0
+			status.Text = `R$ {item.Robux} · {MONTH_NAMES[item.Month or month]} only`
+			status.TextColor3 = Colors.SkyDeep
+			button.Text = if onSale then "BUY R$" else "SOON"
+			button.BackgroundColor3 = if onSale then Colors.Sky else GREY
 		else
 			status.Text = tostring(item.Price) .. " coins"
 			status.TextColor3 = Colors.YolkDark
@@ -229,6 +246,16 @@ local function onCardPressed(item: ShopItem)
 		task.spawn(sendRequest, remotes.EquipItem, item)
 		return
 	end
+	if item.Robux then
+		-- Monthly themed items are bought with Robux through Roblox's own window;
+		-- the server grants them when Roblox confirms the purchase (RobuxService).
+		if (item.ProductId or 0) <= 0 then
+			showToast(item.DisplayName .. " isn't on sale yet.", false)
+		else
+			MarketplaceService:PromptProductPurchase(player, item.ProductId :: number)
+		end
+		return
+	end
 	local missing = item.Price - coins()
 	if missing > 0 then
 		showToast("You need " .. tostring(missing) .. " more coins for " .. item.DisplayName .. ".", false)
@@ -273,11 +300,44 @@ local function buildCard(page: ScrollingFrame, item: ShopItem, order: number)
 	UIHelpers.corner(previewBox, UDim.new(0, 14))
 	previewBox.Parent = card
 
+	-- Rarity tag (COMMON / UNCOMMON / RARE / EPIC / LEGENDARY) in its colour.
+	local rarity = ShopConfig.rarityOf(item)
+	local rarityTag = UIHelpers.label("Rarity", string.upper(rarity.Name), 13, Theme.Fonts.Title)
+	rarityTag.Size = UDim2.fromOffset(110, 18)
+	rarityTag.Position = UDim2.fromOffset(16, 12)
+	rarityTag.TextXAlignment = Enum.TextXAlignment.Left
+	rarityTag.TextColor3 = rarity.Color
+	rarityTag.ZIndex = 3
+	UIHelpers.textStroke(rarityTag, 1.5)
+	rarityTag.Parent = card
+
 	if item.Category == "Color" then
 		ItemPreview.color(previewBox, ShopConfig.getColor(item.Id))
 	elseif item.Category == "Hat" then
 		local blobColor = ShopConfig.getColor(equippedId("Color")).Color
 		table.insert(hatColorSetters, ItemPreview.hat(previewBox, ShopConfig.getHat(item.Id), blobColor))
+	elseif item.Category == "Topping" then
+		-- Toppings: the charms, or a sprinkle of the topping's colours.
+		local topping = ShopConfig.getTopping(item.Id)
+		if topping.Charms then
+			local charms = UIHelpers.label("Charms", table.concat(topping.Charms, " "), 26)
+			charms.TextWrapped = true
+			charms.Parent = previewBox
+		else
+			local random = Random.new(#item.Id)
+			for i = 1, 14 do
+				local color = topping.Colors[(i % #topping.Colors) + 1]
+				local size = if topping.Style == "Sprinkles" then UDim2.fromOffset(5, 16) elseif topping.Style == "Glitter" then UDim2.fromOffset(7, 7) else UDim2.fromOffset(14, 14)
+				local bit = UIHelpers.frame("Bit", size, UDim2.fromScale(random:NextNumber(0.1, 0.9), random:NextNumber(0.15, 0.85)), Vector2.new(0.5, 0.5))
+				bit.BackgroundColor3 = color
+				bit.BackgroundTransparency = 0
+				bit.Rotation = random:NextNumber(0, 180)
+				if topping.Style ~= "Glitter" then
+					UIHelpers.corner(bit, UDim.new(1, 0))
+				end
+				bit.Parent = previewBox
+			end
+		end
 	elseif item.Category == "Weapon" then
 		-- Guns: what it's good at and its key numbers.
 		local gun = ShopConfig.getWeapon(item.Id)
@@ -360,6 +420,14 @@ local function itemsIn(category: Category): { ShopItem }
 		end
 	elseif category == "Hat" then
 		for _, entry in ShopConfig.Hats do
+			table.insert(ids, entry.Id)
+		end
+	elseif category == "Weapon" then
+		for _, entry in ShopConfig.Weapons do
+			table.insert(ids, entry.Id)
+		end
+	elseif category == "Topping" then
+		for _, entry in ShopConfig.Toppings do
 			table.insert(ids, entry.Id)
 		end
 	else

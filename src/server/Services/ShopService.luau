@@ -84,6 +84,9 @@ end
 
 -- Buys an item and puts it on straight away.
 function ShopService.buy(player: Player, item: ShopConfig.ShopItem): (boolean, string)
+	if item.Robux then
+		return false, item.DisplayName .. " is bought with Robux." -- never with coins
+	end
 	local result = PlayerDataService.purchaseItem(player, item.Id, item.Price)
 	if result == "NotLoaded" then
 		return false, "Your coins are still loading. Try again in a moment!"

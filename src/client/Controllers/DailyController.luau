@@ -18,6 +18,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local GameContract = require(Shared:WaitForChild("Net"):WaitForChild("GameContract"))
 local Net = require(Shared:WaitForChild("Net"):WaitForChild("Net"))
+local ShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("ShopConfig"))
 local UIFolder = script.Parent.Parent:WaitForChild("UI")
 local Theme = require(UIFolder:WaitForChild("Theme"))
 local UIHelpers = require(UIFolder:WaitForChild("UIHelpers"))
@@ -33,6 +34,7 @@ local CATEGORY_TEXT: { [string]: string } = {
 	Hat = "New squishy! Wear it on your slime.",
 	Skin = "New skin!",
 	Weapon = "New gun! It's in your loadout.",
+	Topping = "New topping! Opponents you eliminate burst into it.",
 }
 
 local player = Players.LocalPlayer
@@ -176,6 +178,37 @@ function DailyController.start()
 	UIHelpers.corner(closeButton, UDim.new(1, 0))
 	closeButton.Parent = gui
 
+	-- The odds, so everyone can see what each rarity's chance is.
+	local odds = UIHelpers.frame("Odds", UDim2.fromOffset(240, 250), UDim2.new(1, -40, 0.55, 0), Vector2.new(1, 0.5))
+	UIHelpers.corner(odds, UDim.new(0, 16))
+	UIHelpers.stroke(odds, Colors.Ink, 3)
+	odds.Parent = gui
+	local oddsTitle = UIHelpers.label("Title", "CHANCES", 24, Theme.Fonts.Title)
+	oddsTitle.Size = UDim2.new(1, 0, 0, 34)
+	oddsTitle.Position = UDim2.fromOffset(0, 8)
+	oddsTitle.TextColor3 = Colors.Yolk
+	oddsTitle.Parent = odds
+	for index, rarity in ShopConfig.Rarities do
+		local row = UIHelpers.label("Row" .. index, `{rarity.Name}`, 20, Theme.Fonts.Title)
+		row.Size = UDim2.new(1, -28, 0, 30)
+		row.Position = UDim2.fromOffset(14, 44 + (index - 1) * 32)
+		row.TextXAlignment = Enum.TextXAlignment.Left
+		row.TextColor3 = rarity.Color
+		UIHelpers.textStroke(row, 1.5)
+		row.Parent = odds
+		local percent = UIHelpers.label("Percent", `{rarity.Chance}%`, 20, Theme.Fonts.Title)
+		percent.Size = UDim2.fromScale(1, 1)
+		percent.TextXAlignment = Enum.TextXAlignment.Right
+		percent.TextColor3 = rarity.Color
+		UIHelpers.textStroke(percent, 1.5)
+		percent.Parent = row
+	end
+	local fresh = UIHelpers.label("Note", "Every squishy is a fresh roll", 14)
+	fresh.Size = UDim2.new(1, -16, 0, 22)
+	fresh.Position = UDim2.new(0, 8, 1, -30)
+	fresh.TextColor3 = Colors.Shell
+	fresh.Parent = odds
+
 	local taps = 0
 	local busy = false
 
@@ -219,6 +252,14 @@ function DailyController.start()
 
 	local function showPrize(result: { [string]: any })
 		local name = if typeof(result.displayName) == "string" then result.displayName else "A surprise"
+		local rarityInfo = nil
+		for _, rarity in ShopConfig.Rarities do
+			if rarity.Name == result.rarity then
+				rarityInfo = rarity
+			end
+		end
+		prizeTop.Text = if rarityInfo then `YOU GOT · {string.upper(rarityInfo.Name)}` else "YOU GOT"
+		prizeTop.TextColor3 = if rarityInfo then rarityInfo.Color else Colors.Sky
 		prizeName.Text = string.upper(name)
 		prizeKind.Text = if result.kind == "Coins"
 			then "You own everything, so here are coins!"

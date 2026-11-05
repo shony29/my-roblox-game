@@ -142,6 +142,7 @@ Things to check:
 - [ ] First to 5 rounds shows the **results screen** (VICTORY / DEFEAT, MVP, stats, coins).
 - [ ] Press **REMATCH** in both windows: a new match starts with the same players. Otherwise both return to the lobby after 10 seconds.
 - [ ] Sprint, dash, double jump and slide work; other players see your blob jiggle as it moves.
+- [ ] Open the shop (the counter, or **B**). Every card shows its rarity. Try the **Toppings** tab: equip one, then eliminate someone and watch them burst into it.
 - [ ] Press **B** for the shop; buying a colour recolours your blob. In the **Guns** tab, buy a gun: it appears in your weapon bar next match (everyone starts with only the Auto Rifle).
 - [ ] In the lobby there are no guns, no crosshair and no weapon bar.
 
@@ -155,6 +156,35 @@ Things to check:
 away. Stop the test and start it again to try your change.
 
 ---
+
+## Selling the monthly themed items for Robux
+
+Every month has a themed set (a blob colour, a squishy, a gun skin and a charm-packet
+topping, e.g. **December = Christmas**, **January = Winter Wonderland**). They only show in
+the shop during their month and are bought with **Robux**. Until you set them up they show
+**SOON**.
+
+1. Publish the game (File → Publish to Roblox).
+2. Open the [Creator Dashboard](https://create.roblox.com/dashboard/creations), pick your game,
+   then **Monetization → Developer Products → Create a Developer Product**. Make one product per
+   themed item (name it like the item, e.g. "Christmas Charm Packet", and set its Robux price).
+3. Copy each product's **ID** into `src/shared/Config/ShopConfig.luau`, in `ShopConfig.ProductIds`:
+
+   ```lua
+   ShopConfig.ProductIds = {
+   	["Theme_Christmas_Topping"] = 1234567890,
+   	["Theme_Christmas_Squishy"] = 1234567891,
+   }
+   ```
+
+   Item names are `Theme_<Theme>_Color`, `_Squishy`, `_Skin` or `_Topping`, where `<Theme>` is
+   Winter, Sweetheart, Lucky, Bloom, Berry, Splash, Sparkler, Tropical, School, Spooky, Harvest or
+   Christmas.
+4. Save (Rojo syncs it) and publish again. In Studio, Roblox shows a *test* purchase window,
+   so no real Robux are spent while testing.
+
+Only the server grants Robux items (after Roblox confirms the payment), each purchase is
+granted once, and guns are never sold for Robux, only cosmetics.
 
 ## Changing the numbers
 

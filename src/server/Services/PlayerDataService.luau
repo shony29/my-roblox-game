@@ -150,6 +150,7 @@ local function publishAttributes(profile: Profile)
 	player:SetAttribute(ATTR.EquippedColor, profile.data.equippedItems.Color)
 	player:SetAttribute(ATTR.EquippedHat, profile.data.equippedItems.Hat)
 	player:SetAttribute(ATTR.EquippedSkin, profile.data.equippedItems.Skin)
+	player:SetAttribute(ATTR.EquippedTopping, profile.data.equippedItems.Topping)
 end
 
 -- Loading -------------------------------------------------------------------
@@ -443,6 +444,31 @@ function PlayerDataService.tryClaimDaily(player: Player, now: number): boolean
 	return true
 end
 
+--[[
+	Grants an item bought with Robux (called from the purchase receipt handler).
+	`purchaseId` is Roblox's id for this purchase: if it was already granted,
+	nothing happens again. Returns "Granted", "AlreadyGranted" or "NotLoaded".
+]]
+function PlayerDataService.grantPurchase(player: Player, itemId: string, purchaseId: string): string
+	local profile = profiles[player]
+	if profile == nil then
+		return "NotLoaded"
+	end
+	if table.find(profile.data.receipts, purchaseId) then
+		return "AlreadyGranted"
+	end
+	if not table.find(profile.data.ownedItems, itemId) then
+		table.insert(profile.data.ownedItems, itemId)
+	end
+	table.insert(profile.data.receipts, purchaseId)
+	while #profile.data.receipts > 100 do
+		table.remove(profile.data.receipts, 1)
+	end
+	profile.dirty = true
+	publishAttributes(profile)
+	return "Granted"
+end
+
 -- Adds experience. Only whole, positive amounts are accepted (server only).
 function PlayerDataService.addXp(player: Player, amount: number): boolean
 	local profile = profiles[player]
@@ -575,6 +601,8 @@ function PlayerDataService.setEquippedItem(player: Player, category: ShopConfig.
 		equipped.Hat = itemId
 	elseif category == "Skin" then
 		equipped.Skin = itemId
+	elseif category == "Topping" then
+		equipped.Topping = itemId
 	else
 		return false -- guns are owned, not worn
 	end
