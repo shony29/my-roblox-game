@@ -217,7 +217,6 @@ local function addParticipant(match: Match, player: Player, team: TeamId)
 	player:SetAttribute(PATTR.Deaths, 0)
 	player:SetAttribute(PATTR.Damage, 0)
 	setStatus(player, "InMatch")
-	LobbyService.useMatchCamera(player)
 	table.insert(participant.connections, player.CharacterAdded:Connect(function(character: Model)
 		watchCharacter(match, participant, character)
 	end))
@@ -333,6 +332,7 @@ local function spawnAll(match: Match)
 		pending += 1
 		participant.alive = false
 		task.spawn(function()
+			LobbyService.useMatchCamera(player) -- first person from the moment they reach the arena
 			local character = SpawnService.spawn(player, participant.team)
 			if character and match.participants[player] == participant then
 				participant.alive = true

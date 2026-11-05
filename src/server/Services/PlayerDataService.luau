@@ -127,6 +127,15 @@ local function getStore(): DataStore?
 	return nil
 end
 
+-- True for errors that retrying can't fix in Studio: the place isn't
+-- published, or "Enable Studio Access to API Services" is turned off.
+local function isStudioAccessError(err: unknown): boolean
+	local text = string.lower(tostring(err))
+	return string.find(text, "studio", 1, true) ~= nil
+		or string.find(text, "publish", 1, true) ~= nil
+		or string.find(text, "403", 1, true) ~= nil
+end
+
 local function isLockedByOtherServer(record: StoredRecord?): boolean
 	if record == nil or record.lock == nil then
 		return false
@@ -166,7 +175,9 @@ local function loadData(key: string): PlayerData?
 
 	local lockWaits = 0
 	local attempt = 0
-	while attempt < MAX_ATTEMPTS do
+	-- In Studio, don't make the tester wait long: 2 tries is plenty.
+	local maxAttempts = if RunService:IsStudio() then 2 else MAX_ATTEMPTS
+	while attempt < maxAttempts do
 		attempt += 1
 		local lockedElsewhere = false
 		local stealLock = lockWaits >= LOCK_WAIT_ATTEMPTS
@@ -203,7 +214,10 @@ local function loadData(key: string): PlayerData?
 			return Schema.reconcile((result :: StoredRecord).data)
 		else
 			warn(string.format("[PlayerData] Load attempt %d for %s failed: %s", attempt, key, tostring(result)))
-			if attempt < MAX_ATTEMPTS then
+			if RunService:IsStudio() and isStudioAccessError(result) then
+				return nil -- retrying won't help; play with temporary data straight away
+			end
+			if attempt < maxAttempts then
 				backoff(attempt)
 			end
 		end

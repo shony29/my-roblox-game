@@ -76,6 +76,8 @@ local function buildHall(model: Model)
 		box(model, "WallFront", Vector3.new(sideWidth, HALL_HEIGHT, 2), at(side * (gap + sideWidth / 2), HALL_HEIGHT / 2, -HALL_Z - 1), METAL)
 	end
 	box(model, "WallFrontTop", Vector3.new(gap * 2, HALL_HEIGHT - PORTAL_RADIUS * 2, 2), at(0, PORTAL_RADIUS * 2 + (HALL_HEIGHT - PORTAL_RADIUS * 2) / 2, -HALL_Z - 1), METAL)
+	-- Floor through the doorway, joining the hall floor to the hallway floor.
+	box(model, "PortalFloor", Vector3.new(gap * 2, 2, 6), at(0, -1, -HALL_Z - 1), METAL_DARK, Enum.Material.DiamondPlate)
 
 	-- The portal: an octagon frame with a glowing purple inner ring.
 	local portalCenter = at(0, PORTAL_RADIUS, -HALL_Z + 0.5)

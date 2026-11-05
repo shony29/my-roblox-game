@@ -13,6 +13,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local SpawnConfig = require(ReplicatedStorage.Shared.Config.SpawnConfig)
 local MatchState = require(ReplicatedStorage.Shared.Match.MatchState)
@@ -113,6 +114,15 @@ function SpawnService.spawn(player: Player, team: TeamId?): Model?
 		return nil
 	end
 	local spawnCFrame = SpawnService.chooseSpawn(player, team)
+	-- With instance streaming on, load the floor there first (see LobbyService.streamAround).
+	if Workspace.StreamingEnabled then
+		pcall(function()
+			player:RequestStreamAroundAsync(spawnCFrame.Position, 5)
+		end)
+		if player.Parent ~= Players then
+			return nil
+		end
+	end
 	player:LoadCharacter()
 	local character = player.Character
 	if not character or player.Parent ~= Players then

@@ -10,19 +10,42 @@
 
 	Services start here, one after another, in a fixed order. (Separate
 	Scripts start in a random order, which once caused a kill-feed bug.)
-	Each step is protected: if one fails, its error is printed in the Output
-	window and the other systems still start.
+	Each step is protected:
+	  * if one fails, its error is printed in the Output window and the
+	    other systems still start;
+	  * if one takes too long, the next ones start anyway.
+	At the end, one line in the Output says how many systems started. The
+	same report is shown on players' screens if something failed.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local Services = script.Services
+local GameConfig = require(Shared.Config.GameConfig)
+
+local STEP_TIMEOUT = 10 -- seconds before we stop waiting for a slow step
+
+local problems: { string } = {}
+local stepCount = 0
 
 local function run(stepName: string, step: () -> ())
-	local ok, err = xpcall(step, debug.traceback)
-	if not ok then
-		warn(`[Server] "{stepName}" failed to start:\n{err}`)
+	stepCount += 1
+	local finished = false
+	task.spawn(function()
+		local ok, err = xpcall(step, debug.traceback)
+		if not ok then
+			table.insert(problems, stepName)
+			warn(`[Server] "{stepName}" failed to start:\n{err}`)
+		end
+		finished = true
+	end)
+	local waited = 0
+	while not finished and waited < STEP_TIMEOUT do
+		waited += task.wait()
+	end
+	if not finished then
+		warn(`[Server] "{stepName}" is still starting after {STEP_TIMEOUT} seconds; starting the rest anyway.`)
 	end
 end
 
@@ -71,15 +94,37 @@ run("AmmoService", function()
 	require(Services.AmmoService).start() -- slime ammo balls on the maps
 end)
 
--- 5. Build the arena and lobby, then start matches and matchmaking.
-run("Map and matches", function()
+-- 5. The lobby first (pressing Play puts you there), then the arena,
+-- matches and matchmaking. Separate steps, so a broken map can't stop
+-- the lobby from working.
+run("LobbyService", function()
+	require(Services.LobbyService).start() -- the slime bunker lobby
+end)
+run("MapService", function()
 	-- Build the default map now, so the arena is ready before the first match.
 	local MapConfig = require(Shared.Config.MapConfig)
-	require(Services.MapService).load(MapConfig.Default)
-	require(Services.LobbyService).start() -- the floating lobby island (Play puts you here)
+	if not require(Services.MapService).load(MapConfig.Default) then
+		error(`the default map "{MapConfig.Default}" could not be built (see the warning above)`)
+	end
+end)
+run("BotService", function()
 	require(Services.BotService).start() -- practice bots (only act during rounds)
+end)
+run("MatchService", function()
 	require(Services.MatchService).start()
-	require(Services.QueueService).start() -- matchmaking hands full queues to MatchService
+end)
+run("QueueService", function()
+	require(Services.QueueService).start() -- the queue pads hand full queues to MatchService
 end)
 
-print("[Slime Showdown] Server started")
+-- The report: in the Output, and as attributes the client's start-up shows on screen.
+ReplicatedStorage:SetAttribute("ServerVersion", GameConfig.Version)
+ReplicatedStorage:SetAttribute("ServerProblems", table.concat(problems, ", "))
+if #problems == 0 then
+	print(`[Slime Showdown] Server started: all {stepCount} systems OK (version {GameConfig.Version})`)
+else
+	warn(
+		`[Slime Showdown] Server started, but {#problems} of {stepCount} systems failed: {table.concat(problems, ", ")}. `
+			.. "Scroll up in the Output window for the orange error text of each one."
+	)
+end

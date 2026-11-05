@@ -12,6 +12,11 @@
         "$path": "src/server"
       }
     },
+    "Workspace": {
+      "$properties": {
+        "StreamingEnabled": false
+      }
+    },
     "Players": {
       "$properties": {
         "CharacterAutoLoads": false

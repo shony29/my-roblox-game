@@ -95,7 +95,54 @@ project needs (it's listed in `rokit.toml`).
    - `StarterPlayer → StarterPlayerScripts → Client` (code that runs on each player's device)
 
    Rojo also switches off `Players → CharacterAutoLoads`, so players only
-   appear after pressing **Play** on the menu. That's expected.
+   appear after pressing **Play** on the menu. That's expected. It also
+   switches off `Workspace → StreamingEnabled`: the maps are small, so every
+   player's device loads the whole world and nobody falls through a floor
+   that hasn't loaded yet.
+5. Press **Play** in Studio. The bottom-left corner of the game's main menu
+   shows the version, for example **Slime Showdown v0.3.0**.
+
+## Getting the newest version (every time the game is updated)
+
+Updates are saved to GitHub, not straight into your Studio. Your computer
+keeps the copy you downloaded until you fetch the new one:
+
+1. Stop Rojo: click the terminal window that is running `rojo serve` and
+   press **Ctrl + C**.
+2. In that terminal, inside the `my-roblox-game` folder, download the changes:
+
+   ```bash
+   git pull
+   ```
+
+   (Used **Download ZIP** instead of Git? Download the ZIP again and use the
+   new folder instead of the old one.)
+3. Start Rojo again:
+
+   ```bash
+   rojo serve
+   ```
+
+4. In Studio: **Plugins → Rojo → Disconnect** (if it still says connected),
+   then **Connect** again.
+5. Press **Play** and check the version in the bottom-left corner of the main
+   menu. If it doesn't show the newest version number (or shows no version
+   at all), Studio is still running an old copy.
+
+If `git pull` says *"Your local changes would be overwritten"*, a file was
+edited on your computer. Run `git stash`, then `git pull` again.
+(`git stash pop` brings your own edit back afterwards.)
+
+## If something isn't working
+
+1. In Studio, open **View → Output** before you press Play.
+2. Press **Play**. Near the top of the Output you should see:
+   `[Slime Showdown] Server started: all 16 systems OK` and
+   `[Slime Showdown] Client started: all systems OK`.
+3. If a system failed, that line names it, and the orange text above it says
+   why. A red message also appears at the top of the game screen.
+4. Copy those orange or red lines into the chat. They point straight at the
+   problem.
 
 ## Step 5: Try it alone
 

@@ -12,6 +12,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local MatchState = require(ReplicatedStorage.Shared.Match.MatchState)
 local GameContract = require(ReplicatedStorage.Shared.Net.GameContract)
@@ -50,6 +51,24 @@ function LobbyService.useMatchCamera(player: Player)
 	player.CameraMode = Enum.CameraMode.LockFirstPerson
 end
 
+--[[
+	If the place uses instance streaming (Workspace.StreamingEnabled), a
+	player's device only loads parts near them. Before moving someone far
+	away, ask Roblox to load the floor there first, so they can't fall
+	through it. Waits at most 5 seconds; does nothing without streaming.
+]]
+function LobbyService.streamAround(player: Player, position: Vector3)
+	if not Workspace.StreamingEnabled then
+		return
+	end
+	local ok, err = pcall(function()
+		player:RequestStreamAroundAsync(position, 5)
+	end)
+	if not ok then
+		warn(`[LobbyService] Couldn't pre-load the area for {player.Name}: {err}`)
+	end
+end
+
 -- Puts the player on the lobby plaza with a fresh character. Yields.
 function LobbyService.spawn(player: Player)
 	local current = lobby
@@ -60,11 +79,16 @@ function LobbyService.spawn(player: Player)
 		player:SetAttribute(PATTR.Status, "Lobby")
 	end
 	LobbyService.useLobbyCamera(player)
+	local nudge = Vector3.new(random:NextNumber(-SPAWN_SPREAD, SPAWN_SPREAD), 0, random:NextNumber(-SPAWN_SPREAD, SPAWN_SPREAD))
+	local target = current.spawnCFrame + nudge
+	LobbyService.streamAround(player, target.Position)
+	if player.Parent ~= Players then
+		return
+	end
 	player:LoadCharacter()
 	local character = player.Character
 	if character and player.Parent == Players then
-		local nudge = Vector3.new(random:NextNumber(-SPAWN_SPREAD, SPAWN_SPREAD), 0, random:NextNumber(-SPAWN_SPREAD, SPAWN_SPREAD))
-		character:PivotTo(current.spawnCFrame + nudge)
+		character:PivotTo(target)
 	end
 end
 
@@ -99,13 +123,37 @@ local function onPlayerAdded(player: Player)
 	onPlayPressed()
 end
 
+-- If the bunker can't be built, a plain floor still lets players in
+-- (the error is printed in the Output window).
+local function fallbackLobby(): LobbyBuilder.Lobby
+	local model = Instance.new("Model")
+	model.Name = "Lobby"
+	local floor = Instance.new("Part")
+	floor.Name = "FallbackFloor"
+	floor.Anchored = true
+	floor.Size = Vector3.new(80, 2, 80)
+	floor.CFrame = CFrame.new(0, 299, 700)
+	floor.Color = Color3.fromRGB(70, 74, 82)
+	floor.Material = Enum.Material.DiamondPlate
+	floor.Parent = model
+	model.Parent = Workspace
+	return { model = model, spawnCFrame = CFrame.new(0, 304, 700), origin = Vector3.new(0, 300, 700), pads = {} }
+end
+
 function LobbyService.start()
 	if started then
 		return
 	end
 	started = true
-	lobby = LobbyBuilder.build()
+	-- Listen for players first, so the Play button works even if building fails.
 	Players.PlayerAdded:Connect(onPlayerAdded)
+	local ok, result = pcall(LobbyBuilder.build)
+	if ok then
+		lobby = result
+	else
+		warn(`[LobbyService] Building the lobby failed, using a plain floor instead: {result}`)
+		lobby = fallbackLobby()
+	end
 	for _, player in Players:GetPlayers() do
 		task.spawn(onPlayerAdded, player)
 	end
