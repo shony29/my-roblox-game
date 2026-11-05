@@ -23,11 +23,13 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local MovementConfig = require(Shared:WaitForChild("Config"):WaitForChild("MovementConfig"))
+local CameraConfig = require(Shared:WaitForChild("Config"):WaitForChild("CameraConfig"))
 local MovementNet = require(Shared:WaitForChild("Net"):WaitForChild("MovementNet"))
 local DashIndicator = require(script.Parent.Parent:WaitForChild("UI"):WaitForChild("DashIndicator"))
 
 local DASH_ACTION = "BlobDash"
 local SLIDE_ACTION = "BlobSlide"
+local SPRINT_ACTION = "BlobSprint"
 
 local player = Players.LocalPlayer
 local remotes = MovementNet.get()
@@ -46,6 +48,7 @@ type CharacterState = {
 	dashDirection: Vector3,
 
 	sliding: boolean,
+	sprinting: boolean,
 	slideStartedAt: number,
 	slideDirection: Vector3,
 }
@@ -57,6 +60,7 @@ local dashReadyAt = 0
 local slideReadyAt = 0
 local lastJumpRequestAt = 0
 local fovBoost = 0
+local sprintHeld = false
 
 local function serverNow(): number
 	return Workspace:GetServerTimeNow()
@@ -126,7 +130,7 @@ local function tryDash()
 	state.dashEndsAt = os.clock() + MovementConfig.DashDuration
 	state.dashDirection = direction
 	dashReadyAt = serverNow() + MovementConfig.DashCooldown -- our guess until the server answers
-	fovBoost = MovementConfig.DashFovBoost
+	fovBoost = CameraConfig.DashFovBoost
 
 	remotes.Request:FireServer("Dash")
 end
@@ -194,11 +198,28 @@ end
 -- Every physics step: keep dashes and slides going
 ------------------------------------------------------------------------
 
+-- Sprint while Shift is held and you're moving mostly forward. Stops while
+-- sliding or just after firing. WalkSpeed is set on this device only; the
+-- server's speed check allows up to SprintSpeed.
+local function updateSprint(state: CharacterState)
+	local humanoid = state.humanoid
+	local lastShot = player:GetAttribute("LastShotAt")
+	local recentlyShot = typeof(lastShot) == "number" and os.clock() - lastShot < MovementConfig.SprintShootLockout
+	local moveDirection = flatten(humanoid.MoveDirection)
+	local movingForward = moveDirection ~= nil and moveDirection:Dot(cameraForward()) > MovementConfig.SprintForwardDot
+	state.sprinting = sprintHeld and movingForward and not recentlyShot and not state.sliding and humanoid.Health > 0
+	local speed = if state.sprinting then MovementConfig.SprintSpeed else MovementConfig.WalkSpeed
+	if humanoid.WalkSpeed ~= speed then
+		humanoid.WalkSpeed = speed
+	end
+end
+
 local function onPreSimulation(_dt: number)
 	local state = current
 	if not state then
 		return
 	end
+	updateSprint(state)
 
 	if state.dashing then
 		if os.clock() >= state.dashEndsAt then
@@ -226,13 +247,16 @@ local function onPreSimulation(_dt: number)
 end
 
 local function onRenderStep(dt: number)
-	-- Field of view "whoosh" during a dash, easing back afterwards.
+	-- Field of view: wider while dashing or sprinting, easing back afterwards.
 	local camera = Workspace.CurrentCamera
 	local state = current
-	local target = if state and state.dashing then MovementConfig.DashFovBoost else 0
-	fovBoost += (target - fovBoost) * math.min(dt * MovementConfig.FovLerpSpeed, 1)
+	local target = if state and state.dashing
+		then CameraConfig.DashFovBoost
+		elseif state and state.sprinting then CameraConfig.SprintFovBoost
+		else 0
+	fovBoost += (target - fovBoost) * math.min(dt * CameraConfig.FovLerpSpeed, 1)
 	if camera then
-		camera.FieldOfView = MovementConfig.FieldOfView + fovBoost
+		camera.FieldOfView = CameraConfig.FieldOfView + fovBoost
 	end
 end
 
@@ -290,6 +314,7 @@ local function onCharacterAdded(character: Model)
 		dashEndsAt = 0,
 		dashDirection = Vector3.zero,
 		sliding = false,
+		sprinting = false,
 		slideStartedAt = 0,
 		slideDirection = Vector3.zero,
 	}
@@ -368,6 +393,22 @@ function MovementController.start()
 		table.unpack(MovementConfig.SlideKeys)
 	)
 	ContextActionService:SetTitle(SLIDE_ACTION, "Slide")
+
+	-- Hold to sprint (high priority so Shift doesn't toggle Shift Lock).
+	ContextActionService:BindActionAtPriority(
+		SPRINT_ACTION,
+		function(_name: string, inputState: Enum.UserInputState, _input: InputObject): Enum.ContextActionResult
+			if inputState == Enum.UserInputState.Begin then
+				sprintHeld = true
+			elseif inputState == Enum.UserInputState.End or inputState == Enum.UserInputState.Cancel then
+				sprintHeld = false
+			end
+			return Enum.ContextActionResult.Sink
+		end,
+		false,
+		Enum.ContextActionPriority.High.Value,
+		table.unpack(MovementConfig.SprintKeys)
+	)
 
 	UserInputService.JumpRequest:Connect(onJumpRequest)
 	RunService.PreSimulation:Connect(onPreSimulation)

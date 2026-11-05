@@ -14,6 +14,12 @@ local MovementConfig = {
 	-- Roblox characters speed up and stop instantly (no sliding around),
 	-- which is the most responsive feel for a competitive shooter.
 	WalkSpeed = 20, -- studs per second (normal Roblox is 16)
+
+	-- SPRINT (hold Shift) --------------------------------------------------
+	SprintSpeed = 26, -- studs per second while sprinting
+	SprintKeys = { Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonL3 },
+	SprintForwardDot = 0.3, -- you must be moving mostly forward to sprint
+	SprintShootLockout = 0.35, -- seconds after firing before sprint starts again
 	JumpPower = 55, -- upward speed of the first jump (normal Roblox is 50)
 
 	-- DOUBLE JUMP --------------------------------------------------------
@@ -23,7 +29,7 @@ local MovementConfig = {
 	JumpRetapTime = 0.1, -- jump must be released for this long to count as a new press
 
 	-- DASH (Shift) -------------------------------------------------------
-	DashKeys = { Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonX },
+	DashKeys = { Enum.KeyCode.Q, Enum.KeyCode.ButtonX }, -- Shift is sprint
 	DashSpeed = 85, -- studs per second during the dash
 	DashDuration = 0.18, -- seconds the dash lasts (85 * 0.18 is about 15 studs)
 	DashCooldown = 1.5, -- seconds before you can dash again
@@ -37,10 +43,7 @@ local MovementConfig = {
 	SlideMinSpeed = 18, -- you must be moving at least this fast to slide
 	SlideCameraDrop = 1.5, -- how far the camera lowers while sliding
 
-	-- CAMERA FEEL --------------------------------------------------------
-	FieldOfView = 70, -- normal camera field of view
-	DashFovBoost = 12, -- extra field of view during a dash (speed feeling)
-	FovLerpSpeed = 12, -- how quickly the field of view eases back
+	-- (Camera feel such as field of view now lives in Config/CameraConfig.)
 
 	-- BLOB LOOKS ---------------------------------------------------------
 	-- The shape itself is built in server/Components/BlobCharacter.luau.

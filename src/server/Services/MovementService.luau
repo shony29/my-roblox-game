@@ -269,11 +269,9 @@ local function checkPlayer(player: Player, state: PlayerState)
 	state.recentSpeed = flatDistance / dt
 
 	-- Too fast?
-	local allowedSpeed = humanoid.WalkSpeed
-	if allowedSpeed > MovementConfig.WalkSpeed then
-		-- The client can change its own WalkSpeed; only trust our value.
-		allowedSpeed = MovementConfig.WalkSpeed
-	end
+	-- The fastest normal speed is sprinting. (A client can raise its own
+	-- WalkSpeed, so we never read it; only our config counts.)
+	local allowedSpeed = MovementConfig.SprintSpeed
 	if t < state.fastUntil then
 		allowedSpeed = math.max(allowedSpeed, state.fastSpeed)
 	end

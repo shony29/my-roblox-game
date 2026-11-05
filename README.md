@@ -110,7 +110,8 @@ project needs (it's listed in `rokit.toml`).
 | 1 / 2 / 3 | Auto Rifle / Pump Shotgun / Sniper |
 | R | Reload |
 | Space, then Space again in the air | Double jump |
-| Shift | Dash |
+| Shift (hold, moving forward) | Sprint |
+| Q | Dash |
 | Ctrl or C (while running) | Slide |
 | Tab (hold) | Scoreboard |
 

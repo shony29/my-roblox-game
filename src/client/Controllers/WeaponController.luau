@@ -137,6 +137,8 @@ local function tryFire()
 
 	lastFireTime = now
 	ammo[equipped] -= 1
+	-- Movement reads this to pause sprinting briefly after a shot (this device only).
+	localPlayer:SetAttribute("LastShotAt", now)
 
 	-- Shots start from the head and fly toward whatever the mouse points at.
 	-- This works in first person and third person.
