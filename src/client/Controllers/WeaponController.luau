@@ -27,6 +27,7 @@ local ClientFolder = script.Parent.Parent
 local Effects = require(ClientFolder:WaitForChild("Effects"):WaitForChild("WeaponEffects"))
 local Hud = require(ClientFolder:WaitForChild("UI"):WaitForChild("WeaponHud"))
 local ViewmodelController = require(script.Parent:WaitForChild("ViewmodelController"))
+local CameraController = require(script.Parent:WaitForChild("CameraController"))
 
 type WeaponStats = WeaponConfig.WeaponStats
 
@@ -151,6 +152,8 @@ local function tryFire()
 		return
 	end
 	remotes.Fire:FireServer(equipped, origin, direction.Unit)
+	-- Recoil: the view kicks up (after aiming this shot) and recovers by itself.
+	CameraController.kick(stats.RecoilKick)
 
 	-- Show the shot right away (our best guess; the server has the final say).
 	-- In first person, tracers start at the tip of the gun you can see.

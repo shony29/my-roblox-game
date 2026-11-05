@@ -19,6 +19,7 @@
 	  MagazineSize        bullets before you must reload
 	  ReserveAmmo         spare bullets for reloading (refilled on respawn)
 	  ReloadTime          seconds a reload takes
+	  RecoilKick          degrees the view kicks up per shot
 ]]
 
 export type WeaponStats = {
@@ -36,6 +37,7 @@ export type WeaponStats = {
 	MagazineSize: number,
 	ReserveAmmo: number, -- spare bullets carried (refilled on respawn)
 	ReloadTime: number,
+	RecoilKick: number, -- degrees the view kicks up per shot (recovers by itself)
 
 	-- Looks and sound
 	TracerColor: Color3,
@@ -63,6 +65,7 @@ local Weapons: { [string]: WeaponStats } = {
 		MagazineSize = 30,
 		ReserveAmmo = 90,
 		ReloadTime = 1.8,
+		RecoilKick = 0.55,
 
 		TracerColor = Color3.fromRGB(255, 230, 120),
 		TracerWidth = 0.08,
@@ -87,6 +90,7 @@ local Weapons: { [string]: WeaponStats } = {
 		MagazineSize = 6,
 		ReserveAmmo = 24,
 		ReloadTime = 2.2,
+		RecoilKick = 2.8,
 
 		TracerColor = Color3.fromRGB(255, 170, 80),
 		TracerWidth = 0.06,
@@ -111,6 +115,7 @@ local Weapons: { [string]: WeaponStats } = {
 		MagazineSize = 5,
 		ReserveAmmo = 15,
 		ReloadTime = 2.6,
+		RecoilKick = 3.5,
 
 		TracerColor = Color3.fromRGB(140, 255, 255),
 		TracerWidth = 0.14,
