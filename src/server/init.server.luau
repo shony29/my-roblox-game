@@ -62,11 +62,11 @@ run("WeaponService", function()
 	require(Services.WeaponService).start()
 end)
 
--- 5. Build the map, then start the round loop (which spawns players).
-run("Map and rounds", function()
+-- 5. Build the map, then start the match system (which spawns players).
+run("Map and matches", function()
 	local arena = require(script.Map.ArenaBuilder).build()
 	require(Services.SpawnService).init(arena.spawnPoints)
-	require(Services.RoundService).start()
+	require(Services.MatchService).start()
 end)
 
 print("[Slime Showdown] Server started")

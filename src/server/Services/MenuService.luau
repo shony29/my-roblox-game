@@ -6,7 +6,7 @@
 
 	The client only says "I pressed Play". It sends no data, so there is
 	nothing to trust. We mark the player with the PressedPlay attribute;
-	RoundService watches that attribute and spawns the player.
+	MatchService watches that attribute and puts the player in the match queue.
 
 	(Was server/Data/DataBootstrap.server.luau. Starting PlayerDataService
 	moved to the server start-up script, server/init.server.luau.)

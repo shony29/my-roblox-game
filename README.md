@@ -101,7 +101,9 @@ project needs (it's listed in `rokit.toml`).
 
 1. Press **Play** (F5) at the top of Studio.
 2. The arena is built for you, and the main menu appears. Click **PLAY**.
-3. After a 10-second break, the round starts ("GO!").
+3. On your own you'll see **"Waiting for an opponent..."**, because matches are 1v1 duels.
+   Use Step 6 to test with 2 players. Walking around the menu-free arena alone isn't possible yet
+   (a practice area comes with the lobby).
 
 | Control | What it does |
 |---------|--------------|
@@ -139,9 +141,10 @@ Things to check:
 - [ ] When someone is eliminated, the **kill feed** (top right) shows it in every window.
 - [ ] Holding **Tab** shows the elimination going up on the scoreboard.
 - [ ] The shooter's **coins** (top left) go up by 5.
-- [ ] The eliminated player comes back at a spawn pad with a bubble ("Spawn protected").
+- [ ] The eliminated player sits out until the next round; then **both** respawn on their own side with a 3-2-1 countdown.
 - [ ] Dash, double jump and slide all work, and other players see your blob move.
-- [ ] When the timer runs out, the winner's name is shown and a new round starts.
+- [ ] Each round shows ROUND WON / ROUND LOST; the first to win 5 rounds sees VICTORY or DEFEAT, then a new match starts.
+- [ ] You can't shoot during the countdown or between rounds.
 
 > **About saving:** coins and stats only *save* in a published game. In
 > Studio you'll see a yellow warning in the Output that says progress will not

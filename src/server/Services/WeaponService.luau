@@ -24,6 +24,7 @@ local WeaponMath = require(Shared:WaitForChild("Combat"):WaitForChild("WeaponMat
 local WeaponRemotes = require(Shared:WaitForChild("Net"):WaitForChild("WeaponRemotes"))
 local HitGroups = require(Shared:WaitForChild("Combat"):WaitForChild("HitGroups"))
 local GunModel = require(script.Parent.Parent.Components.GunModel)
+local CombatRules = require(script.Parent.Parent.Components.CombatRules)
 
 type WeaponStats = WeaponConfig.WeaponStats
 
@@ -138,11 +139,8 @@ local function canDamage(shooter: Player, humanoid: Humanoid): boolean
 	if victim == shooter then
 		return false
 	end
-	-- If the game uses Teams, don't hurt teammates.
-	if victim and shooter.Team and victim.Team == shooter.Team and not shooter.Neutral then
-		return false
-	end
-	return true
+	-- Match rules: only during a round, and only the other team (Components/CombatRules).
+	return CombatRules.canDamage(shooter, victim)
 end
 
 -- The classic Roblox "creator" tag: lets a future scoreboard know who got the kill.
@@ -205,7 +203,12 @@ local function onFire(player: Player, weaponIdRaw: unknown, originRaw: unknown, 
 		return
 	end
 
-	-- 2. Alive and holding this weapon?
+	-- 2. Is shooting allowed right now (a round is running and they are in it)?
+	if not CombatRules.canFire(player) then
+		return
+	end
+
+	-- Alive and holding this weapon?
 	local state = states[player]
 	if not state or state.equipped ~= weaponId then
 		return
@@ -279,8 +282,18 @@ local function onFire(player: Player, weaponIdRaw: unknown, originRaw: unknown, 
 	for humanoid, info in hits do
 		tagCreator(humanoid, player)
 		-- TakeDamage respects spawn ForceFields.
+		local healthBefore = humanoid.Health
 		humanoid:TakeDamage(info.damage)
 		local killed = humanoid.Health <= 0
+		-- Report what was really dealt (a spawn-protection bubble blocks it all).
+		local dealt = healthBefore - math.max(humanoid.Health, 0)
+		if dealt > 0 then
+			local victimModel = humanoid.Parent
+			local victimPlayer = if victimModel and victimModel:IsA("Model")
+				then Players:GetPlayerFromCharacter(victimModel)
+				else nil
+			CombatRules.reportDamage(player, victimPlayer, dealt)
+		end
 		remotes.HitConfirm:FireClient(player, math.round(info.damage), killed, info.headshot)
 	end
 
