@@ -34,6 +34,11 @@ GameContract.PlayerAttributes = {
 	RoundDeaths = "RoundDeaths",
 	-- Set to true once the player presses Play on the main menu
 	PressedPlay = "PressedPlay",
+	-- Shop (saved). OwnedItems is a comma-separated list of item Ids.
+	OwnedItems = "OwnedItems",
+	EquippedColor = "EquippedColor",
+	EquippedHat = "EquippedHat",
+	EquippedSkin = "EquippedSkin",
 }
 
 GameContract.WeaponAttributes = {

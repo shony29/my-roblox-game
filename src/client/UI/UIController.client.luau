@@ -18,6 +18,7 @@ local Hud = require(UIFolder:WaitForChild("Hud"))
 local KillFeed = require(UIFolder:WaitForChild("KillFeed"))
 local Scoreboard = require(UIFolder:WaitForChild("Scoreboard"))
 local MainMenu = require(UIFolder:WaitForChild("MainMenu"))
+local ShopController = require(UIFolder.Parent:WaitForChild("Shop"):WaitForChild("ShopController"))
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 
@@ -57,4 +58,4 @@ scoreboardGui.Enabled = false
 MainMenu.create(menuGui, function()
 	hudGui.Enabled = true
 	scoreboardGui.Enabled = true
-end)
+end, ShopController.open)

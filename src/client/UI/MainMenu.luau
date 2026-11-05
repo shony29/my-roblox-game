@@ -3,7 +3,7 @@
 	MainMenu
 	========
 	Shown when you join: the game title, your lifetime stats
-	(eliminations, wins, coins) and a big bouncy Play button.
+	(eliminations, wins, coins), a big bouncy Play button and a Shop button.
 	Pressing Play hides the menu, shows the HUD and tells the server.
 ]]
 
@@ -51,8 +51,9 @@ end
 
 --[[
 	Builds the menu. `onPlay` runs once when the Play button is pressed.
+	`onShop` (optional) runs when the Shop button is pressed.
 ]]
-function MainMenu.create(gui: ScreenGui, onPlay: () -> ())
+function MainMenu.create(gui: ScreenGui, onPlay: () -> (), onShop: (() -> ())?)
 	-- Bright sky-to-yolk background covering the whole screen.
 	local background = Instance.new("Frame")
 	background.Name = "Background"
@@ -152,6 +153,38 @@ function MainMenu.create(gui: ScreenGui, onPlay: () -> ())
 			task.wait(0.8)
 		end
 	end)
+
+	-- Shop button, under Play
+	if onShop then
+		local shop = Instance.new("TextButton")
+		shop.Name = "ShopButton"
+		shop.LayoutOrder = 4
+		shop.Text = "SHOP"
+		shop.Font = Theme.Fonts.Title
+		shop.TextSize = 34
+		shop.TextColor3 = Colors.White
+		shop.BackgroundColor3 = Colors.SkyDeep
+		shop.AutoButtonColor = false
+		shop.Size = UDim2.fromOffset(220, 64)
+		UIHelpers.corner(shop, UDim.new(1, 0))
+		UIHelpers.stroke(shop, Colors.Ink, 4)
+		UIHelpers.textStroke(shop, 3)
+		shop.Parent = column
+
+		local shopBounce = Instance.new("UIScale")
+		shopBounce.Parent = shop
+		shop.MouseEnter:Connect(function()
+			UIHelpers.tween(shopBounce, 0.15, { Scale = 1.06 }, Enum.EasingStyle.Back)
+		end)
+		shop.MouseLeave:Connect(function()
+			UIHelpers.tween(shopBounce, 0.15, { Scale = 1 })
+		end)
+		shop.Activated:Connect(function()
+			shopBounce.Scale = 0.92
+			UIHelpers.tween(shopBounce, 0.25, { Scale = 1 }, Enum.EasingStyle.Back)
+			onShop()
+		end)
+	end
 
 	local playRemote = GameContract.getRemote(GameContract.RemoteNames.PlayPressed)
 	local pressed = false

@@ -22,6 +22,8 @@
 		PlayerDataService.recordElimination(killerPlayer, victimPlayer)
 		PlayerDataService.recordWin(winnerPlayer)
 		PlayerDataService.resetRoundStats() -- at the start of each round
+
+	The shop (Server/Shop) uses purchaseItem and setEquippedItem.
 ]]
 
 local DataStoreService = game:GetService("DataStoreService")
@@ -32,8 +34,12 @@ local RunService = game:GetService("RunService")
 local SharedData = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data")
 local Schema = require(SharedData:WaitForChild("PlayerDataSchema"))
 local GameContract = require(SharedData:WaitForChild("GameContract"))
+local ShopConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Shop"):WaitForChild("ShopConfig"))
 
 type PlayerData = Schema.PlayerData
+
+-- What purchaseItem answers.
+export type PurchaseResult = "Bought" | "NotLoaded" | "AlreadyOwned" | "NotEnoughCoins"
 
 type SessionLock = {
 	jobId: string,
@@ -134,6 +140,11 @@ local function publishAttributes(profile: Profile)
 	player:SetAttribute(ATTR.LifetimeEliminations, profile.data.eliminations)
 	player:SetAttribute(ATTR.Wins, profile.data.wins)
 	player:SetAttribute(ATTR.Coins, profile.data.coins)
+	-- Shop: what they own and wear (everyone can see these, which is fine).
+	player:SetAttribute(ATTR.OwnedItems, table.concat(profile.data.ownedItems, ","))
+	player:SetAttribute(ATTR.EquippedColor, profile.data.equippedItems.Color)
+	player:SetAttribute(ATTR.EquippedHat, profile.data.equippedItems.Hat)
+	player:SetAttribute(ATTR.EquippedSkin, profile.data.equippedItems.Skin)
 end
 
 -- Loading -------------------------------------------------------------------
@@ -475,6 +486,62 @@ function PlayerDataService.resetRoundStats()
 		player:SetAttribute(ATTR.RoundEliminations, 0)
 		player:SetAttribute(ATTR.RoundDeaths, 0)
 	end
+end
+
+-- True if the player owns this shop item (free items are always owned).
+function PlayerDataService.ownsItem(player: Player, itemId: string): boolean
+	local profile = profiles[player]
+	if profile == nil then
+		return false
+	end
+	return ShopConfig.isFree(itemId) or table.find(profile.data.ownedItems, itemId) ~= nil
+end
+
+--[[
+	Spends `price` coins and adds `itemId` to the player's owned items.
+	The checks and the change happen together with no waiting in between,
+	so two quick requests can never both spend the same coins.
+	The shop checks that the item and price are real before calling this.
+]]
+function PlayerDataService.purchaseItem(player: Player, itemId: string, price: number): PurchaseResult
+	local profile = profiles[player]
+	if profile == nil then
+		return "NotLoaded"
+	end
+	if PlayerDataService.ownsItem(player, itemId) then
+		return "AlreadyOwned"
+	end
+	price = math.max(0, math.floor(price))
+	if profile.data.coins < price then
+		return "NotEnoughCoins"
+	end
+	if #profile.data.ownedItems >= Schema.MAX_OWNED_ITEMS then
+		return "AlreadyOwned"
+	end
+	profile.data.coins -= price
+	table.insert(profile.data.ownedItems, itemId)
+	profile.dirty = true
+	publishAttributes(profile)
+	return "Bought"
+end
+
+-- Wears an item in its slot (Color, Hat or Skin). The item must be owned.
+function PlayerDataService.setEquippedItem(player: Player, category: ShopConfig.Category, itemId: string): boolean
+	local profile = profiles[player]
+	if profile == nil or not PlayerDataService.ownsItem(player, itemId) then
+		return false
+	end
+	local equipped = profile.data.equippedItems
+	if category == "Color" then
+		equipped.Color = itemId
+	elseif category == "Hat" then
+		equipped.Hat = itemId
+	else
+		equipped.Skin = itemId
+	end
+	profile.dirty = true
+	publishAttributes(profile)
+	return true
 end
 
 -- Saves a player right away (for example after a big purchase).

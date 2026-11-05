@@ -331,7 +331,11 @@ end
 local function onPlayerAdded(player: Player)
 	states[player] = newState()
 	-- Choose the color once, so it stays the same after respawning.
-	player:SetAttribute(COLOR_ATTRIBUTE, BlobCharacter.randomColor())
+	-- The shop (Server/Shop/Cosmetics) sets the player's equipped color here,
+	-- so only pick a random one if the shop hasn't set one yet.
+	if typeof(player:GetAttribute(COLOR_ATTRIBUTE)) ~= "Color3" then
+		player:SetAttribute(COLOR_ATTRIBUTE, BlobCharacter.randomColor())
+	end
 
 	player.CharacterAdded:Connect(function(character: Model)
 		onCharacterAdded(player, character)
