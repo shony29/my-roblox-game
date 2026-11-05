@@ -1,4 +1,4 @@
-# Jelly Blitz 🟢💥
+# Slime Showdown 🟢💥
 
 A fast, cheerful free-for-all shooter for Roblox. Everyone is a round **blob**
 with googly eyes, running around a colourful arena.
@@ -169,24 +169,27 @@ Every tuning value lives in one file per system:
 ## How the project is organised
 
 ```
-default.project.json   Tells Rojo where each folder goes inside Roblox
-DEVELOPMENT.md         Development checklist (what's done, what's next)
+default.project.json   Tells Rojo where each folder goes inside Roblox (plus lighting and camera)
+DEVELOPMENT.md         Checklist, security audit and performance notes
 src/
   shared/    → ReplicatedStorage.Shared
-    Config/      All settings: movement, weapons, rounds, shop
-    Net/         Client–server message setup (remotes)
-    Match/       Shared round state
+    Config/      All settings: game, camera, movement, weapons, modes, maps, spawns, shop, sounds
+    Net/         Every client–server message (Net.luau) and small helpers
+    Match/       Match states and team names
+    Data/        Save-file shape and XP/levels
     Combat/      What bullets can hit, weapon maths
     Cosmetics/   Hat and weapon-skin builders
-    Data/        Save-file shape
   server/    → ServerScriptService.Server (init.server.luau starts everything in order)
-    Services/    PlayerData, Menu, Shop, Cosmetics, Movement, Weapon, Spawn, Round
-    Components/  Blob character, gun model, score maths
-    Map/         Builds the arena
+    Services/    PlayerData, Menu, Shop, Cosmetics, Movement, Weapon, Spawn,
+                 Map, Lobby, Match, Queue, Vote
+    Components/  Slime rig, blob, gun model, combat rules, team balancer,
+                 rate limiter, practice dummy
+    Map/         Jelly Arena, Mossy Keep, the lobby island and shared map helpers
   client/    → StarterPlayerScripts.Client (init.client.luau starts everything in order)
-    Controllers/ Shop, UI, Movement, Weapon, Round HUD
+    Controllers/ Graphics, Shop, UI, Movement, Weapon, Camera, Viewmodel,
+                 BlobAnimator, MatchHud, Lobby, Transition, Results, Feedback
     UI/          Menu, HUD, kill feed, scoreboard, weapon HUD, dash badge, shop previews
-    Effects/     Tracers, muzzle flashes, sounds
+    Effects/     Tracers, muzzle flashes, impact puffs
 ```
 
 ## How it stays fair

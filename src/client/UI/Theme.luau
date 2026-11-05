@@ -8,7 +8,7 @@
 
 local Theme = {}
 
-Theme.GameTitle = "JELLY BLITZ"
+Theme.GameTitle = "SLIME SHOWDOWN"
 
 Theme.Colors = {
 	Yolk = Color3.fromRGB(255, 205, 60),
