@@ -11,7 +11,9 @@
 
 local MovementConfig = {
 	-- WALKING ------------------------------------------------------------
-	WalkSpeed = 24, -- studs per second (normal Roblox is 16)
+	-- Roblox characters speed up and stop instantly (no sliding around),
+	-- which is the most responsive feel for a competitive shooter.
+	WalkSpeed = 20, -- studs per second (normal Roblox is 16)
 	JumpPower = 55, -- upward speed of the first jump (normal Roblox is 50)
 
 	-- DOUBLE JUMP --------------------------------------------------------
