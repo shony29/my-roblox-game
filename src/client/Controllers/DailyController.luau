@@ -30,7 +30,7 @@ local DROPLETS = 18
 local SQUISHY_COLOR = Color3.fromRGB(120, 230, 160)
 local CATEGORY_TEXT: { [string]: string } = {
 	Color = "New blob colour!",
-	Hat = "New hat!",
+	Hat = "New squishy! Wear it on your slime.",
 	Skin = "New skin!",
 	Weapon = "New gun! It's in your loadout.",
 }

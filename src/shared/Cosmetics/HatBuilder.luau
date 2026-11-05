@@ -1,16 +1,16 @@
 --!strict
 --[[
-	HatBuilder
-	==========
-	Builds each low-poly hat out of simple parts (blocks, balls, cylinders).
+	HatBuilder: builds the SQUISHY a slime wears on top (the shop's
+	"Squishies" tab). Used by the server (on real characters) and by the
+	shop's previews.
 
-	HatBuilder.build(hat, bodyCFrame, bodySize) returns a Model with every
-	part already placed on top of a blob body at `bodyCFrame` (or nil for
-	"No Hat"). The server glues it onto real blobs; the shop menu uses the
-	same code for its little 3D previews.
+	Squishies: Dumpling, Butter, Jelly Cube, Donut, Cake Slice, Ice Cream,
+	Popcorn. Each is a few simple parts; most get a cute face with blush.
+	They never collide and bullets fly straight through them, so a squishy
+	can never change your hitbox.
 
-	Directions used below, from the blob's middle: +Y is up, -Z is the front
-	(where the face is), X is left/right.
+	(Internally the category is still called "Hat", so older saves and the
+	EquippedHat attribute keep working.)
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -19,12 +19,11 @@ local ShopConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild
 
 type HatItem = ShopConfig.HatItem
 
--- The blob system hides every part added to a character unless it has this
--- attribute (see Server/Movement/BlobCharacter), so hats must carry it.
+-- The blob hides every part added to a character unless it has this
+-- attribute (see server/Components/BlobCharacter), so squishies carry it.
 local KEEP_VISIBLE_ATTRIBUTE = "IsBlobPart"
-
--- Cylinders in Roblox lie on their side (along X). This stands them up.
-local UPRIGHT = CFrame.Angles(0, 0, math.rad(90))
+local UPRIGHT = CFrame.Angles(0, 0, math.rad(90)) -- stands a cylinder up
+local INK = Color3.fromRGB(45, 32, 58)
 
 local HatBuilder = {}
 
@@ -44,7 +43,6 @@ local function addPart(b: Builder, name: string, size: Vector3, color: Color3, l
 	part.TopSurface = Enum.SurfaceType.Smooth
 	part.BottomSurface = Enum.SurfaceType.Smooth
 	part.CanCollide = false
-	-- Bullets fly straight through hats, so a hat can never change your hitbox.
 	part.CanQuery = false
 	part.CanTouch = false
 	part.Massless = true
@@ -63,18 +61,12 @@ end
 
 -- An upright cylinder whose bottom sits at `bottom`.
 local function cylinder(b: Builder, name: string, diameter: number, height: number, color: Color3, bottom: CFrame): Part
-	local part = addPart(
-		b,
-		name,
-		Vector3.new(height, diameter, diameter),
-		color,
-		bottom * CFrame.new(0, height / 2, 0) * UPRIGHT
-	)
+	local part = addPart(b, name, Vector3.new(height, diameter, diameter), color, bottom * CFrame.new(0, height / 2, 0) * UPRIGHT)
 	part.Shape = Enum.PartType.Cylinder
 	return part
 end
 
--- A squashed ball (a block with a sphere mesh), like the blob body itself.
+-- A squashed ball (a block with a sphere mesh), soft like a real squishy.
 local function ellipsoid(b: Builder, name: string, size: Vector3, color: Color3, localCFrame: CFrame): Part
 	local part = addPart(b, name, size, color, localCFrame)
 	local mesh = Instance.new("SpecialMesh")
@@ -83,84 +75,170 @@ local function ellipsoid(b: Builder, name: string, size: Vector3, color: Color3,
 	return part
 end
 
--- Each hat ---------------------------------------------------------------
+local function dot(parent: Instance, size: UDim2, position: UDim2, color: Color3, transparency: number?): Frame
+	local frame = Instance.new("Frame")
+	frame.AnchorPoint = Vector2.new(0.5, 0.5)
+	frame.Size = size
+	frame.Position = position
+	frame.BackgroundColor3 = color
+	frame.BackgroundTransparency = transparency or 0
+	frame.BorderSizePixel = 0
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(1, 0)
+	corner.Parent = frame
+	frame.Parent = parent
+	return frame
+end
 
--- A striped cone made of stacked cylinders, tilted a little for fun.
-local function partyHat(b: Builder, hat: HatItem, top: number)
-	local base = CFrame.new(0, top - 0.25, 0) * CFrame.Angles(0, 0, math.rad(-12))
-	local tiers = 5
-	local tierHeight = 0.48
-	for i = 1, tiers do
-		local t = (i - 1) / (tiers - 1)
-		local diameter = 2.0 + (0.45 - 2.0) * t
-		local color = if i % 2 == 1 then hat.MainColor else hat.AccentColor
-		cylinder(b, "Tier", diameter, tierHeight, color, base * CFrame.new(0, (i - 1) * tierHeight, 0))
+-- A cute face (eyes with sparkles, a little smile, blush) on a thin invisible
+-- card facing forward (-Z), centred at `localCFrame`.
+local function face(b: Builder, localCFrame: CFrame, width: number, height: number)
+	local card = addPart(b, "SquishyFace", Vector3.new(width, height, 0.04), Color3.new(1, 1, 1), localCFrame)
+	card.Transparency = 1
+	card.CastShadow = false
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 100
+	gui.LightInfluence = 0.6
+	gui.Parent = card
+	for _, x in { 0.32, 0.68 } do
+		local eye = dot(gui, UDim2.fromScale(0.13, 0.3), UDim2.fromScale(x, 0.42), INK)
+		dot(eye, UDim2.fromScale(0.45, 0.32), UDim2.fromScale(0.62, 0.3), Color3.new(1, 1, 1))
 	end
-	ball(b, "Pompom", 0.6, hat.AccentColor, (base * CFrame.new(0, tiers * tierHeight + 0.15, 0)).Position)
+	for _, x in { 0.17, 0.83 } do
+		dot(gui, UDim2.fromScale(0.16, 0.12), UDim2.fromScale(x, 0.64), Color3.fromRGB(255, 120, 150), 0.35)
+	end
+	-- Smile: the bottom of a ring seen through a small window.
+	local window = Instance.new("Frame")
+	window.AnchorPoint = Vector2.new(0.5, 0)
+	window.Position = UDim2.fromScale(0.5, 0.56)
+	window.Size = UDim2.fromScale(0.16, 0.18)
+	window.BackgroundTransparency = 1
+	window.ClipsDescendants = true
+	window.Parent = gui
+	local ring = Instance.new("Frame")
+	ring.AnchorPoint = Vector2.new(0.5, 1)
+	ring.Position = UDim2.new(0.5, 0, 1, -3)
+	ring.Size = UDim2.fromScale(0.8, 1.6)
+	ring.BackgroundTransparency = 1
+	local ringCorner = Instance.new("UICorner")
+	ringCorner.CornerRadius = UDim.new(1, 0)
+	ringCorner.Parent = ring
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = INK
+	stroke.Thickness = 3
+	stroke.Parent = ring
+	ring.Parent = window
 end
 
--- A snug dome with a round brim over the eyes.
-local function cap(b: Builder, hat: HatItem, top: number)
-	local domeCenter = top - 0.65
-	ellipsoid(b, "Dome", Vector3.new(3.5, 2.0, 3.5), hat.MainColor, CFrame.new(0, domeCenter, 0))
-	local brim = cylinder(
-		b,
-		"Brim",
-		2.2,
-		0.14,
-		hat.MainColor,
-		CFrame.new(0, domeCenter - 0.1, -1.55) * CFrame.Angles(math.rad(-8), 0, 0)
-	)
-	brim.Color = hat.MainColor:Lerp(Color3.new(0, 0, 0), 0.15)
-	ball(b, "Button", 0.35, hat.AccentColor, Vector3.new(0, domeCenter + 1.0, 0))
-	-- A white stripe across the front.
-	ellipsoid(b, "Stripe", Vector3.new(0.35, 1.6, 3.55), hat.AccentColor, CFrame.new(0, domeCenter + 0.1, 0))
+-- Each squishy ------------------------------------------------------------
+
+-- A soft bun with pleats gathered at the top (like the dumpling squishies).
+local function dumpling(b: Builder, hat: HatItem, top: number)
+	local body = Vector3.new(2.3, 1.55, 2.2)
+	ellipsoid(b, "Bun", body, hat.MainColor, CFrame.new(0, top + 0.62, 0))
+	for i = 0, 5 do
+		local angle = math.rad(i * 60)
+		ellipsoid(b, "Pleat", Vector3.new(0.22, 0.42, 0.9), hat.MainColor:Lerp(Color3.new(0, 0, 0), 0.08),
+			CFrame.new(0, top + 1.3, 0) * CFrame.Angles(0, angle, 0) * CFrame.new(0, 0, 0.28) * CFrame.Angles(math.rad(-30), 0, 0))
+	end
+	ellipsoid(b, "Knot", Vector3.new(0.55, 0.32, 0.55), hat.MainColor, CFrame.new(0, top + 1.42, 0))
+	face(b, CFrame.new(0, top + 0.58, -body.Z / 2 + 0.02), 1.3, 0.7)
 end
 
--- Two tall ears with pink insides, leaning outwards.
-local function bunnyEars(b: Builder, hat: HatItem, top: number)
-	for _, side in { -1, 1 } do
-		local ear = CFrame.new(side * 0.7, top - 0.3, 0)
-			* CFrame.Angles(0, 0, math.rad(-side * 14))
-			* CFrame.new(0, 1.1, 0)
-		ellipsoid(b, "Ear", Vector3.new(0.75, 2.4, 0.4), hat.MainColor, ear)
-		ellipsoid(b, "EarInside", Vector3.new(0.42, 1.7, 0.12), hat.AccentColor, ear * CFrame.new(0, -0.05, -0.16))
+-- A stick of butter with "BUTTER" on the side.
+local function butter(b: Builder, hat: HatItem, top: number)
+	local stick = addPart(b, "Butter", Vector3.new(2.6, 0.95, 1.15), hat.MainColor, CFrame.new(0, top + 0.47, 0))
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 80
+	gui.LightInfluence = 0.6
+	gui.Parent = stick
+	local text = Instance.new("TextLabel")
+	text.BackgroundTransparency = 1
+	text.Size = UDim2.fromScale(1, 1)
+	text.Font = Enum.Font.LuckiestGuy
+	text.TextScaled = true
+	text.TextColor3 = hat.AccentColor
+	text.Text = "BUTTER"
+	text.Parent = gui
+end
+
+-- A see-through jelly cube with a little air bubble inside.
+local function jellyCube(b: Builder, hat: HatItem, top: number)
+	local outer = addPart(b, "Cube", Vector3.new(1.8, 1.8, 1.8), hat.MainColor, CFrame.new(0, top + 0.9, 0))
+	outer.Material = Enum.Material.Glass
+	outer.Transparency = 0.35
+	local inner = addPart(b, "CubeCore", Vector3.new(1.35, 1.35, 1.35), hat.MainColor, CFrame.new(0, top + 0.9, 0))
+	inner.Transparency = 0.45
+	ball(b, "Bubble", 0.35, Color3.new(1, 1, 1), Vector3.new(0.45, top + 1.4, -0.45)).Transparency = 0.35
+	face(b, CFrame.new(0, top + 0.85, -0.92), 1.2, 0.65)
+end
+
+-- A frosted donut with sprinkles.
+local function donut(b: Builder, hat: HatItem, top: number)
+	local base = CFrame.new(0, top, 0)
+	cylinder(b, "Dough", 2.3, 0.7, hat.AccentColor, base)
+	cylinder(b, "Frosting", 2.05, 0.22, hat.MainColor, base * CFrame.new(0, 0.62, 0))
+	cylinder(b, "Hole", 0.75, 0.06, hat.AccentColor:Lerp(Color3.new(0, 0, 0), 0.35), base * CFrame.new(0, 0.84, 0))
+	local sprinkleColors = { Color3.fromRGB(255, 240, 90), Color3.fromRGB(110, 200, 255), Color3.fromRGB(255, 255, 255), Color3.fromRGB(120, 230, 120) }
+	for i = 0, 7 do
+		local angle = math.rad(i * 45 + 10)
+		addPart(b, "Sprinkle", Vector3.new(0.09, 0.07, 0.32), sprinkleColors[(i % #sprinkleColors) + 1],
+			base * CFrame.new(math.cos(angle) * 0.7, 0.86, math.sin(angle) * 0.7) * CFrame.Angles(0, angle * 2, 0))
 	end
 end
 
--- A wide brim, a tall crown and a colored band.
-local function topHat(b: Builder, hat: HatItem, top: number)
-	local base = CFrame.new(0, top - 0.3, 0) * CFrame.Angles(0, 0, math.rad(8))
-	cylinder(b, "Brim", 2.9, 0.16, hat.MainColor, base)
-	cylinder(b, "Crown", 1.85, 1.9, hat.MainColor, base * CFrame.new(0, 0.16, 0))
-	cylinder(b, "Band", 1.9, 0.38, hat.AccentColor, base * CFrame.new(0, 0.16, 0))
+-- A slice of layer cake with a strawberry on top.
+local function cakeSlice(b: Builder, hat: HatItem, top: number)
+	local size = Vector2.new(1.9, 1.3)
+	local layers = { { 0.35, hat.AccentColor }, { 0.14, Color3.fromRGB(220, 50, 70) }, { 0.35, hat.AccentColor }, { 0.22, hat.MainColor } }
+	local y = top
+	for index, layer in layers do
+		local height = layer[1] :: number
+		addPart(b, "Layer" .. index, Vector3.new(size.X, height, size.Y), layer[2] :: Color3, CFrame.new(0, y + height / 2, 0))
+		y += height
+	end
+	ball(b, "Strawberry", 0.6, Color3.fromRGB(230, 40, 60), Vector3.new(0.2, y + 0.25, 0))
+	face(b, CFrame.new(0, top + 0.5, -size.Y / 2 - 0.03), 1.2, 0.6)
 end
 
--- A gold band with pointy diamonds on top and gems around it.
-local function crown(b: Builder, hat: HatItem, top: number)
-	local base = CFrame.new(0, top - 0.3, 0)
-	local band = cylinder(b, "Band", 2.3, 0.6, hat.MainColor, base)
-	band.Reflectance = 0.2
-	local points = 6
-	for i = 1, points do
-		local around = base * CFrame.Angles(0, (i - 1) * (2 * math.pi / points), 0)
-		-- A block turned 45 degrees looks like a diamond; its top half pokes up.
-		local spike = addPart(
-			b,
-			"Point",
-			Vector3.new(0.62, 0.62, 0.18),
-			hat.MainColor,
-			around * CFrame.new(0, 0.6, -1.08) * CFrame.Angles(0, 0, math.rad(45))
-		)
-		spike.Reflectance = 0.2
-		ball(b, "TipGem", 0.24, hat.AccentColor, (around * CFrame.new(0, 1.05, -1.08)).Position)
-		ball(b, "Gem", 0.3, hat.AccentColor, (around * CFrame.new(0, 0.3, -1.17)).Position)
+-- An ice cream cone (wide at the top) with a scoop and a few drips.
+local function iceCream(b: Builder, hat: HatItem, top: number)
+	local cone = hat.AccentColor
+	local diameters = { 0.45, 0.75, 1.05 }
+	for i, diameter in diameters do
+		cylinder(b, "Cone" .. i, diameter, 0.42, cone, CFrame.new(0, top + (i - 1) * 0.42, 0))
 	end
+	local scoopY = top + #diameters * 0.42 + 0.45
+	ball(b, "Scoop", 1.55, hat.MainColor, Vector3.new(0, scoopY, 0))
+	for i = 0, 3 do
+		local angle = math.rad(i * 90 + 30)
+		ball(b, "Drip", 0.35, hat.MainColor, Vector3.new(math.cos(angle) * 0.62, scoopY - 0.55, math.sin(angle) * 0.62))
+	end
+	face(b, CFrame.new(0, scoopY - 0.05, -0.77), 0.9, 0.5)
+end
+
+-- A striped popcorn bucket heaped with popcorn.
+local function popcorn(b: Builder, hat: HatItem, top: number)
+	for i = 0, 2 do
+		cylinder(b, "Bucket" .. i, 1.55 + i * 0.06, 0.42, if i % 2 == 0 then hat.MainColor else hat.AccentColor, CFrame.new(0, top + i * 0.42, 0))
+	end
+	local heapY = top + 1.3
+	local kernel = Color3.fromRGB(255, 236, 160)
+	for i = 0, 6 do
+		local angle = math.rad(i * 51)
+		local r = if i == 0 then 0 else 0.45
+		ball(b, "Kernel", 0.55, kernel, Vector3.new(math.cos(angle) * r, heapY + (if i == 0 then 0.25 else 0), math.sin(angle) * r))
+	end
+	face(b, CFrame.new(0, top + 0.6, -0.82), 0.95, 0.5)
 end
 
 --[[
-	Builds the hat for `hat`, sitting on a blob body at `bodyCFrame` whose
-	size is `bodySize`. Returns nil for "No Hat". The parts are not glued
+	Builds the squishy for `hat`, sitting on a blob body at `bodyCFrame` whose
+	size is `bodySize`. Returns nil for "No Squishy". The parts are not glued
 	to anything yet; the caller does that.
 ]]
 function HatBuilder.build(hat: HatItem, bodyCFrame: CFrame, bodySize: Vector3): Model?
@@ -175,16 +253,20 @@ function HatBuilder.build(hat: HatItem, bodyCFrame: CFrame, bodySize: Vector3): 
 	local b: Builder = { origin = bodyCFrame, model = model }
 	local top = bodySize.Y / 2 -- the top of the blob, measured from its middle
 
-	if hat.Shape == "PartyHat" then
-		partyHat(b, hat, top)
-	elseif hat.Shape == "Cap" then
-		cap(b, hat, top)
-	elseif hat.Shape == "BunnyEars" then
-		bunnyEars(b, hat, top)
-	elseif hat.Shape == "TopHat" then
-		topHat(b, hat, top)
-	elseif hat.Shape == "Crown" then
-		crown(b, hat, top)
+	if hat.Shape == "Dumpling" then
+		dumpling(b, hat, top)
+	elseif hat.Shape == "Butter" then
+		butter(b, hat, top)
+	elseif hat.Shape == "JellyCube" then
+		jellyCube(b, hat, top)
+	elseif hat.Shape == "Donut" then
+		donut(b, hat, top)
+	elseif hat.Shape == "CakeSlice" then
+		cakeSlice(b, hat, top)
+	elseif hat.Shape == "IceCream" then
+		iceCream(b, hat, top)
+	elseif hat.Shape == "Popcorn" then
+		popcorn(b, hat, top)
 	end
 	return model
 end

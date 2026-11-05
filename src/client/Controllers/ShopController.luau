@@ -51,7 +51,7 @@ local GREY = Color3.fromRGB(175, 178, 190)
 
 local TABS: { { category: Category, title: string } } = {
 	{ category = "Color", title = "Colors" },
-	{ category = "Hat", title = "Hats" },
+	{ category = "Hat", title = "Squishies" },
 	{ category = "Skin", title = "Skins" },
 	{ category = "Weapon", title = "Guns" },
 }

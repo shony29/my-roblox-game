@@ -36,7 +36,8 @@ export type ColorItem = {
 }
 
 -- Hats. Shape picks which hat HatBuilder makes; the two colors paint it.
-export type HatShape = "None" | "PartyHat" | "Cap" | "BunnyEars" | "TopHat" | "Crown"
+-- (Category "Hat" = the Squishies tab: a squishy toy worn on top of the slime.)
+export type HatShape = "None" | "Dumpling" | "Butter" | "JellyCube" | "Donut" | "CakeSlice" | "IceCream" | "Popcorn"
 export type HatItem = {
 	Id: string,
 	DisplayName: string,
@@ -185,54 +186,17 @@ ShopConfig.Colors = {
 
 -- HATS (built from simple parts in HatBuilder) ------------------------------
 ShopConfig.Hats = {
-	{
-		Id = "Hat_None",
-		DisplayName = "No Hat",
-		Price = 0,
-		Shape = "None",
-		MainColor = rgb(255, 255, 255),
-		AccentColor = rgb(255, 255, 255),
-	},
-	{
-		Id = "Hat_Party",
-		DisplayName = "Party Hat",
-		Price = 50,
-		Shape = "PartyHat",
-		MainColor = rgb(80, 170, 255),
-		AccentColor = rgb(255, 225, 60),
-	},
-	{
-		Id = "Hat_Cap",
-		DisplayName = "Sporty Cap",
-		Price = 75,
-		Shape = "Cap",
-		MainColor = rgb(255, 70, 80),
-		AccentColor = rgb(255, 255, 255),
-	},
-	{
-		Id = "Hat_Bunny",
-		DisplayName = "Bunny Ears",
-		Price = 150,
-		Shape = "BunnyEars",
-		MainColor = rgb(255, 255, 255),
-		AccentColor = rgb(255, 150, 200),
-	},
-	{
-		Id = "Hat_TopHat",
-		DisplayName = "Top Hat",
-		Price = 250,
-		Shape = "TopHat",
-		MainColor = rgb(40, 40, 52),
-		AccentColor = rgb(230, 60, 80),
-	},
-	{
-		Id = "Hat_Crown",
-		DisplayName = "Royal Crown",
-		Price = 500,
-		Shape = "Crown",
-		MainColor = rgb(255, 200, 40),
-		AccentColor = rgb(230, 40, 90),
-	},
+	{ Id = "Hat_None", DisplayName = "No Squishy", Price = 0, Shape = "None", MainColor = rgb(255, 255, 255), AccentColor = rgb(255, 255, 255) },
+	{ Id = "Squishy_DumplingPeach", DisplayName = "Peach Dumpling", Price = 40, Shape = "Dumpling", MainColor = rgb(255, 175, 80), AccentColor = rgb(255, 140, 150) },
+	{ Id = "Squishy_DumplingLilac", DisplayName = "Lilac Dumpling", Price = 40, Shape = "Dumpling", MainColor = rgb(185, 150, 240), AccentColor = rgb(255, 140, 150) },
+	{ Id = "Squishy_DumplingMint", DisplayName = "Mint Dumpling", Price = 40, Shape = "Dumpling", MainColor = rgb(150, 225, 170), AccentColor = rgb(255, 140, 150) },
+	{ Id = "Squishy_Butter", DisplayName = "Butter Squishy", Price = 60, Shape = "Butter", MainColor = rgb(255, 240, 165), AccentColor = rgb(40, 70, 190) },
+	{ Id = "Squishy_JellyCubeBlue", DisplayName = "Blue Jelly Cube", Price = 80, Shape = "JellyCube", MainColor = rgb(70, 190, 245), AccentColor = rgb(255, 255, 255) },
+	{ Id = "Squishy_JellyCubePink", DisplayName = "Pink Jelly Cube", Price = 80, Shape = "JellyCube", MainColor = rgb(255, 110, 190), AccentColor = rgb(255, 255, 255) },
+	{ Id = "Squishy_Donut", DisplayName = "Donut Squishy", Price = 70, Shape = "Donut", MainColor = rgb(255, 150, 200), AccentColor = rgb(215, 160, 100) },
+	{ Id = "Squishy_Cake", DisplayName = "Cake Slice", Price = 90, Shape = "CakeSlice", MainColor = rgb(255, 252, 245), AccentColor = rgb(255, 230, 190) },
+	{ Id = "Squishy_IceCream", DisplayName = "Ice Cream Cone", Price = 90, Shape = "IceCream", MainColor = rgb(150, 235, 200), AccentColor = rgb(220, 165, 95) },
+	{ Id = "Squishy_Popcorn", DisplayName = "Popcorn Bucket", Price = 100, Shape = "Popcorn", MainColor = rgb(230, 50, 60), AccentColor = rgb(255, 255, 255) },
 } :: { HatItem }
 
 -- WEAPON SKINS (change the look of every gun) ------------------------------
