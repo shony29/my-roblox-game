@@ -304,10 +304,13 @@ ShopConfig.STARTER_WEAPON = "Rifle"
 
 ShopConfig.Weapons = {
 	{ Id = "Weapon_Rifle", WeaponId = "Rifle", DisplayName = "Auto Rifle", Price = 0, Blurb = "Steady all-rounder" },
-	{ Id = "Weapon_Pistol", WeaponId = "Pistol", DisplayName = "Pop Pistol", Price = 75, Blurb = "Precise sidearm" },
+	{ Id = "Weapon_Pistol", WeaponId = "Pistol", DisplayName = "Pop Pistol", Price = 0, Blurb = "Everyone's sidearm" },
 	{ Id = "Weapon_SMG", WeaponId = "SMG", DisplayName = "Buzz SMG", Price = 150, Blurb = "Fast, close range" },
 	{ Id = "Weapon_Shotgun", WeaponId = "Shotgun", DisplayName = "Pump Shotgun", Price = 200, Blurb = "Huge up close" },
+	{ Id = "Weapon_Burst", WeaponId = "Burst", DisplayName = "Triple Burst", Price = 125, Blurb = "3 shots per click" },
+	{ Id = "Weapon_Marksman", WeaponId = "Marksman", DisplayName = "Slimeshot Marksman", Price = 175, Blurb = "Semi-auto, hits hard" },
 	{ Id = "Weapon_Sniper", WeaponId = "Sniper", DisplayName = "Sniper", Price = 300, Blurb = "One shot, long range" },
+	{ Id = "Weapon_Launcher", WeaponId = "Launcher", DisplayName = "Blob Launcher", Price = 350, Blurb = "Explodes on impact" },
 } :: { WeaponItem }
 
 -- The shop item Id for a gun, e.g. "Rifle" -> "Weapon_Rifle".

@@ -202,6 +202,112 @@ local function startReload(player: Player, state: PlayerState)
 	end)
 end
 
+-- Deals each hit's damage and tells the shooter (hitmarker, kill, headshot).
+local function applyHits(player: Player, hits: { [Humanoid]: HitInfo })
+	for humanoid, info in hits do
+		tagCreator(humanoid, player)
+		-- TakeDamage respects spawn ForceFields.
+		local healthBefore = humanoid.Health
+		humanoid:TakeDamage(info.damage)
+		local killed = humanoid.Health <= 0
+		local victimCharacter = humanoid.Parent
+		if killed and victimCharacter then
+			-- The victim bursts into the shooter's topping (client/Effects/ToppingEffects).
+			local shooterData = PlayerDataService.getData(player)
+			if shooterData then
+				victimCharacter:SetAttribute("BurstTopping", shooterData.equippedItems.Topping)
+			end
+		end
+		-- Report what was really dealt (a spawn-protection bubble blocks it all).
+		local dealt = healthBefore - math.max(humanoid.Health, 0)
+		if dealt > 0 then
+			local victimPlayer = if victimCharacter and victimCharacter:IsA("Model")
+				then Players:GetPlayerFromCharacter(victimCharacter)
+				else nil
+			CombatRules.reportDamage(player, victimPlayer, dealt)
+		end
+		remotes.HitConfirm:FireClient(player, math.round(info.damage), killed, info.headshot)
+	end
+end
+
+-- A Blob Launcher explosion: damages everyone in range the blast can reach
+-- (walls block it), less at the edge. Never teammates (canDamage).
+local function explode(player: Player, stats: WeaponStats, center: Vector3, params: RaycastParams)
+	local splash = stats.Splash
+	if not splash then
+		return
+	end
+	local hits: { [Humanoid]: HitInfo } = {}
+	for _, part in workspace:GetPartBoundsInRadius(center, splash.Radius) do
+		local humanoid = findHumanoid(part, center)
+		local victim = humanoid and humanoid.Parent
+		if humanoid and victim and not hits[humanoid] and canDamage(player, humanoid) then
+			local blocked = workspace:Raycast(center, part.Position - center, params)
+			if blocked == nil or blocked.Instance:IsDescendantOf(victim) then
+				local t = math.clamp((part.Position - center).Magnitude / splash.Radius, 0, 1)
+				hits[humanoid] = { damage = stats.Damage * (1 + (splash.MinMultiplier - 1) * t), headshot = false }
+			end
+		end
+	end
+	applyHits(player, hits)
+end
+
+-- Fires one round: spends a bullet, the server's own raycasts decide what
+-- is hit, other players are told to draw it, then ammo is updated.
+local function fireRound(player: Player, state: PlayerState, weaponId: string, stats: WeaponStats, origin: Vector3, direction: Vector3, params: RaycastParams)
+	state.ammo[weaponId] = math.max((state.ammo[weaponId] or 0) - 1, 0)
+
+	local endPoints: { Vector3 } = {}
+	local hits: { [Humanoid]: HitInfo } = {}
+	for _ = 1, stats.Pellets do
+		local pelletDirection = WeaponMath.applySpread(direction, stats.Spread, rng)
+		local result = workspace:Raycast(origin, pelletDirection * stats.MaxRange, params)
+		if result then
+			table.insert(endPoints, result.Position)
+			local humanoid, isHead = findHumanoid(result.Instance, result.Position)
+			if humanoid and canDamage(player, humanoid) then
+				local damage = WeaponMath.damageAtDistance(stats, result.Distance)
+				if isHead then
+					damage *= stats.HeadshotMultiplier
+				end
+				local info = hits[humanoid]
+				if info then
+					info.damage += damage
+					info.headshot = info.headshot or isHead
+				else
+					hits[humanoid] = { damage = damage, headshot = isHead }
+				end
+			end
+		else
+			table.insert(endPoints, origin + pelletDirection * stats.MaxRange)
+		end
+	end
+
+	if stats.Splash then
+		-- Launcher: the glob flies, then explodes where it lands.
+		local impact = endPoints[1]
+		local travel = (impact - origin).Magnitude / (stats.ProjectileSpeed or 120)
+		task.delay(travel, function()
+			explode(player, stats, impact, params)
+		end)
+	else
+		applyHits(player, hits)
+	end
+
+	-- Tell everyone else to draw the tracers. The shooter already drew their own.
+	for _, other in Players:GetPlayers() do
+		if other ~= player then
+			remotes.ShotFx:FireClient(other, player, weaponId, origin, endPoints)
+		end
+	end
+
+	if state.ammo[weaponId] <= 0 then
+		startReload(player, state)
+	else
+		sendState(player, state)
+	end
+end
+
 local function onFire(player: Player, weaponIdRaw: unknown, originRaw: unknown, directionRaw: unknown)
 	-- 1. Check the kinds of values. Anything odd gets ignored.
 	if typeof(weaponIdRaw) ~= "string" or typeof(originRaw) ~= "Vector3" or typeof(directionRaw) ~= "Vector3" then
@@ -262,74 +368,21 @@ local function onFire(player: Player, weaponIdRaw: unknown, originRaw: unknown, 
 		return
 	end
 
-	-- All checks passed: spend a bullet.
+	-- All checks passed.
 	state.lastFireTime = now
-	state.ammo[weaponId] = ammo - 1
+	fireRound(player, state, weaponId, stats, origin, direction, params)
 
-	-- The server's own raycasts decide what gets hit.
-	local endPoints: { Vector3 } = {}
-	local hits: { [Humanoid]: HitInfo } = {}
-	for _ = 1, stats.Pellets do
-		local pelletDirection = WeaponMath.applySpread(direction, stats.Spread, rng)
-		local result = workspace:Raycast(origin, pelletDirection * stats.MaxRange, params)
-		if result then
-			table.insert(endPoints, result.Position)
-			local humanoid, isHead = findHumanoid(result.Instance, result.Position)
-			if humanoid and canDamage(player, humanoid) then
-				local damage = WeaponMath.damageAtDistance(stats, result.Distance)
-				if isHead then
-					damage *= stats.HeadshotMultiplier
-				end
-				local info = hits[humanoid]
-				if info then
-					info.damage += damage
-					info.headshot = info.headshot or isHead
-				else
-					hits[humanoid] = { damage = damage, headshot = isHead }
-				end
+	-- Burst weapons fire their extra rounds a moment apart. Each round is
+	-- checked again: still alive, still holding it, has ammo, round running.
+	for round = 2, stats.Burst or 1 do
+		task.delay((round - 1) * (stats.BurstInterval or 0.07), function()
+			local stillAlive = getAliveCharacter(player)
+			if states[player] == state and state.equipped == weaponId and not state.reloading
+				and (state.ammo[weaponId] or 0) > 0 and stillAlive and CombatRules.canFire(player)
+			then
+				fireRound(player, state, weaponId, stats, origin, direction, params)
 			end
-		else
-			table.insert(endPoints, origin + pelletDirection * stats.MaxRange)
-		end
-	end
-
-	for humanoid, info in hits do
-		tagCreator(humanoid, player)
-		-- TakeDamage respects spawn ForceFields.
-		local healthBefore = humanoid.Health
-		humanoid:TakeDamage(info.damage)
-		local killed = humanoid.Health <= 0
-		local victimCharacter = humanoid.Parent
-		if killed and victimCharacter then
-			-- The victim bursts into the shooter's topping (client/Effects/ToppingEffects).
-			local shooterData = PlayerDataService.getData(player)
-			if shooterData then
-				victimCharacter:SetAttribute("BurstTopping", shooterData.equippedItems.Topping)
-			end
-		end
-		-- Report what was really dealt (a spawn-protection bubble blocks it all).
-		local dealt = healthBefore - math.max(humanoid.Health, 0)
-		if dealt > 0 then
-			local victimModel = humanoid.Parent
-			local victimPlayer = if victimModel and victimModel:IsA("Model")
-				then Players:GetPlayerFromCharacter(victimModel)
-				else nil
-			CombatRules.reportDamage(player, victimPlayer, dealt)
-		end
-		remotes.HitConfirm:FireClient(player, math.round(info.damage), killed, info.headshot)
-	end
-
-	-- Tell everyone else to draw the tracers. The shooter already drew their own.
-	for _, other in Players:GetPlayers() do
-		if other ~= player then
-			remotes.ShotFx:FireClient(other, player, weaponId, origin, endPoints)
-		end
-	end
-
-	if state.ammo[weaponId] <= 0 then
-		startReload(player, state)
-	else
-		sendState(player, state)
+		end)
 	end
 end
 

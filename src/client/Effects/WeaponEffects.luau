@@ -83,6 +83,36 @@ function Effects.impact(position: Vector3)
 	fadeAndDestroy(puff, 0.15, Vector3.new(0.9, 0.9, 0.9))
 end
 
+-- A splash where a launcher glob lands: a quick glowing bubble that grows and fades.
+function Effects.explosion(position: Vector3, color: Color3, radius: number)
+	local bubble = makeFxPart(Vector3.new(1, 1, 1), color)
+	bubble.Shape = Enum.PartType.Ball
+	bubble.Position = position
+	bubble.Transparency = 0.25
+	bubble.Parent = fxFolder
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Brightness = 3
+	light.Range = radius * 1.6
+	light.Parent = bubble
+	fadeAndDestroy(bubble, 0.35, Vector3.one * radius * 2)
+end
+
+-- A launcher glob: a glowing ball that flies from `from` to `to`, then splashes.
+function Effects.projectile(from: Vector3, to: Vector3, speed: number, color: Color3, radius: number)
+	local glob = makeFxPart(Vector3.new(0.9, 0.9, 0.9), color)
+	glob.Shape = Enum.PartType.Ball
+	glob.Position = from
+	glob.Parent = fxFolder
+	local travel = math.max((to - from).Magnitude / speed, 0.05)
+	local flight = TweenService:Create(glob, TweenInfo.new(travel, Enum.EasingStyle.Linear), { Position = to })
+	flight.Completed:Once(function()
+		glob:Destroy()
+		Effects.explosion(to, color, radius)
+	end)
+	flight:Play()
+end
+
 -- Plays a non-positional sound (heard the same everywhere, like a UI sound).
 function Effects.playSound(soundId: string, volume: number, pitch: number)
 	if soundId == "" then

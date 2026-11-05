@@ -112,7 +112,7 @@ project needs (it's listed in `rokit.toml`).
 |---------|--------------|
 | Mouse | Aim (first person in matches; menus free the mouse while open) |
 | Left click | Shoot (hold it with automatic weapons) |
-| 1 – 5 or mouse wheel | Auto Rifle / Buzz SMG / Pump Shotgun / Sniper / Pop Pistol |
+| 1 – 8 or mouse wheel | Your guns: Auto Rifle (free), Buzz SMG, Pump Shotgun, Slimeshot Marksman, Triple Burst, Sniper, Blob Launcher, Pop Pistol (free) |
 | R | Reload |
 | Space, then Space again in the air | Double jump |
 | Shift (hold, moving forward) | Sprint |

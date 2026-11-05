@@ -63,6 +63,9 @@ local SLOT_KEYS: { [Enum.KeyCode]: number } = {
 	[Enum.KeyCode.Three] = 3,
 	[Enum.KeyCode.Four] = 4,
 	[Enum.KeyCode.Five] = 5,
+	[Enum.KeyCode.Six] = 6,
+	[Enum.KeyCode.Seven] = 7,
+	[Enum.KeyCode.Eight] = 8,
 }
 
 local localPlayer = Players.LocalPlayer
@@ -181,7 +184,8 @@ local function tryFire()
 	end
 
 	lastFireTime = now
-	ammo[equipped] -= 1
+	-- A burst gun spends a bullet per round (the server fires the rounds).
+	ammo[equipped] = math.max((ammo[equipped] or 0) - (stats.Burst or 1), 0)
 	-- Movement reads this to pause sprinting briefly after a shot (this device only).
 	localPlayer:SetAttribute("LastShotAt", now)
 
@@ -204,14 +208,26 @@ local function tryFire()
 	Effects.playSound(stats.FireSoundId, 0.6, 1)
 
 	local params = HitGroups.weaponRayParams({ character, Effects.folder })
-	for _ = 1, stats.Pellets do
-		local pelletDirection = WeaponMath.applySpread(direction, stats.Spread, rng)
-		local result = workspace:Raycast(origin, pelletDirection * stats.MaxRange, params)
-		local endPoint = if result then result.Position else origin + pelletDirection * stats.MaxRange
-		Effects.tracer(muzzle, endPoint, stats.TracerColor, stats.TracerWidth)
-		if result then
-			Effects.impact(endPoint)
+	local function drawRound()
+		for _ = 1, stats.Pellets do
+			local pelletDirection = WeaponMath.applySpread(direction, stats.Spread, rng)
+			local result = workspace:Raycast(origin, pelletDirection * stats.MaxRange, params)
+			local endPoint = if result then result.Position else origin + pelletDirection * stats.MaxRange
+			local splash = stats.Splash
+			if splash then
+				-- Launcher: a glowing glob flies, then splashes where it lands.
+				Effects.projectile(muzzle, endPoint, stats.ProjectileSpeed or 120, stats.TracerColor, splash.Radius)
+			else
+				Effects.tracer(muzzle, endPoint, stats.TracerColor, stats.TracerWidth)
+				if result then
+					Effects.impact(endPoint)
+				end
+			end
 		end
+	end
+	drawRound()
+	for round = 2, stats.Burst or 1 do
+		task.delay((round - 1) * (stats.BurstInterval or 0.07), drawRound)
 	end
 
 	refreshHud()
@@ -277,7 +293,12 @@ local function onShotFx(shooterRaw: unknown, weaponIdRaw: unknown, originRaw: un
 	Effects.playSoundAt(stats.FireSoundId, start, 0.5)
 	for _, point in endPointsRaw :: { any } do
 		if typeof(point) == "Vector3" then
-			Effects.tracer(start, point, stats.TracerColor, stats.TracerWidth)
+			local splash = stats.Splash
+			if splash then
+				Effects.projectile(start, point, stats.ProjectileSpeed or 120, stats.TracerColor, splash.Radius)
+			else
+				Effects.tracer(start, point, stats.TracerColor, stats.TracerWidth)
+			end
 		end
 	end
 end

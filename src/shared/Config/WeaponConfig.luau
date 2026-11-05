@@ -38,6 +38,10 @@ export type WeaponStats = {
 	ReserveAmmo: number, -- spare bullets carried (refilled on respawn)
 	ReloadTime: number,
 	RecoilKick: number, -- degrees the view kicks up per shot (recovers by itself)
+	Burst: number?, -- rounds fired per trigger pull (burst rifles); nil = 1
+	BurstInterval: number?, -- seconds between burst rounds
+	Splash: { Radius: number, MinMultiplier: number }?, -- explosive (launcher): damage radius
+	ProjectileSpeed: number?, -- studs/second the glob flies (launcher)
 
 	-- Looks and sound
 	TracerColor: Color3,
@@ -173,13 +177,92 @@ local Weapons: { [string]: WeaponStats } = {
 		GunLength = 1.1,
 		FireSoundId = "",
 	},
+
+	-- Semi-auto marksman rifle: hard-hitting and accurate, but slower.
+	Marksman = {
+		Id = "Marksman",
+		DisplayName = "Slimeshot Marksman",
+		Damage = 40,
+		HeadshotMultiplier = 1.6,
+		FireRate = 3,
+		Automatic = false,
+		Pellets = 1,
+		Spread = 0.25,
+		MaxRange = 600,
+		FalloffStart = 300,
+		FalloffMinMultiplier = 0.8,
+		MagazineSize = 12,
+		ReserveAmmo = 48,
+		ReloadTime = 2,
+		RecoilKick = 1.8,
+
+		TracerColor = Color3.fromRGB(200, 255, 140),
+		TracerWidth = 0.1,
+		GunColor = Color3.fromRGB(120, 200, 90),
+		GunLength = 2.8,
+		FireSoundId = "",
+	},
+
+	-- Burst rifle: each trigger pull fires three quick shots.
+	Burst = {
+		Id = "Burst",
+		DisplayName = "Triple Burst",
+		Damage = 17,
+		HeadshotMultiplier = 1.5,
+		FireRate = 2.6, -- trigger pulls per second
+		Automatic = false,
+		Pellets = 1,
+		Spread = 0.9,
+		MaxRange = 320,
+		FalloffStart = 140,
+		FalloffMinMultiplier = 0.7,
+		MagazineSize = 24,
+		ReserveAmmo = 96,
+		ReloadTime = 1.9,
+		RecoilKick = 0.8,
+		Burst = 3,
+		BurstInterval = 0.075,
+
+		TracerColor = Color3.fromRGB(255, 200, 120),
+		TracerWidth = 0.08,
+		GunColor = Color3.fromRGB(255, 150, 60),
+		GunLength = 2.3,
+		FireSoundId = "",
+	},
+
+	-- Blob launcher: a slow glob of slime that explodes with splash damage.
+	Launcher = {
+		Id = "Launcher",
+		DisplayName = "Blob Launcher",
+		Damage = 85, -- at the centre of the blast
+		HeadshotMultiplier = 1,
+		FireRate = 0.8,
+		Automatic = false,
+		Pellets = 1,
+		Spread = 0,
+		MaxRange = 400,
+		FalloffStart = 400,
+		FalloffMinMultiplier = 1,
+		MagazineSize = 2,
+		ReserveAmmo = 8,
+		ReloadTime = 2.8,
+		RecoilKick = 4,
+		Splash = { Radius = 10, MinMultiplier = 0.25 },
+		ProjectileSpeed = 110,
+
+		TracerColor = Color3.fromRGB(140, 255, 120),
+		TracerWidth = 0.5,
+		GunColor = Color3.fromRGB(90, 200, 110),
+		GunLength = 3,
+		FireSoundId = "",
+	},
 }
 
 local WeaponConfig = {
 	Weapons = Weapons,
 
 	-- Which weapon sits on keys 1, 2 and 3. The first one is equipped on spawn.
-	Order = { "Rifle", "SMG", "Shotgun", "Sniper", "Pistol" } :: { string },
+	Order = { "Rifle", "SMG", "Shotgun", "Marksman", "Burst", "Sniper", "Launcher", "Pistol" } :: { string },
 
 	-- Seconds after swapping before you can shoot. Small = snappy swaps.
 	SwapTime = 0.15,
