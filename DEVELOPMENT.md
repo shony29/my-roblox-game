@@ -18,7 +18,7 @@ Nothing is marked ✅ yet: no feature has been play-tested in Studio so far.
 
 | Phase | Status |
 |-------|--------|
-| 2 Movement (walk, sprint, jump, air control, slide, FPS camera) | 🟡 in progress: walk 20 ✔, sprint 26 (Shift) ✔, dash moved to Q |
+| 2 Movement (walk, sprint, jump, air control, slide, FPS camera) | 🟡 in progress: walk 20 ✔, sprint 26 (Shift) ✔, dash moved to Q, jump 52 + coyote time + jump buffer ✔ |
 | 3 Slime animations | 🟡 breathing, stretch, squish, wobble, blink on `wip/slime-visuals` |
 | 4 Combat | 🟡 rifle, shotgun, sniper, server-checked; no pistol/SMG, recoil, viewmodel, reserve ammo |
 | 5 Core match | 🟡 free-for-all round loop only; no teams or state machine |

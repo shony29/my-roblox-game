@@ -20,7 +20,9 @@ local MovementConfig = {
 	SprintKeys = { Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonL3 },
 	SprintForwardDot = 0.3, -- you must be moving mostly forward to sprint
 	SprintShootLockout = 0.35, -- seconds after firing before sprint starts again
-	JumpPower = 55, -- upward speed of the first jump (normal Roblox is 50)
+	JumpPower = 52, -- upward speed of the first jump (normal Roblox is 50)
+	CoyoteTime = 0.12, -- seconds after walking off a ledge when a normal jump still works
+	JumpBuffer = 0.12, -- a jump pressed this long before landing happens on landing
 
 	-- DOUBLE JUMP --------------------------------------------------------
 	MaxAirJumps = 1, -- extra jumps allowed while in the air

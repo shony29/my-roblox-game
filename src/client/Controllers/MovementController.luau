@@ -42,6 +42,8 @@ type CharacterState = {
 
 	airJumpsLeft: number,
 	leftGroundAt: number,
+	jumpedFromGround: boolean, -- false if we walked off a ledge (coyote time applies)
+	bufferedJumpAt: number,
 
 	dashing: boolean,
 	dashEndsAt: number,
@@ -183,7 +185,24 @@ local function onJumpRequest()
 
 	local humanoidState = state.humanoid:GetState()
 	local inAir = humanoidState == Enum.HumanoidStateType.Freefall or humanoidState == Enum.HumanoidStateType.Jumping
-	if not inAir or t - state.leftGroundAt < MovementConfig.DoubleJumpDelay or state.airJumpsLeft <= 0 then
+	if not inAir then
+		return
+	end
+
+	-- Coyote time: just walked off a ledge without jumping? A normal jump still works.
+	if not state.jumpedFromGround and t - state.leftGroundAt < MovementConfig.CoyoteTime then
+		state.jumpedFromGround = true
+		local velocity = state.root.AssemblyLinearVelocity
+		state.root.AssemblyLinearVelocity = Vector3.new(velocity.X, MovementConfig.JumpPower, velocity.Z)
+		return
+	end
+
+	if t - state.leftGroundAt < MovementConfig.DoubleJumpDelay then
+		return
+	end
+	if state.airJumpsLeft <= 0 then
+		-- No air jumps left: remember the press and jump as soon as we land.
+		state.bufferedJumpAt = t
 		return
 	end
 
@@ -310,6 +329,8 @@ local function onCharacterAdded(character: Model)
 		connections = {},
 		airJumpsLeft = MovementConfig.MaxAirJumps,
 		leftGroundAt = os.clock(),
+		jumpedFromGround = false,
+		bufferedJumpAt = 0,
 		dashing = false,
 		dashEndsAt = 0,
 		dashDirection = Vector3.zero,
@@ -325,8 +346,14 @@ local function onCharacterAdded(character: Model)
 			local wasOnGround = old ~= Enum.HumanoidStateType.Freefall and old ~= Enum.HumanoidStateType.Jumping
 			if (new == Enum.HumanoidStateType.Jumping or new == Enum.HumanoidStateType.Freefall) and wasOnGround then
 				state.leftGroundAt = os.clock()
+				state.jumpedFromGround = new == Enum.HumanoidStateType.Jumping
 			elseif new == Enum.HumanoidStateType.Landed or new == Enum.HumanoidStateType.Running then
 				state.airJumpsLeft = MovementConfig.MaxAirJumps
+				-- Jump buffering: a jump pressed just before landing happens now.
+				if new == Enum.HumanoidStateType.Landed and os.clock() - state.bufferedJumpAt < MovementConfig.JumpBuffer then
+					state.bufferedJumpAt = 0
+					state.humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+				end
 			end
 		end)
 	)
