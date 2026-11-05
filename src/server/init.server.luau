@@ -36,6 +36,11 @@ run("HitGroups", function()
 	require(Shared.Combat.HitGroups).setup()
 end)
 
+-- 1b. One fixed slime body for every player (StarterCharacter), before anyone spawns.
+run("SlimeRig", function()
+	require(script.Components.SlimeRig).install()
+end)
+
 -- 2. Saved data first: coins, stats and owned items that other systems read.
 run("PlayerDataService", function()
 	require(Services.PlayerDataService).start()

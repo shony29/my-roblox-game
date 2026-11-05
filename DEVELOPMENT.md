@@ -12,7 +12,7 @@ Nothing is marked ✅ yet: no feature has been play-tested in Studio so far.
 | 2 | Architecture and folder structure | 🟡 done in code, needs a Studio play-test | One start-up script per side; 94/94 requires checked |
 | 3 | Shared configuration | 🟡 done in code | Added GameConfig, CameraConfig, ModeConfig (1v1/2v2/4v4 rules) | One config file per system (Movement, Weapon, Round, Shop, Schema) |
 | 4 | Networking conventions | 🟡 done in code | One list of all remotes in `Shared/Net/Net.luau` (rules at the top), reusable `RateLimiter` |
-| 5 | Basic slime character | 🟡 | Ball blob on `main`; softer jelly blob on branch `wip/slime-visuals` |
+| 5 | Basic slime character | 🟡 done in code | Same fixed body for everyone (`Components/SlimeRig`), soft jelly blob with face, fixed hitbox, shop colours recolour it |
 
 ## Later phases (summary)
 

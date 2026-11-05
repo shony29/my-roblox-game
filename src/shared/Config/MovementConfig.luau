@@ -41,13 +41,11 @@ local MovementConfig = {
 	FovLerpSpeed = 12, -- how quickly the field of view eases back
 
 	-- BLOB LOOKS ---------------------------------------------------------
-	BlobBodySize = Vector3.new(4.2, 3.6, 4.2), -- a slightly squashed ball
-	BlobEyeSize = 1.1,
-	BlobPupilSize = 0.55,
-	BlobSmileDotSize = 0.28,
-	BlobSmileDots = 5,
-	BlobColorSaturation = 0.75, -- 0 = grey, 1 = very vivid
-	BlobColorBrightness = 1, -- 0 = black, 1 = very bright
+	-- The shape itself is built in server/Components/BlobCharacter.luau.
+	BlobBodySize = Vector3.new(4.3, 3.6, 4.1), -- rough blob size (used by the shop preview)
+	BlobColorSaturation = 0.5, -- 0 = grey, 1 = very vivid (0.5 = soft candy colours)
+	BlobColorBrightness = 0.95, -- 0 = black, 1 = very bright
+	BlobHitboxSize = Vector3.new(4.6, 3.8, 4.4), -- the invisible box bullets hit (same for everyone)
 
 	-- SERVER CHECKS (fairness) -------------------------------------------
 	-- These keep cheaters from moving faster or higher than the rules allow,

@@ -22,13 +22,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("ShopConfig"))
 local HatBuilder = require(Shared:WaitForChild("Cosmetics"):WaitForChild("HatBuilder"))
+local BlobCharacter = require(script.Parent.Parent.Components.BlobCharacter)
 local WeaponSkins = require(Shared:WaitForChild("Cosmetics"):WaitForChild("WeaponSkins"))
 local GameContract = require(Shared:WaitForChild("Net"):WaitForChild("GameContract"))
 
 local ATTR = GameContract.PlayerAttributes
 
 -- Names used by the other systems:
-local BLOB_MODEL_NAME = "Blob" -- Server/Movement/BlobCharacter
+local BLOB_MODEL_NAME = "Blob" -- server/Components/BlobCharacter
 local BLOB_BODY_NAME = "Body"
 local GUN_MODEL_NAME = "EquippedGun" -- Server/Weapons/GunModel
 local BLOB_COLOR_ATTRIBUTE = "BlobColor" -- Server/Movement/MovementService builds the blob in this color
@@ -48,9 +49,8 @@ local function dressBlob(player: Player, blob: Instance)
 	end
 
 	local color = ShopConfig.getColor(readString(player, ATTR.EquippedColor))
-	body.Color = color.Color
-	body.Material = color.Material
-	body.Reflectance = color.Reflectance
+	-- The visible blob is several pieces ("Body" is the invisible hitbox).
+	BlobCharacter.setColor(blob, color.Color, color.Material, color.Reflectance)
 
 	local hat = ShopConfig.getHat(readString(player, ATTR.EquippedHat))
 	local oldHat = blob:FindFirstChild(HatBuilder.MODEL_NAME)

@@ -22,6 +22,9 @@
     },
 
     "StarterPlayer": {
+      "$properties": {
+        "LoadCharacterAppearance": false
+      },
       "StarterPlayerScripts": {
         "Client": {
           "$path": "src/client"
