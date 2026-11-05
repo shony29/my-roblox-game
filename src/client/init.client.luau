@@ -174,6 +174,10 @@ local function refreshReport()
 	if #problems > 0 then
 		table.insert(lines, `Your screen: {table.concat(problems, ", ")}`)
 	end
+	local lobbyProblems = readString("LobbyProblems")
+	if lobbyProblems ~= "" then
+		table.insert(lines, `Lobby: {lobbyProblems}`)
+	end
 	local serverVersion = readString("ServerVersion")
 	if serverVersion ~= "" and serverVersion ~= GameConfig.Version then
 		table.insert(lines, `Version mismatch: server {serverVersion}, client {GameConfig.Version}`)
@@ -190,6 +194,7 @@ end
 
 ReplicatedStorage:GetAttributeChangedSignal("ServerProblems"):Connect(refreshReport)
 ReplicatedStorage:GetAttributeChangedSignal("ServerVersion"):Connect(refreshReport)
+ReplicatedStorage:GetAttributeChangedSignal("LobbyProblems"):Connect(refreshReport)
 player:GetAttributeChangedSignal("MatchStatus"):Connect(refreshReport)
 refreshReport()
 

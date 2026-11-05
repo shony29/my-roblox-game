@@ -137,7 +137,7 @@ local function fallbackLobby(): LobbyBuilder.Lobby
 	floor.Material = Enum.Material.DiamondPlate
 	floor.Parent = model
 	model.Parent = Workspace
-	return { model = model, spawnCFrame = CFrame.new(0, 304, 700), origin = Vector3.new(0, 300, 700), pads = {} }
+	return { model = model, spawnCFrame = CFrame.new(0, 304, 700), origin = Vector3.new(0, 300, 700), pads = {}, problems = {} }
 end
 
 function LobbyService.start()
@@ -148,12 +148,17 @@ function LobbyService.start()
 	-- Listen for players first, so the Play button works even if building fails.
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	local ok, result = pcall(LobbyBuilder.build)
+	local problemText = ""
 	if ok then
 		lobby = result
+		problemText = table.concat((result :: LobbyBuilder.Lobby).problems, "  |  ")
 	else
 		warn(`[LobbyService] Building the lobby failed, using a plain floor instead: {result}`)
 		lobby = fallbackLobby()
+		problemText = `the whole lobby failed: {result}`
 	end
+	-- Shown at the top of players' screens (client start-up report).
+	ReplicatedStorage:SetAttribute("LobbyProblems", string.sub(problemText, 1, 400))
 	for _, player in Players:GetPlayers() do
 		task.spawn(onPlayerAdded, player)
 	end

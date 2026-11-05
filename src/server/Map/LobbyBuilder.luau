@@ -31,6 +31,7 @@ export type Lobby = {
 	spawnCFrame: CFrame,
 	origin: Vector3,
 	pads: { Pad },
+	problems: { string }, -- pieces that failed to build (empty when all is well)
 }
 
 local ORIGIN = Vector3.new(0, 300, 700) -- centre of the main hall's floor
@@ -45,19 +46,60 @@ local GREEN, PURPLE, CYAN = LobbyProps.GREEN, LobbyProps.PURPLE, LobbyProps.CYAN
 
 local LobbyBuilder = {}
 
+-- Problems found while building (shown on screen and in the Output).
+local problems: { string } = {}
+
+local function record(label: string, err: unknown)
+	local text = `{label}: {tostring(err)}`
+	table.insert(problems, text)
+	warn(`[LobbyBuilder] {text}`)
+end
+
+-- Runs one piece of the build. If it fails, it is skipped and reported,
+-- so one broken decoration can't stop the whole bunker from appearing.
+local function try(label: string, fn: () -> ())
+	local ok, err = pcall(fn)
+	if not ok then
+		record(label, err)
+	end
+end
+
+-- A copy of a helper module where every function is protected like `try`.
+local function protect<T>(module: T, moduleName: string): T
+	local safe = {}
+	for name, value in module :: any do
+		if typeof(value) == "function" then
+			safe[name] = function(...)
+				local results = table.pack(pcall(value, ...))
+				if not results[1] then
+					record(`{moduleName}.{name}`, results[2])
+					return nil
+				end
+				return table.unpack(results, 2, results.n)
+			end
+		else
+			safe[name] = value
+		end
+	end
+	return safe :: any
+end
+
+local Props = protect(LobbyProps, "LobbyProps")
+local Kit = protect(MapKit, "MapKit")
+
 local function at(x: number, y: number, z: number): Vector3
 	return ORIGIN + Vector3.new(x, y, z)
 end
 
 local function box(model: Model, name: string, size: Vector3, center: Vector3, color: Color3, material: Enum.Material?)
-	return MapKit.part(model, name, size, CFrame.new(center), color, { material = material or Enum.Material.Metal })
+	return Kit.part(model, name, size, CFrame.new(center), color, { material = material or Enum.Material.Metal })
 end
 
 local function buildHall(model: Model)
 	box(model, "Floor", Vector3.new(HALL_X * 2, 2, HALL_Z * 2), at(0, -1, 0), METAL_DARK, Enum.Material.DiamondPlate)
 	box(model, "Walkway", Vector3.new(16, 0.1, HALL_Z * 2 - 4), at(0, 0.05, 0), Color3.fromRGB(92, 96, 104), Enum.Material.DiamondPlate)
-	LobbyProps.hazardLine(model, at(-8.6, 0, HALL_Z - 2), at(-8.6, 0, -HALL_Z + 2), 1.2)
-	LobbyProps.hazardLine(model, at(8.6, 0, HALL_Z - 2), at(8.6, 0, -HALL_Z + 2), 1.2)
+	Props.hazardLine(model, at(-8.6, 0, HALL_Z - 2), at(-8.6, 0, -HALL_Z + 2), 1.2)
+	Props.hazardLine(model, at(8.6, 0, HALL_Z - 2), at(8.6, 0, -HALL_Z + 2), 1.2)
 	box(model, "Ceiling", Vector3.new(HALL_X * 2, 2, HALL_Z * 2), at(0, HALL_HEIGHT + 1, 0), METAL_DARK)
 	box(model, "WallBack", Vector3.new(HALL_X * 2, HALL_HEIGHT, 2), at(0, HALL_HEIGHT / 2, HALL_Z + 1), METAL)
 	for _, side in { -1, 1 } do
@@ -81,47 +123,47 @@ local function buildHall(model: Model)
 
 	-- The portal: an octagon frame with a glowing purple inner ring.
 	local portalCenter = at(0, PORTAL_RADIUS, -HALL_Z + 0.5)
-	LobbyProps.octagonFrame(model, portalCenter, PORTAL_RADIUS + 1.2, METAL_DARK, 3, 2.4, Enum.Material.DiamondPlate)
-	LobbyProps.octagonFrame(model, portalCenter + Vector3.new(0, 0, 0.8), PORTAL_RADIUS - 0.2, PURPLE, 1, 0.6, Enum.Material.Neon)
+	Props.octagonFrame(model, portalCenter, PORTAL_RADIUS + 1.2, METAL_DARK, 3, 2.4, Enum.Material.DiamondPlate)
+	Props.octagonFrame(model, portalCenter + Vector3.new(0, 0, 0.8), PORTAL_RADIUS - 0.2, PURPLE, 1, 0.6, Enum.Material.Neon)
 
 	-- The big neon sign above the portal.
 	local signPosition = at(0, 25, -HALL_Z + 0.2)
-	LobbyProps.neonSign(model, "BunkerSign", Vector3.new(36, 9, 0.6), CFrame.lookAt(signPosition, signPosition + Vector3.new(0, 0, 1)), "SLIME SHOWDOWN", Color3.fromRGB(190, 255, 150))
+	Props.neonSign(model, "BunkerSign", Vector3.new(36, 9, 0.6), CFrame.lookAt(signPosition, signPosition + Vector3.new(0, 0, 1)), "SLIME SHOWDOWN", Color3.fromRGB(190, 255, 150))
 
 	-- Ceiling lamps.
 	for _, x in { -20, 0, 20 } do
 		for _, z in { -15, 15 } do
 			local lamp = box(model, "CeilingLamp", Vector3.new(10, 0.5, 1.5), at(x, HALL_HEIGHT - 0.3, z), Color3.fromRGB(235, 240, 255), Enum.Material.Neon)
-			LobbyProps.light(lamp, Color3.fromRGB(220, 235, 255), 34, 0.9)
+			Props.light(lamp, Color3.fromRGB(220, 235, 255), 34, 0.9)
 		end
 	end
 end
 
 local function buildSlime(model: Model)
 	-- Tubes along the walls, a big tank on the right, a pedestal in the middle.
-	LobbyProps.slimeTube(model, at(-34, 0, -26), 20, 6, GREEN)
-	LobbyProps.slimeTube(model, at(-26, 0, -29), 16, 5, PURPLE)
-	LobbyProps.slimeTube(model, at(-35, 0, 12), 18, 6, GREEN)
-	LobbyProps.slimeTube(model, at(32, 0, -24), 22, 11, GREEN)
-	LobbyProps.slimeTube(model, at(34, 0, 14), 14, 7, CYAN)
-	LobbyProps.slimeTube(model, at(30, 0, 26), 14, 7, PURPLE)
+	Props.slimeTube(model, at(-34, 0, -26), 20, 6, GREEN)
+	Props.slimeTube(model, at(-26, 0, -29), 16, 5, PURPLE)
+	Props.slimeTube(model, at(-35, 0, 12), 18, 6, GREEN)
+	Props.slimeTube(model, at(32, 0, -24), 22, 11, GREEN)
+	Props.slimeTube(model, at(34, 0, 14), 14, 7, CYAN)
+	Props.slimeTube(model, at(30, 0, 26), 14, 7, PURPLE)
 	box(model, "PedestalBase", Vector3.new(12, 1, 12), at(0, 0.5, -10), METAL_DARK, Enum.Material.DiamondPlate)
-	LobbyProps.slimeTube(model, at(0, 1, -10), 9, 5, GREEN)
+	Props.slimeTube(model, at(0, 1, -10), 9, 5, GREEN)
 
 	-- Pipes: along the side walls (with glowing glass sections) and overhead.
 	for _, side in { -1, 1 } do
-		LobbyProps.pipe(model, at(side * 38.5, 24, -HALL_Z + 2), at(side * 38.5, 24, HALL_Z - 2), 3, GREEN)
-		LobbyProps.pipe(model, at(side * 38.5, 18, -HALL_Z + 2), at(side * 38.5, 18, HALL_Z - 2), 2, nil)
+		Props.pipe(model, at(side * 38.5, 24, -HALL_Z + 2), at(side * 38.5, 24, HALL_Z - 2), 3, GREEN)
+		Props.pipe(model, at(side * 38.5, 18, -HALL_Z + 2), at(side * 38.5, 18, HALL_Z - 2), 2, nil)
 	end
-	LobbyProps.pipe(model, at(-HALL_X + 1, 30, -12), at(HALL_X - 1, 30, -12), 2.5, GREEN)
-	LobbyProps.pipe(model, at(-HALL_X + 1, 31, 10), at(HALL_X - 1, 31, 10), 2, PURPLE)
+	Props.pipe(model, at(-HALL_X + 1, 30, -12), at(HALL_X - 1, 30, -12), 2.5, GREEN)
+	Props.pipe(model, at(-HALL_X + 1, 31, 10), at(HALL_X - 1, 31, 10), 2, PURPLE)
 
 	-- Glowing slime puddles.
-	LobbyProps.puddle(model, at(-12, 0, 6), 7, GREEN)
-	LobbyProps.puddle(model, at(-18, 0, -20), 5, PURPLE)
-	LobbyProps.puddle(model, at(6, 0, 18), 6, GREEN)
-	LobbyProps.puddle(model, at(14, 0, -22), 4, GREEN)
-	LobbyProps.puddle(model, at(22, 0, 4), 5, PURPLE)
+	Props.puddle(model, at(-12, 0, 6), 7, GREEN)
+	Props.puddle(model, at(-18, 0, -20), 5, PURPLE)
+	Props.puddle(model, at(6, 0, 18), 6, GREEN)
+	Props.puddle(model, at(14, 0, -22), 4, GREEN)
+	Props.puddle(model, at(22, 0, 4), 5, PURPLE)
 end
 
 local function prompt(parent: BasePart, name: string, action: string, object: string)
@@ -142,18 +184,23 @@ local function buildShopAndDaily(model: Model)
 	box(model, "ShopMachine", Vector3.new(4, 12, 7), at(-37, 6, 0), METAL)
 	box(model, "ShopScreen", Vector3.new(0.3, 5, 5), at(-34.9, 8, 0), CYAN, Enum.Material.Neon)
 	local shopSign = at(-36, 16, 0)
-	LobbyProps.neonSign(model, "ShopSign", Vector3.new(14, 4, 0.5), CFrame.lookAt(shopSign, shopSign + Vector3.new(1, 0, 0)), "SHOP", CYAN)
-	prompt(counter, "ShopCounter", "Open Shop", "Guns, squishies & skins")
+	Props.neonSign(model, "ShopSign", Vector3.new(14, 4, 0.5), CFrame.lookAt(shopSign, shopSign + Vector3.new(1, 0, 0)), "SHOP", CYAN)
+	try("shop prompt", function()
+		prompt(counter, "ShopCounter", "Open Shop", "Guns, squishies & skins")
+	end)
 
 	-- DAILY SQUISHY machine (right): a glass dome with a squishy inside.
 	local base = box(model, "DailyBase", Vector3.new(9, 3, 9), at(31, 1.5, 0), METAL_DARK, Enum.Material.DiamondPlate)
-	MapKit.part(model, "DailyDome", Vector3.new(8, 8, 8), CFrame.new(at(31, 7, 0)), Color3.fromRGB(220, 240, 255), { shape = Enum.PartType.Ball, material = Enum.Material.Glass, transparency = 0.6 })
-	local squishy = MapKit.part(model, "DailySquishyToy", Vector3.new(4.5, 4.5, 4.5), CFrame.new(at(31, 5.4, 0)), Color3.fromRGB(120, 230, 160), { shape = Enum.PartType.Ball, collide = false })
-	LobbyProps.light(squishy, GREEN, 12, 1.2)
+	Kit.part(model, "DailyDome", Vector3.new(8, 8, 8), CFrame.new(at(31, 7, 0)), Color3.fromRGB(220, 240, 255), { shape = Enum.PartType.Ball, material = Enum.Material.Glass, transparency = 0.6 })
+	local squishy = Kit.part(model, "DailySquishyToy", Vector3.new(4.5, 4.5, 4.5), CFrame.new(at(31, 5.4, 0)), Color3.fromRGB(120, 230, 160), { shape = Enum.PartType.Ball, collide = false })
+	Props.light(squishy, GREEN, 12, 1.2)
 	local dailySign = at(37, 15, 0)
-	LobbyProps.neonSign(model, "DailySign", Vector3.new(14, 5, 0.5), CFrame.lookAt(dailySign, dailySign + Vector3.new(-1, 0, 0)), "DAILY SQUISHY", GREEN)
-	prompt(base, "DailySquishy", "Open", "Daily Squishy")
+	Props.neonSign(model, "DailySign", Vector3.new(14, 5, 0.5), CFrame.lookAt(dailySign, dailySign + Vector3.new(-1, 0, 0)), "DAILY SQUISHY", GREEN)
+	try("Daily Squishy prompt", function()
+		prompt(base, "DailySquishy", "Open", "Daily Squishy")
+	end)
 	-- "READY!" / "NEXT IN 5h" (each player's own client fills this in).
+	try("Daily Squishy sign", function()
 	local status = Instance.new("BillboardGui")
 	status.Size = UDim2.fromOffset(200, 50)
 	status.StudsOffset = Vector3.new(0, 7.5, 0)
@@ -169,10 +216,11 @@ local function buildShopAndDaily(model: Model)
 	label.TextStrokeTransparency = 0.2
 	label.Text = "READY!"
 	label.Parent = status
+	end)
 
 	-- How-to-play board on the front wall.
 	local board = at(-24, 12, -HALL_Z + 0.2)
-	LobbyProps.neonSign(model, "HowToPlay", Vector3.new(12, 9, 0.4), CFrame.lookAt(board, board + Vector3.new(0, 0, 1)),
+	Props.neonSign(model, "HowToPlay", Vector3.new(12, 9, 0.4), CFrame.lookAt(board, board + Vector3.new(0, 0, 1)),
 		"HOW TO PLAY\nWalk through the portal\nStand on a pad to queue\nShop: guns & squishies\nDaily Squishy: free item!", Color3.fromRGB(200, 255, 180))
 end
 
@@ -185,7 +233,7 @@ local function buildHallway(model: Model): { Pad }
 	box(model, "HallwayCeiling", Vector3.new(HALL_HALF_WIDTH * 2, 2, HALL_LENGTH), Vector3.new(ORIGIN.X, ORIGIN.Y + HALL_HEIGHT_2 + 1, midZ), METAL_DARK)
 	for _, side in { -1, 1 } do
 		box(model, "HallwayWall", Vector3.new(2, HALL_HEIGHT_2, HALL_LENGTH), Vector3.new(ORIGIN.X + side * (HALL_HALF_WIDTH + 1), ORIGIN.Y + HALL_HEIGHT_2 / 2, midZ), METAL)
-		LobbyProps.hazardLine(model, Vector3.new(ORIGIN.X + side * 4.5, ORIGIN.Y, startZ - 2), Vector3.new(ORIGIN.X + side * 4.5, ORIGIN.Y, endZ + 2), 1)
+		Props.hazardLine(model, Vector3.new(ORIGIN.X + side * 4.5, ORIGIN.Y, startZ - 2), Vector3.new(ORIGIN.X + side * 4.5, ORIGIN.Y, endZ + 2), 1)
 	end
 	box(model, "HallwayEnd", Vector3.new(HALL_HALF_WIDTH * 2, HALL_HEIGHT_2, 2), Vector3.new(ORIGIN.X, ORIGIN.Y + HALL_HEIGHT_2 / 2, endZ - 1), METAL)
 	box(model, "Shutter", Vector3.new(16, 14, 0.6), Vector3.new(ORIGIN.X, ORIGIN.Y + 7, endZ + 0.4), Color3.fromRGB(70, 72, 80), Enum.Material.CorrugatedMetal)
@@ -194,9 +242,9 @@ local function buildHallway(model: Model): { Pad }
 		local z = startZ - 6 - i * 8
 		for _, side in { -1, 1 } do
 			local strip = Vector3.new(ORIGIN.X + side * 9, ORIGIN.Y + HALL_HEIGHT_2 - 0.4, z)
-			local part = MapKit.part(model, "LightStrip", Vector3.new(8, 0.3, 0.6), CFrame.new(strip) * CFrame.Angles(0, math.rad(side * 25), 0), Color3.fromRGB(255, 120, 150), { material = Enum.Material.Neon, collide = false, shadow = false })
+			local part = Kit.part(model, "LightStrip", Vector3.new(8, 0.3, 0.6), CFrame.new(strip) * CFrame.Angles(0, math.rad(side * 25), 0), Color3.fromRGB(255, 120, 150), { material = Enum.Material.Neon, collide = false, shadow = false })
 			if i % 3 == 0 then
-				LobbyProps.light(part, Color3.fromRGB(255, 190, 210), 24, 0.6)
+				Props.light(part, Color3.fromRGB(255, 190, 210), 24, 0.6)
 			end
 		end
 	end
@@ -215,11 +263,13 @@ local function buildHallway(model: Model): { Pad }
 		for _, side in { -1, 1 } do
 			local info = if side < 0 then row.left else row.right
 			local center = Vector3.new(ORIGIN.X + side * 13, ORIGIN.Y, startZ + row.z)
-			local pad, counter = LobbyProps.queuePad(padsFolder, center, PAD_RADIUS, info.color, info.title)
-			table.insert(pads, { part = pad, mode = info.mode, bots = side > 0, radius = PAD_RADIUS, counter = counter })
+			local pad, counter = Props.queuePad(padsFolder, center, PAD_RADIUS, info.color, info.title)
+			if pad and counter then
+				table.insert(pads, { part = pad, mode = info.mode, bots = side > 0, radius = PAD_RADIUS, counter = counter })
+			end
 			-- A big poster on the wall behind the pad.
 			local posterPosition = Vector3.new(ORIGIN.X + side * (HALL_HALF_WIDTH - 0.3), ORIGIN.Y + 11, center.Z)
-			LobbyProps.neonSign(model, "Poster", Vector3.new(14, 9, 0.4), CFrame.lookAt(posterPosition, posterPosition + Vector3.new(-side, 0, 0)), info.title, info.color, Color3.fromRGB(40, 36, 52))
+			Props.neonSign(model, "Poster", Vector3.new(14, 9, 0.4), CFrame.lookAt(posterPosition, posterPosition + Vector3.new(-side, 0, 0)), info.title, info.color, Color3.fromRGB(40, 36, 52))
 		end
 	end
 	return pads
@@ -233,10 +283,20 @@ function LobbyBuilder.build(): Lobby
 	local model = Instance.new("Model")
 	model.Name = "Lobby"
 
-	buildHall(model)
-	buildSlime(model)
-	buildShopAndDaily(model)
-	local pads = buildHallway(model)
+	table.clear(problems)
+	try("hall", function()
+		buildHall(model)
+	end)
+	try("slime decorations", function()
+		buildSlime(model)
+	end)
+	try("shop and Daily Squishy", function()
+		buildShopAndDaily(model)
+	end)
+	local pads: { Pad } = {}
+	try("hallway and queue pads", function()
+		pads = buildHallway(model)
+	end)
 
 	model.Parent = Workspace
 	return {
@@ -244,6 +304,7 @@ function LobbyBuilder.build(): Lobby
 		spawnCFrame = CFrame.lookAt(at(0, 4, 24), at(0, 4, -HALL_Z)),
 		origin = ORIGIN,
 		pads = pads,
+		problems = table.clone(problems),
 	}
 end
 

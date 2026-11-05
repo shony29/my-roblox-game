@@ -277,9 +277,15 @@ function Hud.create(gui: ScreenGui)
 	task.spawn(function()
 		while gui.Parent do
 			if gui.Enabled then
-				-- No crosshair (or guns) in the lobby, only in matches.
-				crosshair.Visible = player:GetAttribute("MatchStatus") == "InMatch"
-				setAmmo(readAmmo(player.Character))
+				-- No crosshair, guns or ammo in the lobby: only in matches and the practice range.
+				local status = player:GetAttribute("MatchStatus")
+				local armed = status == "InMatch" or status == "Practice"
+				crosshair.Visible = armed
+				if armed then
+					setAmmo(readAmmo(player.Character))
+				else
+					setAmmo(nil, nil, nil)
+				end
 				setTimer(GameContract.getRoundTimeRemaining())
 			end
 			task.wait(UPDATE_INTERVAL)
