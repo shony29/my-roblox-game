@@ -10,7 +10,7 @@ Nothing is marked ✅ yet: no feature has been play-tested in Studio so far.
 |---|---------|--------|-------|
 | 1 | Inspect existing project | ✅ done (code inspection) | Findings below |
 | 2 | Architecture and folder structure | 🟡 done in code, needs a Studio play-test | One start-up script per side; 94/94 requires checked |
-| 3 | Shared configuration | 🔲 **next** (files already in `Config/`) | One config file per system (Movement, Weapon, Round, Shop, Schema) |
+| 3 | Shared configuration | 🟡 done in code | Added GameConfig, CameraConfig, ModeConfig (1v1/2v2/4v4 rules) | One config file per system (Movement, Weapon, Round, Shop, Schema) |
 | 4 | Networking conventions | 🟡 | Works, but 4 different remote helpers (see findings) |
 | 5 | Basic slime character | 🟡 | Ball blob on `main`; softer jelly blob on branch `wip/slime-visuals` |
 
