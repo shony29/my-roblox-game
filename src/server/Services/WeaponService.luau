@@ -494,6 +494,30 @@ end
 
 local WeaponService = {}
 
+--[[
+	Slime ammo pickups (AmmoService): gives each of the player's guns one more
+	magazine of spare ammo, up to its maximum. Returns false if they were
+	already full (so the pickup stays for someone else).
+]]
+function WeaponService.refillReserve(player: Player): boolean
+	local state = states[player]
+	if not state then
+		return false
+	end
+	local added = false
+	for id, stats in WeaponConfig.Weapons do
+		local current = state.reserve[id] or 0
+		if current < stats.ReserveAmmo then
+			state.reserve[id] = math.min(current + stats.MagazineSize, stats.ReserveAmmo)
+			added = true
+		end
+	end
+	if added then
+		sendState(player, state)
+	end
+	return added
+end
+
 function WeaponService.start()
 	HitGroups.setup()
 	remotes.Fire.OnServerEvent:Connect(onFire)

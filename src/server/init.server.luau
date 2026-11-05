@@ -67,6 +67,9 @@ end)
 run("WeaponService", function()
 	require(Services.WeaponService).start()
 end)
+run("AmmoService", function()
+	require(Services.AmmoService).start() -- slime ammo balls on the maps
+end)
 
 -- 5. Build the arena and lobby, then start matches and matchmaking.
 run("Map and matches", function()

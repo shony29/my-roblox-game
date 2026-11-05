@@ -20,6 +20,7 @@ local Workspace = game:GetService("Workspace")
 export type Arena = {
 	model: Model,
 	spawnPoints: { BasePart },
+	ammoSpots: { Vector3 }, -- where slime ammo balls float (AmmoService)
 }
 
 local ArenaBuilder = {}
@@ -260,6 +261,13 @@ function ArenaBuilder.build(): Arena
 	return {
 		model = model,
 		spawnPoints = spawnPoints,
+		ammoSpots = {
+			Vector3.new(0, FLOOR_Y + 8, 0), -- top of the centre platform
+			Vector3.new(40, FLOOR_Y, 0),
+			Vector3.new(-40, FLOOR_Y, 0),
+			Vector3.new(0, FLOOR_Y, 40),
+			Vector3.new(0, FLOOR_Y, -40),
+		},
 	}
 end
 

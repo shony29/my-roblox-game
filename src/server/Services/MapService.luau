@@ -12,8 +12,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local MapConfig = require(ReplicatedStorage.Shared.Config.MapConfig)
 local SpawnService = require(script.Parent.SpawnService)
+local AmmoService = require(script.Parent.AmmoService)
 
-type Built = { model: Model, spawnPoints: { BasePart } }
+type Built = { model: Model, spawnPoints: { BasePart }, ammoSpots: { Vector3 }? }
 type Builder = { build: () -> Built }
 
 local MapService = {}
@@ -49,6 +50,7 @@ function MapService.load(mapId: string): boolean
 	loadedId = mapId
 	loadedModel = built.model
 	SpawnService.init(built.spawnPoints)
+	AmmoService.setSpots(built.ammoSpots or {}) -- slime ammo balls
 	return true
 end
 

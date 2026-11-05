@@ -174,7 +174,7 @@ local function buildBoundary(model: Model)
 	end
 end
 
-function Builder.build(): { model: Model, spawnPoints: { BasePart } }
+function Builder.build(): { model: Model, spawnPoints: { BasePart }, ammoSpots: { Vector3 } }
 	local old = Workspace:FindFirstChild("MossyKeep")
 	if old then
 		old:Destroy()
@@ -196,7 +196,17 @@ function Builder.build(): { model: Model, spawnPoints: { BasePart } }
 	buildBoundary(model)
 
 	model.Parent = Workspace
-	return { model = model, spawnPoints = spawnPoints }
+	-- Slime ammo balls: by the well, in the forest (mirrored) and on the north towers.
+	local ammoSpots = {
+		floor(0, 10),
+		floor(40, -30),
+		floor(-40, -30),
+		floor(40, 30),
+		floor(-40, 30),
+		floor(KEEP, -KEEP) + Vector3.new(0, 14, 0),
+		floor(-KEEP, -KEEP) + Vector3.new(0, 14, 0),
+	}
+	return { model = model, spawnPoints = spawnPoints, ammoSpots = ammoSpots }
 end
 
 return Builder

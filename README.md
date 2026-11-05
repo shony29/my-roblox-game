@@ -138,6 +138,7 @@ Things to check:
 - [ ] Both players appear in the arena on opposite sides, frozen, with a 3-2-1 countdown, then **GO!**
 - [ ] You can't shoot during the countdown or between rounds, and never your own teammates.
 - [ ] Shooting lowers the other player's **health bar**; the **ammo counter** (bottom right) shows magazine / spare bullets.
+- [ ] Walk over a glowing green **slime ball** on the map: your spare ammo goes up and the ball comes back 15 seconds later.
 - [ ] An elimination shows in the **kill feed** (top right) and the **scoreboard** (Tab); the shooter earns **5 coins**.
 - [ ] The eliminated player sits out; the round ends (ROUND WON / ROUND LOST) and both respawn for the next round.
 - [ ] First to 5 rounds shows the **results screen** (VICTORY / DEFEAT, MVP, stats, coins).
