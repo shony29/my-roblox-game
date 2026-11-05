@@ -35,6 +35,8 @@ local SLOT_KEYS: { [Enum.KeyCode]: number } = {
 	[Enum.KeyCode.One] = 1,
 	[Enum.KeyCode.Two] = 2,
 	[Enum.KeyCode.Three] = 3,
+	[Enum.KeyCode.Four] = 4,
+	[Enum.KeyCode.Five] = 5,
 }
 
 local localPlayer = Players.LocalPlayer
@@ -284,6 +286,26 @@ function WeaponController.start()
 			end
 		elseif input.KeyCode == Enum.KeyCode.R then
 			requestReload()
+		end
+	end)
+
+	-- Mouse wheel (and gamepad Y) cycles through the weapons.
+	local function cycle(step: number)
+		if os.clock() - equipTime < WeaponConfig.SwapTime then
+			return -- one swap at a time, so a fast wheel spin doesn't spam the server
+		end
+		local count = #WeaponConfig.Order
+		local index = table.find(WeaponConfig.Order, equipped) or 1
+		equip(WeaponConfig.Order[((index - 1 + step) % count) + 1])
+	end
+	UserInputService.InputChanged:Connect(function(input: InputObject, gameProcessed: boolean)
+		if not gameProcessed and input.UserInputType == Enum.UserInputType.MouseWheel then
+			cycle(if input.Position.Z > 0 then -1 else 1)
+		end
+	end)
+	UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+		if not gameProcessed and input.KeyCode == Enum.KeyCode.ButtonY then
+			cycle(1)
 		end
 	end)
 

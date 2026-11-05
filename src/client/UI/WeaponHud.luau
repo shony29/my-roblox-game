@@ -82,7 +82,8 @@ local slotBar = Instance.new("Frame")
 slotBar.Name = "Slots"
 slotBar.AnchorPoint = Vector2.new(0.5, 1)
 slotBar.Position = UDim2.new(0.5, 0, 1, -20)
-slotBar.Size = UDim2.fromOffset(3 * 130 + 2 * 8, 44)
+local SLOT_WIDTH = 118
+slotBar.Size = UDim2.fromOffset(#WeaponConfig.Order * (SLOT_WIDTH + 8) - 8, 44)
 slotBar.BackgroundTransparency = 1
 slotBar.Parent = gui
 
@@ -98,7 +99,7 @@ for index, weaponId in WeaponConfig.Order do
 	local slot = Instance.new("TextLabel")
 	slot.Name = weaponId
 	slot.LayoutOrder = index
-	slot.Size = UDim2.fromOffset(130, 44)
+	slot.Size = UDim2.fromOffset(SLOT_WIDTH, 44)
 	slot.BackgroundColor3 = COLOR_SLOT
 	slot.BackgroundTransparency = 0.35
 	slot.Font = Enum.Font.FredokaOne

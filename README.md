@@ -3,7 +3,7 @@
 A fast, cheerful free-for-all shooter for Roblox. Everyone is a round **blob**
 with googly eyes, running around a colourful arena.
 
-- 🔫 **Three weapons:** Auto Rifle, Pump Shotgun and Sniper (keys **1 / 2 / 3**)
+- 🔫 **Five weapons:** Auto Rifle, Buzz SMG, Pump Shotgun, Sniper and Pop Pistol (keys **1–5** or mouse wheel)
 - ⚡ **Fast movement:** dash, double jump and slide
 - ⏱️ **Rounds:** 5-minute free-for-all, first to 25 eliminations wins, then a short break
 - 🔁 **Quick respawns** at the safest spawn pad, with 2 seconds of spawn protection
@@ -107,7 +107,7 @@ project needs (it's listed in `rokit.toml`).
 |---------|--------------|
 | Mouse | Aim (the game is first person; menus free the mouse while open) |
 | Left click | Shoot (hold it with the Auto Rifle) |
-| 1 / 2 / 3 | Auto Rifle / Pump Shotgun / Sniper |
+| 1 – 5 or mouse wheel | Auto Rifle / Buzz SMG / Pump Shotgun / Sniper / Pop Pistol |
 | R | Reload |
 | Space, then Space again in the air | Double jump |
 | Shift (hold, moving forward) | Sprint |

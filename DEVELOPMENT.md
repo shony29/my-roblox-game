@@ -20,7 +20,7 @@ Nothing is marked ✅ yet: no feature has been play-tested in Studio so far.
 |-------|--------|
 | 2 Movement (walk, sprint, jump, air control, slide, FPS camera) | 🟡 in progress: walk 20 ✔, sprint 26 (Shift) ✔, dash moved to Q, jump 52 + coyote time + jump buffer ✔, air control: kept Roblox's full air control (decision, revisit after play-test) ✔, slide 0.65 s / 2 s cooldown ✔, first-person camera + gun view ✔ (all untested in Studio) |
 | 3 Slime animations | 🟡 done in code (`Controllers/BlobAnimator`): idle, walk bounce, sprint lean, jump stretch, impact-scaled landing squish, damage ripple + squint, death collapse + particle burst |
-| 4 Combat | 🟡 in progress: 18-21 rifle, server-checked shooting, damage, hitmarkers (existing) ✔; 22 reserve ammo ✔; 23 recoil ✔; 24 weapon animations (fire kick, equip raise, reload dip, sprint pose, dry-fire twitch) ✔ |
+| 4 Combat | 🟡 in progress: 18-21 rifle, server-checked shooting, damage, hitmarkers (existing) ✔; 22 reserve ammo ✔; 23 recoil ✔; 24 weapon animations (fire kick, equip raise, reload dip, sprint pose, dry-fire twitch) ✔; 25 switching (1-5, mouse wheel, gamepad Y) ✔; 26 SMG + Pistol ✔ |
 | 5 Core match | 🟡 free-for-all round loop only; no teams or state machine |
 | 6 Lobby | 🔲 (main menu with Play button only) |
 | 7 Match transitions | 🔲 |

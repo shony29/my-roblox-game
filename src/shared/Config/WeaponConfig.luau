@@ -123,13 +123,63 @@ local Weapons: { [string]: WeaponStats } = {
 		GunLength = 3.2,
 		FireSoundId = "",
 	},
+
+	-- Fast SMG: shreds up close, loses power quickly with distance.
+	SMG = {
+		Id = "SMG",
+		DisplayName = "Buzz SMG",
+		Damage = 13,
+		HeadshotMultiplier = 1.4,
+		FireRate = 14,
+		Automatic = true,
+		Pellets = 1,
+		Spread = 2.2,
+		MaxRange = 180,
+		FalloffStart = 60,
+		FalloffMinMultiplier = 0.55,
+		MagazineSize = 36,
+		ReserveAmmo = 144,
+		ReloadTime = 1.6,
+		RecoilKick = 0.4,
+
+		TracerColor = Color3.fromRGB(255, 150, 220),
+		TracerWidth = 0.07,
+		GunColor = Color3.fromRGB(200, 120, 255),
+		GunLength = 1.6,
+		FireSoundId = "",
+	},
+
+	-- Accurate sidearm: rewards careful aim, strong headshots.
+	Pistol = {
+		Id = "Pistol",
+		DisplayName = "Pop Pistol",
+		Damage = 24,
+		HeadshotMultiplier = 1.75,
+		FireRate = 5,
+		Automatic = false,
+		Pellets = 1,
+		Spread = 0.6,
+		MaxRange = 250,
+		FalloffStart = 80,
+		FalloffMinMultiplier = 0.65,
+		MagazineSize = 12,
+		ReserveAmmo = 48,
+		ReloadTime = 1.2,
+		RecoilKick = 1.1,
+
+		TracerColor = Color3.fromRGB(255, 255, 255),
+		TracerWidth = 0.07,
+		GunColor = Color3.fromRGB(255, 190, 90),
+		GunLength = 1.1,
+		FireSoundId = "",
+	},
 }
 
 local WeaponConfig = {
 	Weapons = Weapons,
 
 	-- Which weapon sits on keys 1, 2 and 3. The first one is equipped on spawn.
-	Order = { "Rifle", "Shotgun", "Sniper" } :: { string },
+	Order = { "Rifle", "SMG", "Shotgun", "Sniper", "Pistol" } :: { string },
 
 	-- Seconds after swapping before you can shoot. Small = snappy swaps.
 	SwapTime = 0.15,
