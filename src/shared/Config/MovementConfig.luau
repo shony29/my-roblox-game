@@ -40,8 +40,8 @@ local MovementConfig = {
 	SlideKeys = { Enum.KeyCode.LeftControl, Enum.KeyCode.C, Enum.KeyCode.ButtonB },
 	SlideStartSpeed = 55, -- studs per second at the start of a slide
 	SlideEndSpeed = 14, -- studs per second when the slide finishes
-	SlideDuration = 0.7, -- seconds a slide lasts
-	SlideCooldown = 0.8, -- seconds before you can slide again
+	SlideDuration = 0.65, -- seconds a slide lasts
+	SlideCooldown = 2, -- seconds before you can slide again
 	SlideMinSpeed = 18, -- you must be moving at least this fast to slide
 	SlideCameraDrop = 1.5, -- how far the camera lowers while sliding
 
