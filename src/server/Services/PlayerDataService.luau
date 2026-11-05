@@ -36,6 +36,7 @@ local Schema = require(Shared:WaitForChild("Data"):WaitForChild("PlayerDataSchem
 local GameContract = require(Shared:WaitForChild("Net"):WaitForChild("GameContract"))
 local ShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("ShopConfig"))
 local UpgradeConfig = require(Shared:WaitForChild("Config"):WaitForChild("UpgradeConfig"))
+local QuestConfig = require(Shared:WaitForChild("Config"):WaitForChild("QuestConfig"))
 
 type PlayerData = Schema.PlayerData
 
@@ -162,6 +163,11 @@ local function publishAttributes(profile: Profile)
 	player:SetAttribute(ATTR.EquippedSkin, profile.data.equippedItems.Skin)
 	player:SetAttribute(ATTR.EquippedTopping, profile.data.equippedItems.Topping)
 	player:SetAttribute("GunLevels", UpgradeConfig.format(profile.data.gunLevels))
+	-- Tasks panel (only this player's own screen uses these).
+	local quests = profile.data.quests
+	player:SetAttribute("QuestDay", quests.day)
+	player:SetAttribute("QuestBeginner", QuestConfig.encode(QuestConfig.Beginner, quests.progress, quests.done))
+	player:SetAttribute("QuestDaily", QuestConfig.encode(QuestConfig.Daily, quests.progress, quests.done))
 end
 
 -- Loading -------------------------------------------------------------------
@@ -519,6 +525,22 @@ function PlayerDataService.addXp(player: Player, amount: number): boolean
 		return false
 	end
 	profile.data.xp = math.min(profile.data.xp + amount, Schema.MAX_STAT_VALUE)
+	profile.dirty = true
+	publishAttributes(profile)
+	return true
+end
+
+--[[
+	Changes the player's quest progress (QuestService uses this). `change`
+	edits their quest data; it's saved with everything else and shown in
+	their Tasks panel. Returns false if their data isn't loaded.
+]]
+function PlayerDataService.updateQuests(player: Player, change: (Schema.QuestData) -> ()): boolean
+	local profile = profiles[player]
+	if profile == nil then
+		return false
+	end
+	change(profile.data.quests)
 	profile.dirty = true
 	publishAttributes(profile)
 	return true

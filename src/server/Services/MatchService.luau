@@ -41,6 +41,8 @@ local BotService = require(script.Parent.BotService)
 local LobbyService = require(script.Parent.LobbyService)
 local MapService = require(script.Parent.MapService)
 local VoteService = require(script.Parent.VoteService)
+local QuestService = require(script.Parent.QuestService)
+local QuestConfig = require(Shared.Config.QuestConfig)
 
 type State = MatchState.State
 type TeamId = MatchState.TeamId
@@ -119,6 +121,9 @@ end
 ---------------------------------------------------------------------------
 
 local function canFire(shooter: Player): boolean
+	if shooter:GetAttribute(PATTR.Status) == "Practice" then
+		return true -- the practice range: shoot targets (nobody can be hurt there, see canDamage)
+	end
 	local match = current
 	if match then
 		local participant = match.participants[shooter]
@@ -198,6 +203,9 @@ local function watchCharacter(match: Match, participant: Participant, character:
 		-- Kill feed, scoreboard numbers, saved eliminations and coins.
 		local botName = humanoid:GetAttribute("LastHitBy")
 		PlayerDataService.recordElimination(credited, participant.player, if typeof(botName) == "string" then botName else nil)
+		if credited and not match.withBots then
+			QuestService.progress(credited, "Elimination") -- daily quest
+		end
 	end)
 end
 
@@ -463,7 +471,10 @@ local function sendResults(match: Match, winner: TeamId?)
 			eliminations = participant.eliminations,
 			deaths = participant.deaths,
 			damage = math.floor(participant.damage),
-			coins = if match.withBots then 0 else participant.eliminations * Schema.COINS_PER_ELIMINATION,
+			coins = if match.withBots
+				then 0
+				else participant.eliminations * Schema.COINS_PER_ELIMINATION
+					+ (if winner ~= nil and participant.team == winner then QuestConfig.WIN_COINS else 0),
 			xp = if match.withBots then 0 else Progression.matchXp(participant.eliminations, winner ~= nil and participant.team == winner),
 		})
 		if mvp == nil
@@ -537,8 +548,11 @@ local function runMatch(match: Match, players: { Player })
 		if not match.withBots then -- practice against bots gives no rewards
 			if won then
 				PlayerDataService.recordWin(player)
+				QuestService.reward(player, QuestConfig.WIN_COINS, "Victory bonus!")
+				QuestService.progress(player, "WinMatch")
 			end
 			PlayerDataService.addXp(player, Progression.matchXp(participant.eliminations, won))
+			QuestService.progress(player, "PlayMatch")
 		end
 	end
 	BotService.removeAll()

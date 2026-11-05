@@ -8,6 +8,7 @@
 	a tiny "pop" so you know the dash is ready again.
 ]]
 
+local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
 export type DashIndicator = {
@@ -86,7 +87,17 @@ function DashIndicator.new(parent: Instance): DashIndicator
 
 	local wasReady = true
 
+	local matchPosition = badge.Position
 	local function update(progress: number, secondsLeft: number)
+		-- In the lobby the bottom middle holds the PLAY button, so sit in the corner.
+		local status = Players.LocalPlayer:GetAttribute("MatchStatus")
+		local wanted = if status == "Lobby" or status == "Queued" then UDim2.new(1, -24, 1, -24) else matchPosition
+		if badge.Position ~= wanted then
+			badge.Position = wanted
+			ringHolder.Position = wanted
+			badge.AnchorPoint = if wanted == matchPosition then Vector2.new(0.5, 1) else Vector2.new(1, 1)
+			ringHolder.AnchorPoint = badge.AnchorPoint
+		end
 		local clamped = math.clamp(progress, 0, 1)
 		fill.Size = UDim2.fromScale(1, clamped)
 		local ready = clamped >= 1

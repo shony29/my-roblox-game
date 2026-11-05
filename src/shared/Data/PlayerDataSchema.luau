@@ -23,6 +23,13 @@ export type EquippedItems = {
 	Topping: string, -- kill effect
 }
 
+-- Tasks panel progress (see Config/QuestConfig and Services/QuestService).
+export type QuestData = {
+	day: number, -- the day the daily quests belong to (QuestConfig.today())
+	progress: { [string]: number }, -- quest Id -> how far along (beginner and daily)
+	done: { [string]: boolean }, -- quest Id -> finished and paid
+}
+
 export type PlayerData = {
 	schemaVersion: number,
 	eliminations: number, -- lifetime eliminations
@@ -34,11 +41,12 @@ export type PlayerData = {
 	gunLevels: { [string]: number }, -- weapon Id -> upgrade level 0-6 (cosmetic colour)
 	ownedItems: { string }, -- shop item Ids the player bought (free items are always owned)
 	equippedItems: EquippedItems, -- shop items the player is wearing
+	quests: QuestData, -- beginner tasks and daily quests
 }
 
 local Schema = {}
 
-Schema.VERSION = 6 -- 2: shop items. 3: xp. 4: lastDailyAt. 5: toppings and Robux receipts. 6: gun levels
+Schema.VERSION = 7 -- 2: shop items. 3: xp. 4: lastDailyAt. 5: toppings and Robux receipts. 6: gun levels. 7: quests
 
 -- How many coins a player earns for each elimination.
 Schema.COINS_PER_ELIMINATION = 5
@@ -67,6 +75,7 @@ function Schema.default(): PlayerData
 			Skin = ShopConfig.Defaults.Skin,
 			Topping = ShopConfig.Defaults.Topping,
 		},
+		quests = { day = 0, progress = {}, done = {} },
 	}
 end
 
@@ -168,6 +177,30 @@ function Schema.reconcile(raw: unknown): PlayerData
 		end
 	end
 	data.gunLevels = gunLevels
+	-- Quests: short Ids with whole progress numbers (older saves: nothing done yet).
+	local rawQuests: { [string]: unknown } = if typeof(source.quests) == "table"
+		then source.quests :: { [string]: unknown }
+		else {}
+	local progress: { [string]: number } = {}
+	local done: { [string]: boolean } = {}
+	local count = 0
+	if typeof(rawQuests.progress) == "table" then
+		for id, value in rawQuests.progress :: { [unknown]: unknown } do
+			if typeof(id) == "string" and #id <= 32 and count < 100 then
+				progress[id] = math.min(cleanNumber(value), 1_000_000)
+				count += 1
+			end
+		end
+	end
+	if typeof(rawQuests.done) == "table" then
+		for id, value in rawQuests.done :: { [unknown]: unknown } do
+			if typeof(id) == "string" and #id <= 32 and value == true and count < 200 then
+				done[id] = true
+				count += 1
+			end
+		end
+	end
+	data.quests = { day = cleanNumber(rawQuests.day), progress = progress, done = done }
 	data.schemaVersion = Schema.VERSION
 	return data
 end
@@ -189,6 +222,11 @@ function Schema.copy(data: PlayerData): PlayerData
 			Hat = data.equippedItems.Hat,
 			Skin = data.equippedItems.Skin,
 			Topping = data.equippedItems.Topping,
+		},
+		quests = {
+			day = data.quests.day,
+			progress = table.clone(data.quests.progress),
+			done = table.clone(data.quests.done),
 		},
 	}
 end

@@ -37,6 +37,11 @@ export type EventName =
 	| "MapVote" -- client -> server: (mapId)
 	| "MatchResults" -- server -> participants: (results table, see MatchService)
 	| "RematchVote" -- client -> server: ()
+	| "QuickPlay" -- client -> server: () the lobby's PLAY button (QueueService)
+	| "PracticeEnter" -- client -> server: () go to the practice range (PracticeService)
+	| "PracticeLeave" -- client -> server: () back to the lobby
+	| "TargetPop" -- server -> all: (position, color) a practice target popped
+	| "RewardToast" -- server -> owner: (text, coins) a task or reward was earned
 
 export type FunctionName =
 	"ShopBuyItem" -- client asks: (itemId) -> (ok, message)
@@ -57,6 +62,11 @@ local EVENTS: { EventName } = {
 	"MapVote",
 	"MatchResults",
 	"RematchVote",
+	"QuickPlay",
+	"PracticeEnter",
+	"PracticeLeave",
+	"TargetPop",
+	"RewardToast",
 }
 local FUNCTIONS: { FunctionName } = { "ShopBuyItem", "ShopEquipItem", "DailyClaim" }
 

@@ -25,16 +25,16 @@ local Workspace = game:GetService("Workspace")
 
 local ModeConfig = require(ReplicatedStorage.Shared.Config.ModeConfig)
 local MatchState = require(ReplicatedStorage.Shared.Match.MatchState)
+local Net = require(ReplicatedStorage.Shared.Net.Net)
+local RateLimiter = require(script.Parent.Parent.Components.RateLimiter)
+local LobbyBuilder = require(script.Parent.Parent.Map.LobbyBuilder)
 local MatchService = require(script.Parent.MatchService)
 local LobbyService = require(script.Parent.LobbyService)
 
-type Pad = {
-	part: BasePart,
-	mode: string,
-	bots: boolean,
-	radius: number,
-	counter: TextLabel,
-}
+type Pad = LobbyBuilder.Pad
+
+local MAX_AVATARS = 8
+local quickPlayLimiter = RateLimiter.new(1, 2)
 
 local PATTR = MatchState.PlayerAttr
 local CHECK_INTERVAL = 0.25
@@ -57,10 +57,61 @@ local function needed(pad: Pad): number
 	return if pad.bots then 1 else mode.TeamSize * mode.TeamCount
 end
 
+-- The queue's player pictures on the pad's screen (Roblox avatar headshots).
+local function updateAvatars(pad: Pad)
+	local holder = pad.avatars
+	if holder == nil then
+		return
+	end
+	for _, child in holder:GetChildren() do
+		if child:IsA("GuiObject") then
+			child:Destroy()
+		end
+	end
+	for index, player in queues[pad] do
+		if index > MAX_AVATARS then
+			break
+		end
+		-- (The screen's grid layout decides each card's size.)
+		local card = Instance.new("Frame")
+		card.Name = player.Name
+		card.LayoutOrder = index
+		card.BackgroundTransparency = 1
+		card.Parent = holder
+		local picture = Instance.new("ImageLabel")
+		picture.AnchorPoint = Vector2.new(0.5, 0)
+		picture.Position = UDim2.fromScale(0.5, 0)
+		picture.Size = UDim2.fromScale(0.8, 0.72)
+		picture.BackgroundColor3 = Color3.fromRGB(40, 44, 60)
+		picture.Image = `rbxthumb://type=AvatarHeadShot&id={player.UserId}&w=150&h=150`
+		picture.Parent = card
+		local square = Instance.new("UIAspectRatioConstraint")
+		square.AspectRatio = 1
+		square.Parent = picture
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(1, 0)
+		corner.Parent = picture
+		local name = Instance.new("TextLabel")
+		name.Position = UDim2.fromScale(0, 0.76)
+		name.Size = UDim2.fromScale(1, 0.24)
+		name.BackgroundTransparency = 1
+		name.Font = Enum.Font.FredokaOne
+		name.TextScaled = true
+		name.TextColor3 = Color3.new(1, 1, 1)
+		name.Text = player.DisplayName
+		name.Parent = card
+	end
+end
+
 local function updateCounter(pad: Pad)
-	pad.counter.Text = if pad.bots and not QueueService.botsAvailable
+	local text = if pad.bots and not QueueService.botsAvailable
 		then "SOON"
 		else `{#queues[pad]}/{needed(pad)}`
+	pad.counter.Text = text
+	if pad.screenCount then
+		pad.screenCount.Text = text
+	end
+	updateAvatars(pad)
 end
 
 local function padUnder(player: Player): Pad?
@@ -149,6 +200,20 @@ function QueueService.tryStart()
 end
 
 local function checkPads()
+	-- Anyone who went somewhere else (practice range, a match) leaves their queue.
+	for pad, queue in queues do
+		local changed = false
+		for i = #queue, 1, -1 do
+			local player = queue[i]
+			if player.Parent ~= Players or player:GetAttribute(PATTR.Status) ~= "Queued" then
+				table.remove(queue, i)
+				changed = true
+			end
+		end
+		if changed then
+			updateCounter(pad)
+		end
+	end
 	for _, player in Players:GetPlayers() do
 		local status = player:GetAttribute(PATTR.Status)
 		if status == "Lobby" or status == "Queued" then
@@ -159,6 +224,38 @@ local function checkPads()
 				QueueService.leave(player)
 			end
 		end
+	end
+end
+
+--[[
+	The lobby's PLAY button: puts the player straight onto a queue pad.
+	  * Alone in the server: the 1v1 vs BOT pad, so you can play right away.
+	  * Otherwise: the real-player pad closest to starting (ties: 1v1).
+	Standing on the pad then queues them as usual (so stepping off leaves).
+]]
+function QueueService.quickPlay(player: Player)
+	local status = player:GetAttribute(PATTR.Status)
+	local character = player.Character
+	if (status ~= "Lobby" and status ~= "Queued") or character == nil then
+		return
+	end
+	local alone = #Players:GetPlayers() <= 1
+	local best: Pad? = nil
+	local bestScore = -math.huge
+	for pad, queue in queues do
+		local total = needed(pad)
+		if pad.bots == alone and total > 0 and (pad.bots or #queue < total) then
+			local score = if alone then 0 else #queue / total
+			if pad.mode == ModeConfig.Default then
+				score += 0.01 -- prefer 1v1 when everything else is equal
+			end
+			if score > bestScore then
+				best, bestScore = pad, score
+			end
+		end
+	end
+	if best then
+		character:PivotTo(CFrame.new(best.part.Position + Vector3.new(0, 4, 0)))
 	end
 end
 
@@ -178,6 +275,11 @@ function QueueService.start()
 	end
 	QueueService.refreshCounters()
 	Players.PlayerRemoving:Connect(QueueService.leave)
+	Net.event("QuickPlay").OnServerEvent:Connect(function(player: Player)
+		if quickPlayLimiter:allow(player) then
+			QueueService.quickPlay(player)
+		end
+	end)
 	MatchService.onMatchEnded(QueueService.tryStart)
 	task.spawn(function()
 		while true do

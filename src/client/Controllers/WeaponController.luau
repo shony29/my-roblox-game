@@ -52,7 +52,8 @@ local function loadout(): { string }
 end
 
 local function inMatch(): boolean
-	return Players.LocalPlayer:GetAttribute("MatchStatus") == "InMatch"
+	local status = Players.LocalPlayer:GetAttribute("MatchStatus")
+	return status == "InMatch" or status == "Practice" -- matches and the practice range
 end
 
 type WeaponStats = WeaponConfig.WeaponStats

@@ -34,6 +34,12 @@ function LobbyService.getPads(): { LobbyBuilder.Pad }
 	return if current then current.pads else {}
 end
 
+-- The glowing pad that takes players to the practice range (nil if missing).
+function LobbyService.getRangePad(): BasePart?
+	local current = lobby
+	return if current then current.rangePad else nil
+end
+
 function LobbyService.isInLobby(player: Player): boolean
 	local status = player:GetAttribute(PATTR.Status)
 	return status == "Lobby" or status == "Queued"
@@ -137,7 +143,7 @@ local function fallbackLobby(): LobbyBuilder.Lobby
 	floor.Material = Enum.Material.DiamondPlate
 	floor.Parent = model
 	model.Parent = Workspace
-	return { model = model, spawnCFrame = CFrame.new(0, 304, 700), origin = Vector3.new(0, 300, 700), pads = {}, problems = {} }
+	return { model = model, spawnCFrame = CFrame.new(0, 304, 700), origin = Vector3.new(0, 300, 700), pads = {}, problems = {}, rangePad = nil }
 end
 
 function LobbyService.start()

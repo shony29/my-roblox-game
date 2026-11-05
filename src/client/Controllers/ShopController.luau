@@ -631,6 +631,16 @@ function ShopController.open()
 	UIHelpers.tween(overlay, 0.25, { BackgroundTransparency = 0.45 })
 end
 
+-- Opens the shop on one tab: "Color", "Hat", "Skin", "Weapon" or "Topping".
+function ShopController.openTab(category: string)
+	ShopController.open()
+	for _, tab in TABS do
+		if tab.category == category then
+			selectTab(tab.category)
+		end
+	end
+end
+
 function ShopController.close()
 	if not started or not isOpen then
 		return

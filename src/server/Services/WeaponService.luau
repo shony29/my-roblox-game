@@ -28,6 +28,7 @@ local CombatRules = require(script.Parent.Parent.Components.CombatRules)
 local ShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("ShopConfig"))
 local MatchState = require(Shared:WaitForChild("Match"):WaitForChild("MatchState"))
 local PlayerDataService = require(script.Parent.PlayerDataService)
+local PracticeService = require(script.Parent.PracticeService)
 
 -- Everyone owns the starter gun; the others are bought in the shop.
 local function ownsWeapon(player: Player, weaponId: string): boolean
@@ -35,9 +36,10 @@ local function ownsWeapon(player: Player, weaponId: string): boolean
 	return ShopConfig.isFree(itemId) or PlayerDataService.ownsItem(player, itemId)
 end
 
--- Guns only exist in matches (none in the lobby).
-local function isInMatch(player: Player): boolean
-	return player:GetAttribute(MatchState.PlayerAttr.Status) == "InMatch"
+-- Guns only exist in matches and the practice range (none in the lobby).
+local function holdsGuns(player: Player): boolean
+	local status = player:GetAttribute(MatchState.PlayerAttr.Status)
+	return status == "InMatch" or status == "Practice"
 end
 
 type WeaponStats = WeaponConfig.WeaponStats
@@ -197,6 +199,9 @@ local function startReload(player: Player, state: PlayerState)
 		local taken = math.min(stats.MagazineSize - current, state.reserve[stats.Id] or 0)
 		state.ammo[stats.Id] = current + taken
 		state.reserve[stats.Id] = (state.reserve[stats.Id] or 0) - taken
+		if player:GetAttribute(MatchState.PlayerAttr.Status) == "Practice" then
+			state.reserve[stats.Id] = stats.ReserveAmmo -- endless spare ammo at the practice range
+		end
 		state.reloading = false
 		sendState(player, state)
 	end)
@@ -264,6 +269,9 @@ local function fireRound(player: Player, state: PlayerState, weaponId: string, s
 		local result = workspace:Raycast(origin, pelletDirection * stats.MaxRange, params)
 		if result then
 			table.insert(endPoints, result.Position)
+			if result.Instance:GetAttribute("PracticeTarget") then
+				PracticeService.hitTarget(player, result.Instance) -- pops it (practice range only)
+			end
 			local humanoid, isHead = findHumanoid(result.Instance, result.Position)
 			if humanoid and canDamage(player, humanoid) then
 				local damage = WeaponMath.damageAtDistance(stats, result.Distance)
@@ -414,7 +422,7 @@ local function onEquip(player: Player, weaponIdRaw: unknown)
 	player:SetAttribute("EquippedWeapon", weaponId)
 
 	local character = player.Character
-	if character and isInMatch(player) then
+	if character and holdsGuns(player) then
 		GunModel.attach(character, stats)
 	end
 	sendState(player, state)
@@ -444,7 +452,7 @@ local function onCharacterAdded(player: Player, character: Model)
 	state.reloading = false
 	state.reloadToken += 1
 	state.equipTime = os.clock()
-	if not isInMatch(player) then
+	if not holdsGuns(player) then
 		return -- no guns in the lobby
 	end
 	if not ownsWeapon(player, state.equipped) then

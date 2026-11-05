@@ -96,6 +96,12 @@ end)
 run("TeamOutlineController", function()
 	require(Controllers.TeamOutlineController).start()
 end)
+run("TasksController", function()
+	require(Controllers.TasksController).start() -- Tasks panel, task tracker, reward messages
+end)
+run("PracticeController", function()
+	require(Controllers.PracticeController).start() -- practice range: leave button, target pops
+end)
 
 ---------------------------------------------------------------------------
 -- Start-up report: version label + a message if anything failed.
@@ -178,6 +184,10 @@ local function refreshReport()
 	if lobbyProblems ~= "" then
 		table.insert(lines, `Lobby: {lobbyProblems}`)
 	end
+	local rangeProblems = readString("RangeProblems")
+	if rangeProblems ~= "" then
+		table.insert(lines, `Practice range: {rangeProblems}`)
+	end
 	local serverVersion = readString("ServerVersion")
 	if serverVersion ~= "" and serverVersion ~= GameConfig.Version then
 		table.insert(lines, `Version mismatch: server {serverVersion}, client {GameConfig.Version}`)
@@ -195,6 +205,7 @@ end
 ReplicatedStorage:GetAttributeChangedSignal("ServerProblems"):Connect(refreshReport)
 ReplicatedStorage:GetAttributeChangedSignal("ServerVersion"):Connect(refreshReport)
 ReplicatedStorage:GetAttributeChangedSignal("LobbyProblems"):Connect(refreshReport)
+ReplicatedStorage:GetAttributeChangedSignal("RangeProblems"):Connect(refreshReport)
 player:GetAttributeChangedSignal("MatchStatus"):Connect(refreshReport)
 refreshReport()
 

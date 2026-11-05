@@ -246,6 +246,7 @@ end
 
 function Hud.create(gui: ScreenGui)
 	local setHealth = buildHealthBar(gui)
+	local healthBar = gui:FindFirstChild("Health")
 	local setAmmo = buildAmmo(gui)
 	local setTimer = buildTimer(gui)
 	local crosshair = buildCrosshair(gui)
@@ -281,6 +282,9 @@ function Hud.create(gui: ScreenGui)
 				local status = player:GetAttribute("MatchStatus")
 				local armed = status == "InMatch" or status == "Practice"
 				crosshair.Visible = armed
+				if healthBar and healthBar:IsA("GuiObject") then
+					healthBar.Visible = armed -- nobody can be hurt in the lobby
+				end
 				if armed then
 					setAmmo(readAmmo(player.Character))
 				else

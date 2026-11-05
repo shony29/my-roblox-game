@@ -100,7 +100,7 @@ project needs (it's listed in `rokit.toml`).
    player's device loads the whole world and nobody falls through a floor
    that hasn't loaded yet.
 5. Press **Play** in Studio. The bottom-left corner of the game's main menu
-   shows the version, for example **Slime Showdown v0.3.0**.
+   shows the version, for example **Slime Showdown v0.4.0**.
 
 ## Getting the newest version (every time the game is updated)
 
@@ -152,10 +152,23 @@ edited on your computer. Run `git stash`, then `git pull` again.
    **DAILY SQUISHY** machine (right, press **E**, then tap the squishy until it bursts).
    Prizes can be items or **gun upgrades** (red → orange → yellow → green → blue → purple;
    upgrades change your gun's colour, not its damage).
-4. Walk through the round **portal** under the big sign into the hallway. Stand on a
-   glowing pad to queue (**1v1**, **2v2**, **4v4**); step off to leave.
-5. **Testing alone?** Stand on a **vs BOTS** pad (right side of the hallway): a practice
-   match starts with bots (no coins or XP from practice). Teams have **blue** and **red** outlines.
+4. Press the big green **PLAY** button at the bottom: you're put on a queue pad
+   (alone in the server, that's **1v1 vs BOT**, so a practice match starts right away).
+   Or walk through the round **portal** under the big sign into the hallway and stand on
+   any glowing pad (**1v1**, **2v2**, **4v4**); step off to leave. The big screen behind
+   each pad shows **0/2** and the faces of everyone waiting.
+5. **Testing alone?** The **vs BOTS** pads (right side of the hallway) start a practice
+   match with bots (no coins or XP from practice). Teams have **blue** and **red** outlines.
+6. **Left door: WEAPONS room.** Every gun sits on a table with its price. Press **E** at the
+   counter to open the shop's Guns tab. Coins come from eliminations, wins, tasks and
+   simply playing (a few coins every 5 minutes).
+7. **Right door: PRACTICE RANGE.** Step on the glowing pad. You get your guns and endless
+   ammo on a floating sky island: a long lane with a coloured stripe every 25 studs and slime
+   targets, plus bullseyes floating all around. Shot targets pop and come back. Leave with the
+   **BACK TO LOBBY** pad or press **L**.
+8. **TASKS** (button at the bottom, or **T**): beginner tasks (visit the range, pop 5 targets,
+   slide 3 times) and daily quests (play matches, get eliminations, win). Each one pays coins
+   the moment it's done, and a small list on the left shows your progress.
 
 | Control | What it does |
 |---------|--------------|
@@ -169,6 +182,8 @@ edited on your computer. Run `git stash`, then `git pull` again.
 | Ctrl or C (while running) | Slide |
 | Tab (hold) | Scoreboard |
 | B | Shop |
+| T | Tasks |
+| L | Leave the practice range |
 
 Press **Stop** (Shift+F5) when you're done.
 
@@ -195,7 +210,9 @@ Things to check:
 - [ ] Sprint, dash, double jump and slide work; other players see your blob jiggle as it moves.
 - [ ] Open the shop (the counter, or **B**). Every card shows its rarity. Try the **Toppings** tab: equip one, then eliminate someone and watch them burst into it.
 - [ ] Press **B** for the shop; buying a colour recolours your blob. In the **Guns** tab, buy a gun: it appears in your weapon bar next match (everyone starts with only the Auto Rifle).
-- [ ] In the lobby there are no guns, no crosshair and no weapon bar.
+- [ ] In the lobby there are no guns, no crosshair, no ammo counter and no weapon bar.
+- [ ] PLAY puts you on a pad; the screen behind it shows your face and the count.
+- [ ] The practice range: targets pop when shot, the TASKS list counts them, coins arrive with a message.
 
 > **About saving:** coins and stats only *save* in a published game. In
 > Studio you'll see a yellow warning in the Output that says progress will not

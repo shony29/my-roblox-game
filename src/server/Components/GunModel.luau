@@ -98,4 +98,28 @@ function GunModel.attach(character: Model, stats: WeaponStats)
 	model.Parent = character
 end
 
+--[[
+	A bigger copy of a gun for showing off (the lobby's weapons room). Not
+	held by anyone: anchored at `cframe`, pointing along its -Z.
+]]
+function GunModel.display(stats: WeaponStats, cframe: CFrame, scale: number): Model
+	local model = Instance.new("Model")
+	model.Name = "Display_" .. stats.Id
+	local length = stats.GunLength * scale
+	local dark = Color3.fromRGB(45, 45, 55)
+	local body = makePart("Body", Vector3.new(0.35, 0.45, stats.GunLength) * scale, stats.GunColor)
+	local grip = makePart("Grip", Vector3.new(0.3, 0.6, 0.35) * scale, dark)
+	local barrel = makePart("Barrel", Vector3.new(0.2, 0.2, 0.5) * scale, dark)
+	body.CFrame = cframe
+	grip.CFrame = cframe * CFrame.new(0, -0.35 * scale, length / 2 - 0.25 * scale)
+	barrel.CFrame = cframe * CFrame.new(0, 0.05 * scale, -length / 2 - 0.25 * scale)
+	for _, part in { body, grip, barrel } do
+		part.Anchored = true
+		part.CastShadow = true
+		part.Parent = model
+	end
+	model.PrimaryPart = body
+	return model
+end
+
 return GunModel

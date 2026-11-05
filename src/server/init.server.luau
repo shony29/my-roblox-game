@@ -82,6 +82,9 @@ end)
 run("RobuxService", function()
 	require(Services.RobuxService).start() -- Robux purchases (monthly themed items)
 end)
+run("QuestService", function()
+	require(Services.QuestService).start() -- beginner tasks, daily quests, coins for playing
+end)
 
 -- 4. Gameplay systems.
 run("MovementService", function()
@@ -106,6 +109,9 @@ run("MapService", function()
 	if not require(Services.MapService).load(MapConfig.Default) then
 		error(`the default map "{MapConfig.Default}" could not be built (see the warning above)`)
 	end
+end)
+run("PracticeService", function()
+	require(Services.PracticeService).start() -- the practice range (aim training)
 end)
 run("BotService", function()
 	require(Services.BotService).start() -- practice bots (only act during rounds)

@@ -25,6 +25,7 @@ local Workspace = game:GetService("Workspace")
 local MovementConfig = require(ReplicatedStorage.Shared.Config.MovementConfig)
 local MovementNet = require(ReplicatedStorage.Shared.Net.MovementNet)
 local BlobCharacter = require(script.Parent.Parent.Components.BlobCharacter)
+local QuestService = require(script.Parent.QuestService)
 
 type PlayerState = {
 	-- cooldowns (server time, in seconds)
@@ -211,6 +212,9 @@ local function onRequest(player: Player, action: unknown)
 		allowed, readyAt = handleDash(player, state)
 	elseif action == "Slide" then
 		allowed, readyAt = handleSlide(player, state)
+		if allowed then
+			QuestService.progress(player, "Slide") -- beginner task
+		end
 	else
 		allowed, readyAt = handleDoubleJump(player, state)
 	end
