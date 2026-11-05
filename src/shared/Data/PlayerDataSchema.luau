@@ -13,7 +13,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local ShopConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Shop"):WaitForChild("ShopConfig"))
+local ShopConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("ShopConfig"))
 
 -- Which shop item the player is wearing in each slot.
 export type EquippedItems = {

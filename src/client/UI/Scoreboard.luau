@@ -13,7 +13,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Theme = require(script.Parent:WaitForChild("Theme"))
 local UIHelpers = require(script.Parent:WaitForChild("UIHelpers"))
-local GameContract = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("GameContract"))
+local GameContract = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"):WaitForChild("GameContract"))
 
 local Colors = Theme.Colors
 local ATTR = GameContract.PlayerAttributes

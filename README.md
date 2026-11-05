@@ -159,9 +159,9 @@ Every tuning value lives in one file per system:
 
 | File | What it controls |
 |------|------------------|
-| `src/shared/Weapons/WeaponConfig.luau` | Damage, fire rate, ammo, reload time, range for each gun |
-| `src/shared/Movement/MovementConfig.luau` | Walk speed, jump, dash, slide, blob looks |
-| `src/shared/Rounds/RoundConfig.luau` | Round length, eliminations to win, break time, respawn delay, minimum players |
+| `src/shared/Config/WeaponConfig.luau` | Damage, fire rate, ammo, reload time, range for each gun |
+| `src/shared/Config/MovementConfig.luau` | Walk speed, jump, dash, slide, blob looks |
+| `src/shared/Config/RoundConfig.luau` | Round length, eliminations to win, break time, respawn delay, minimum players |
 | `src/shared/Data/PlayerDataSchema.luau` | Coins per elimination, what gets saved |
 | `src/client/UI/Theme.luau` | UI colours, fonts and the game title |
 
@@ -169,26 +169,23 @@ Every tuning value lives in one file per system:
 
 ```
 default.project.json   Tells Rojo where each folder goes inside Roblox
-rokit.toml             Which Rojo version to install
-INTEGRATION.md         How all the systems connect (and the safety checks)
+DEVELOPMENT.md         Development checklist (what's done, what's next)
 src/
   shared/    → ReplicatedStorage.Shared
-    Combat/     What bullets can hit (blob hitboxes)
-    Data/       Shared names for the UI and saving, save-file shape
-    Movement/   Movement settings and remotes
-    Rounds/     Round settings and shared round state
-    Weapons/    Weapon settings, maths and remotes
-  server/    → ServerScriptService.Server
-    Data/       Saving/loading progress, coins, kill feed, Play button
-    Map/        Builds the arena
-    Movement/   Blob characters, approves dashes/jumps/slides, anti-speed-cheat
-    Rounds/     Round loop, scores, safe spawns, spawn protection
-    Weapons/    Checks every shot and deals damage
-  client/    → StarterPlayer.StarterPlayerScripts.Client
-    Movement/   Dash / double jump / slide controls and the dash badge
-    Rounds/     Round caption, winner banner, spawn-protection notice
-    UI/         Main menu, HUD, kill feed, scoreboard
-    Weapons/    Shooting, tracers, hitmarker, weapon slots
+    Config/      All settings: movement, weapons, rounds, shop
+    Net/         Client–server message setup (remotes)
+    Match/       Shared round state
+    Combat/      What bullets can hit, weapon maths
+    Cosmetics/   Hat and weapon-skin builders
+    Data/        Save-file shape
+  server/    → ServerScriptService.Server (init.server.luau starts everything in order)
+    Services/    PlayerData, Menu, Shop, Cosmetics, Movement, Weapon, Spawn, Round
+    Components/  Blob character, gun model, score maths
+    Map/         Builds the arena
+  client/    → StarterPlayerScripts.Client (init.client.luau starts everything in order)
+    Controllers/ Shop, UI, Movement, Weapon, Round HUD
+    UI/          Menu, HUD, kill feed, scoreboard, weapon HUD, dash badge, shop previews
+    Effects/     Tracers, muzzle flashes, sounds
 ```
 
 ## How it stays fair
