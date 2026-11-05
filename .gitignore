@@ -1,0 +1,12 @@
+# Built place files (made with `rojo build`) - these are generated, not source code
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+
+# Editor / OS clutter
+sourcemap.json
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json

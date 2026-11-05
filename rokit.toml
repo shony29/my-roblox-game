@@ -1,0 +1,4 @@
+# Rokit installs the exact tool versions listed here, so everyone working on
+# this project uses the same Rojo. Run `rokit install` inside this folder.
+[tools]
+rojo = "rojo-rbx/rojo@7.7.1"
