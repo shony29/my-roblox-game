@@ -12,16 +12,16 @@
 	moved to the server start-up script, server/init.server.luau.)
 ]]
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameContract = require(ReplicatedStorage.Shared.Net.GameContract)
+local RateLimiter = require(script.Parent.Parent.Components.RateLimiter)
 
-local PLAY_COOLDOWN = 1 -- seconds, ignores spam from exploiters
+-- At most one Play press per second (ignores spam from exploiters).
+local playLimiter = RateLimiter.new(1, 1)
 
 local MenuService = {}
 
-local lastPlayPress: { [Player]: number } = {}
 local started = false
 
 function MenuService.start()
@@ -32,17 +32,10 @@ function MenuService.start()
 
 	local playPressed = GameContract.getRemote(GameContract.RemoteNames.PlayPressed)
 	playPressed.OnServerEvent:Connect(function(player: Player)
-		local now = os.clock()
-		local last = lastPlayPress[player]
-		if last and now - last < PLAY_COOLDOWN then
+		if not playLimiter:allow(player) then
 			return
 		end
-		lastPlayPress[player] = now
 		player:SetAttribute(GameContract.PlayerAttributes.PressedPlay, true)
-	end)
-
-	Players.PlayerRemoving:Connect(function(player: Player)
-		lastPlayPress[player] = nil
 	end)
 end
 

@@ -40,14 +40,9 @@ Branches read (latest commit on each):
  Round winner ──► PlayerDataService.recordWin (saved "Wins")
 ```
 
-Folders each system creates in ReplicatedStorage at runtime (no clashes):
-
-| Folder            | Made by          | Remotes inside |
-|-------------------|------------------|----------------|
-| `GameRemotes`     | ui-data          | `KillFeed` (server→all), `PlayPressed` (client→server) |
-| `WeaponRemotes`   | weapons          | `Fire`, `Equip`, `Reload` (client→server); `State`, `HitConfirm`, `ShotFx` (server→client) |
-| `MovementRemotes` | movement         | `Request` (client→server), `Result` (server→client) |
-| `RoundState`      | rounds           | attributes only after the merge (its `Eliminated` remote was replaced by `KillFeed`) |
+All remotes now live in one folder, `ReplicatedStorage.Remotes`, created from the single list in
+`src/shared/Net/Net.luau` (which also documents the networking rules). Round state is shared through
+attributes on `ReplicatedStorage.RoundState`.
 
 ---
 

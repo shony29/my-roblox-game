@@ -26,6 +26,11 @@ local function run(stepName: string, step: () -> ())
 	end
 end
 
+-- 0. Every RemoteEvent/RemoteFunction (Shared/Net/Net.luau), before anything uses them.
+run("Net", function()
+	require(Shared.Net.Net).setup()
+end)
+
 -- 1. Physics groups that decide what bullets can hit.
 run("HitGroups", function()
 	require(Shared.Combat.HitGroups).setup()

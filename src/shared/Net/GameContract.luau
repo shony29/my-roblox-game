@@ -15,11 +15,14 @@
 	    measured with workspace:GetServerTimeNow(). Leave it unset (nil)
 	    to hide the timer.
 	  * The kill feed uses the KillFeed RemoteEvent (server -> clients).
+	    All remotes are listed in Shared/Net/Net.luau.
 	  * The Play button fires the PlayPressed RemoteEvent (client -> server).
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+
+local Net = require(script.Parent:WaitForChild("Net"))
 
 local GameContract = {}
 
@@ -53,39 +56,12 @@ GameContract.RemoteNames = {
 	PlayPressed = "PlayPressed",
 }
 
-local REMOTES_FOLDER_NAME = "GameRemotes"
-
-local function getRemotesFolder(): Instance
-	if RunService:IsServer() then
-		local existing = ReplicatedStorage:FindFirstChild(REMOTES_FOLDER_NAME)
-		if existing then
-			return existing
-		end
-		local folder = Instance.new("Folder")
-		folder.Name = REMOTES_FOLDER_NAME
-		folder.Parent = ReplicatedStorage
-		return folder
-	end
-	return ReplicatedStorage:WaitForChild(REMOTES_FOLDER_NAME)
-end
-
 --[[
-	On the server: finds or creates the RemoteEvent.
-	On the client: waits for the server to create it.
+	Returns one of the game's RemoteEvents (KillFeed, PlayPressed).
+	They are created by the central list in Shared/Net/Net.luau.
 ]]
 function GameContract.getRemote(name: string): RemoteEvent
-	local folder = getRemotesFolder()
-	if RunService:IsServer() then
-		local existing = folder:FindFirstChild(name)
-		if existing and existing:IsA("RemoteEvent") then
-			return existing
-		end
-		local remote = Instance.new("RemoteEvent")
-		remote.Name = name
-		remote.Parent = folder
-		return remote
-	end
-	return folder:WaitForChild(name) :: RemoteEvent
+	return Net.event(name :: Net.EventName)
 end
 
 --[[
