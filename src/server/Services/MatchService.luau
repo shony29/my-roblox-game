@@ -62,6 +62,7 @@ type Match = {
 	round: number,
 	state: State,
 	forfeitWinner: TeamId?,
+	withBots: boolean, -- practice: bots fill the empty places
 }
 
 local MATCH_FOUND_TIME = 2
@@ -518,7 +519,7 @@ local function runMatch(match: Match, players: { Player })
 				table.insert(stillHere, player)
 			end
 		end
-		if #stillHere == #returning and MatchService.startMatch(match.mode, stillHere) then
+		if #stillHere == #returning and MatchService.startMatch(match.mode, stillHere, match.withBots) then
 			return
 		end
 		for _, player in stillHere do
@@ -543,7 +544,7 @@ function MatchService.onMatchEnded(listener: () -> ())
 end
 
 -- Starts a match for exactly these players. Returns false if one is already running.
-function MatchService.startMatch(mode: Mode, players: { Player }): boolean
+function MatchService.startMatch(mode: Mode, players: { Player }, withBots: boolean?): boolean
 	if current then
 		return false
 	end
@@ -554,6 +555,7 @@ function MatchService.startMatch(mode: Mode, players: { Player }): boolean
 		round = 0,
 		state = "MatchFound",
 		forfeitWinner = nil,
+		withBots = withBots == true,
 	}
 	current = match -- set before anything yields, so two matches can never start
 	task.spawn(runMatch, match, players)

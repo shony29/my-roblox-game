@@ -1,19 +1,22 @@
 --!strict
 --[[
-	QueueService: matchmaking on this server (one queue per game mode).
+	QueueService: matchmaking with queue pads (same server for now).
 
-	A client can only ask "queue me for mode X" or "take me out of the
-	queue". The server checks:
-	  * the mode Id is real (ModeConfig.get),
-	  * the player is in the lobby (not on the menu, not already queued,
-	    not in a match),
-	  * they aren't spamming (RateLimiter).
-	When a queue has enough players and no match is running, the first
-	players in line are handed to MatchService. Players who leave the game
-	are removed straight away, so a queue never holds ghosts.
+	In the lobby hallway, each glowing pad is a queue for one mode. The
+	server checks four times a second who is standing on which pad (a
+	client can't fake its position into a queue: only the server's view of
+	the character counts):
+	  * stand on a pad  -> you join that pad's queue,
+	  * step off         -> you leave it,
+	  * the pad's counter shows "players / needed",
+	  * when a queue is full and no match is running, the match starts.
+	Practice pads (vs bots) start as soon as one player stands on them;
+	bots fill the empty places (BotService). Until bots exist those pads
+	just show "SOON".
 
-	This is a same-server prototype. The interface (join/leave/tryStart)
-	is kept small so it can later move to cross-server matchmaking.
+	Players who leave the game are removed straight away. The interface
+	(join/leave/tryStart) stays small so it can move to reserved servers
+	(TeleportService) once the game is published.
 ]]
 
 local Players = game:GetService("Players")
@@ -22,92 +25,147 @@ local Workspace = game:GetService("Workspace")
 
 local ModeConfig = require(ReplicatedStorage.Shared.Config.ModeConfig)
 local MatchState = require(ReplicatedStorage.Shared.Match.MatchState)
-local Net = require(ReplicatedStorage.Shared.Net.Net)
-local RateLimiter = require(script.Parent.Parent.Components.RateLimiter)
 local MatchService = require(script.Parent.MatchService)
+local LobbyService = require(script.Parent.LobbyService)
 
-type ModeId = ModeConfig.ModeId
+type Pad = {
+	part: BasePart,
+	mode: string,
+	bots: boolean,
+	radius: number,
+	counter: TextLabel,
+}
 
 local PATTR = MatchState.PlayerAttr
+local CHECK_INTERVAL = 0.25
+local PAD_HEIGHT_TOLERANCE = 6
 
 local QueueService = {}
 
-local queues: { [ModeId]: { Player } } = {}
-local limiter = RateLimiter.new(4, 1) -- at most 4 queue requests per second
+local queues: { [Pad]: { Player } } = {}
 local started = false
 
--- Shares how many players wait in each queue (attributes like QueueDuel).
-local function publishCounts()
-	local folder = ReplicatedStorage:FindFirstChild(MatchState.FOLDER_NAME)
-	if folder then
-		for _, modeId in ModeConfig.Order do
-			folder:SetAttribute("Queue" .. modeId, #queues[modeId])
-		end
+-- Set by BotService when bots are available (practice pads need them).
+QueueService.botsAvailable = false
+
+local function needed(pad: Pad): number
+	local mode = ModeConfig.get(pad.mode)
+	if not mode then
+		return 0
 	end
+	-- Practice: you can start alone; your team is you (and friends) plus bots.
+	return if pad.bots then 1 else mode.TeamSize * mode.TeamCount
 end
 
-local function clearQueueAttributes(player: Player)
-	player:SetAttribute(PATTR.QueueMode, nil)
-	player:SetAttribute(PATTR.QueuedAt, nil)
+local function updateCounter(pad: Pad)
+	pad.counter.Text = if pad.bots and not QueueService.botsAvailable
+		then "SOON"
+		else `{#queues[pad]}/{needed(pad)}`
+end
+
+local function padUnder(player: Player): Pad?
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then
+		return nil
+	end
+	for pad in queues do
+		local offset = root.Position - pad.part.Position
+		if Vector2.new(offset.X, offset.Z).Magnitude <= pad.radius and math.abs(offset.Y) <= PAD_HEIGHT_TOLERANCE then
+			return pad
+		end
+	end
+	return nil
+end
+
+local function queuedPad(player: Player): Pad?
+	for pad, queue in queues do
+		if table.find(queue, player) then
+			return pad
+		end
+	end
+	return nil
 end
 
 function QueueService.leave(player: Player)
-	local removed = false
-	for _, queue in queues do
-		local index = table.find(queue, player)
-		if index then
-			table.remove(queue, index)
-			removed = true
-		end
+	local pad = queuedPad(player)
+	if not pad then
+		return
 	end
-	if removed and player.Parent == Players then
-		clearQueueAttributes(player)
+	local queue = queues[pad]
+	table.remove(queue, table.find(queue, player) :: number)
+	updateCounter(pad)
+	if player.Parent == Players then
+		player:SetAttribute(PATTR.QueueMode, nil)
+		player:SetAttribute(PATTR.QueuedAt, nil)
 		if player:GetAttribute(PATTR.Status) == "Queued" then
 			player:SetAttribute(PATTR.Status, "Lobby")
 		end
 	end
-	publishCounts()
+end
+
+function QueueService.join(player: Player, pad: Pad)
+	if queuedPad(player) == pad or player:GetAttribute(PATTR.Status) ~= "Lobby" and player:GetAttribute(PATTR.Status) ~= "Queued" then
+		return
+	end
+	if pad.bots and not QueueService.botsAvailable then
+		return
+	end
+	QueueService.leave(player)
+	table.insert(queues[pad], player)
+	player:SetAttribute(PATTR.Status, "Queued")
+	player:SetAttribute(PATTR.QueueMode, pad.mode)
+	player:SetAttribute(PATTR.QueuedAt, Workspace:GetServerTimeNow())
+	updateCounter(pad)
+	QueueService.tryStart()
 end
 
 function QueueService.tryStart()
 	if MatchService.isBusy() then
 		return
 	end
-	for _, modeId in ModeConfig.Order do
-		local queue = queues[modeId]
+	for pad, queue in queues do
 		for i = #queue, 1, -1 do
 			if queue[i].Parent ~= Players then
 				table.remove(queue, i)
 			end
 		end
-		local mode = ModeConfig.Modes[modeId]
-		local needed = mode.TeamSize * mode.TeamCount
-		if #queue >= needed then
+		local mode = ModeConfig.get(pad.mode)
+		if mode and #queue >= needed(pad) and #queue > 0 then
+			-- Real pads take exactly a full match; practice pads take up to one team.
+			local count = if pad.bots then math.min(#queue, mode.TeamSize) else needed(pad)
 			local players: { Player } = {}
-			for _ = 1, needed do
+			for _ = 1, count do
 				local player = table.remove(queue, 1) :: Player
-				clearQueueAttributes(player)
+				player:SetAttribute(PATTR.QueueMode, nil)
+				player:SetAttribute(PATTR.QueuedAt, nil)
 				table.insert(players, player)
 			end
-			publishCounts()
-			MatchService.startMatch(mode, players)
+			updateCounter(pad)
+			MatchService.startMatch(mode, players, pad.bots)
 			return
 		end
 	end
-	publishCounts()
 end
 
-function QueueService.join(player: Player, modeRaw: unknown)
-	local mode = ModeConfig.get(modeRaw)
-	if mode == nil or player:GetAttribute(PATTR.Status) ~= "Lobby" then
-		return -- unknown mode, or not in the lobby (menu, already queued, or in a match)
+local function checkPads()
+	for _, player in Players:GetPlayers() do
+		local status = player:GetAttribute(PATTR.Status)
+		if status == "Lobby" or status == "Queued" then
+			local pad = padUnder(player)
+			if pad then
+				QueueService.join(player, pad)
+			elseif status == "Queued" then
+				QueueService.leave(player)
+			end
+		end
 	end
-	table.insert(queues[mode.Id], player)
-	player:SetAttribute(PATTR.Status, "Queued")
-	player:SetAttribute(PATTR.QueueMode, mode.Id)
-	player:SetAttribute(PATTR.QueuedAt, Workspace:GetServerTimeNow())
-	publishCounts()
-	QueueService.tryStart()
+end
+
+function QueueService.refreshCounters()
+	for pad in queues do
+		updateCounter(pad)
+	end
 end
 
 function QueueService.start()
@@ -115,23 +173,18 @@ function QueueService.start()
 		return
 	end
 	started = true
-	for _, modeId in ModeConfig.Order do
-		queues[modeId] = {}
+	for _, pad in LobbyService.getPads() do
+		queues[pad] = {}
 	end
-
-	Net.event("QueueJoin").OnServerEvent:Connect(function(player: Player, modeRaw: unknown)
-		if limiter:allow(player) then
-			QueueService.join(player, modeRaw)
-		end
-	end)
-	Net.event("QueueLeave").OnServerEvent:Connect(function(player: Player)
-		if limiter:allow(player) then
-			QueueService.leave(player)
-		end
-	end)
+	QueueService.refreshCounters()
 	Players.PlayerRemoving:Connect(QueueService.leave)
 	MatchService.onMatchEnded(QueueService.tryStart)
-	publishCounts()
+	task.spawn(function()
+		while true do
+			checkPads()
+			task.wait(CHECK_INTERVAL)
+		end
+	end)
 end
 
 return QueueService

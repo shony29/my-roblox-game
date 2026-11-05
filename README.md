@@ -100,11 +100,12 @@ project needs (it's listed in `rokit.toml`).
 ## Step 5: Try it alone
 
 1. Press **Play** (F5) at the top of Studio.
-2. The main menu appears. Click **PLAY**: you land on the **lobby island**.
-3. Walk over to the **training range** and shoot the practice dummies (left click).
-   In the lobby the camera is third person and the mouse is free.
-4. On the left is the **Play panel**: pick a mode and press **FIND MATCH**.
-   Alone, you'll wait in the queue, since a 1v1 needs a second player (Step 6).
+2. The main menu appears. Click **PLAY**: you appear in the **slime bunker** lobby.
+3. Look around: slime tubes, the **SHOP** counter (left, press **E** to open) and the
+   **DAILY SQUISHY** machine (right, press **E**, then tap the squishy until it bursts).
+4. Walk through the round **portal** under the big sign into the hallway. Stand on a
+   glowing pad to queue (**1v1**, **2v2**, **4v4**); step off to leave. Alone, the
+   1v1 pad shows **1/2**: use Step 6 to fill it with a second player.
 
 | Control | What it does |
 |---------|--------------|
@@ -127,7 +128,7 @@ Press **Stop** (Shift+F5) when you're done.
 2. In the **Clients and Servers** box, choose **Local Server** and set the number to **2**
    (use **4** to try 2v2).
 3. Click **Start**. Studio opens a **Server** window and one window per player.
-4. In **each player window**: click **PLAY**, choose **1v1 Duel**, press **FIND MATCH**.
+4. In **each player window**: click **PLAY**, walk through the portal and stand on the **1v1 DUEL** pad.
 5. Click into a player window to control that player.
 6. When you're finished, click **Cleanup** in the Test tab.
 
@@ -139,7 +140,7 @@ Things to check:
 - [ ] An elimination shows in the **kill feed** (top right) and the **scoreboard** (Tab); the shooter earns **5 coins**.
 - [ ] The eliminated player sits out; the round ends (ROUND WON / ROUND LOST) and both respawn for the next round.
 - [ ] First to 5 rounds shows the **results screen** (VICTORY / DEFEAT, MVP, stats, coins).
-- [ ] Press **REMATCH** in both windows: a new match starts with the same players. Otherwise both return to the lobby island after 10 seconds.
+- [ ] Press **REMATCH** in both windows: a new match starts with the same players. Otherwise both return to the lobby after 10 seconds.
 - [ ] Sprint, dash, double jump and slide work; other players see your blob jiggle as it moves.
 - [ ] Press **B** for the shop; buying a colour recolours your blob. In the **Guns** tab, buy a gun: it appears in your weapon bar next match (everyone starts with only the Auto Rifle).
 - [ ] In the lobby there are no guns, no crosshair and no weapon bar.
@@ -185,7 +186,7 @@ src/
                  Map, Lobby, Match, Queue, Vote
     Components/  Slime rig, blob, gun model, combat rules, team balancer,
                  rate limiter, practice dummy
-    Map/         Jelly Arena, Mossy Keep, the lobby island and shared map helpers
+    Map/         Jelly Arena, Mossy Keep, the slime bunker lobby and shared map helpers
   client/    → StarterPlayerScripts.Client (init.client.luau starts everything in order)
     Controllers/ Graphics, Shop, UI, Movement, Weapon, Camera, Viewmodel,
                  BlobAnimator, MatchHud, Lobby, Transition, Results, Feedback

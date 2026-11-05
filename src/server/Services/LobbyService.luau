@@ -6,8 +6,8 @@
 	  * In the lobby the camera is third person with a free mouse, so menus
 	    are easy to click; matches switch to first person.
 	  * Fall off or get knocked out in the lobby? You reappear on the plaza.
-	  * You can shoot the practice dummies, never other players
-	    (MatchService's combat rules ask isInLobby).
+	  * No guns in the lobby. Walk through the portal to the hallway and
+	    stand on a queue pad (QueueService) to join a match.
 ]]
 
 local Players = game:GetService("Players")
@@ -26,6 +26,12 @@ local LobbyService = {}
 local lobby: LobbyBuilder.Lobby? = nil
 local random = Random.new()
 local started = false
+
+-- The queue pads in the hallway (empty until the lobby is built).
+function LobbyService.getPads(): { LobbyBuilder.Pad }
+	local current = lobby
+	return if current then current.pads else {}
+end
 
 function LobbyService.isInLobby(player: Player): boolean
 	local status = player:GetAttribute(PATTR.Status)
