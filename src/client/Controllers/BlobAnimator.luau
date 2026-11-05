@@ -71,6 +71,8 @@ type Blob = {
 
 local player = Players.LocalPlayer
 local blobs: { [Model]: Blob } = {}
+local qualityScale = 1 -- from GraphicsController: Low animates only nearby blobs
+local burstCount = 28
 local random = Random.new()
 
 local function numberAttribute(instance: Instance, name: string, default: number): number
@@ -141,7 +143,7 @@ local function burst(position: Vector3, color: Color3)
 	emitter.Acceleration = Vector3.new(0, -45, 0)
 	emitter.Enabled = false
 	emitter.Parent = holder
-	emitter:Emit(28)
+	emitter:Emit(burstCount)
 	task.delay(1.5, function()
 		holder:Destroy()
 	end)
@@ -248,7 +250,7 @@ local function updateBlob(blob: Blob, dt: number, now: number, cameraPosition: V
 	if blob.owner == player and firstPerson then
 		return -- your own blob is hidden in first person
 	end
-	if (root.Position - cameraPosition).Magnitude > MovementConfig.JiggleDistance then
+	if (root.Position - cameraPosition).Magnitude > MovementConfig.JiggleDistance * qualityScale then
 		return
 	end
 
@@ -352,6 +354,9 @@ function BlobAnimator.start()
 		local camera = Workspace.CurrentCamera
 		local cameraPosition = if camera then camera.CFrame.Position else Vector3.zero
 		local firstPerson = camera ~= nil and (camera.CFrame.Position - camera.Focus.Position).Magnitude < 1
+		local quality = player:GetAttribute("GraphicsQuality")
+		qualityScale = if quality == "Low" then 0.4 elseif quality == "High" then 1.25 else 1
+		burstCount = if quality == "Low" then 10 else 28
 		local intensity = MovementConfig.JiggleIntensity * (if player:GetAttribute("ReducedMotion") == true then 0.25 else 1)
 		for model, blob in blobs do
 			if model.Parent == nil then

@@ -1,5 +1,9 @@
 # Integration notes (project manager)
 
+> **Historical:** these notes describe the first merge of the five branches.
+> The current architecture, checklist, security audit and performance notes
+> live in `DEVELOPMENT.md`.
+
 This file tracks how the five branches fit together, the problems found when
 reading them, and how each one was fixed during the merge into `main`.
 

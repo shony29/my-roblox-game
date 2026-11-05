@@ -22,6 +22,10 @@ local function run(stepName: string, step: () -> ())
 	end
 end
 
+run("GraphicsController", function()
+	require(Controllers.GraphicsController).start()
+end)
+
 -- The shop goes before the UI, because the menu's Shop button opens it.
 run("ShopController", function()
 	require(Controllers.ShopController).start()

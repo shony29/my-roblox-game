@@ -13,6 +13,7 @@
 	  R           reload
 ]]
 
+local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -112,8 +113,12 @@ end
 -- Finds the 3D point under the mouse, ignoring ourselves and our effects.
 local function getAimPoint(character: Model, range: number): Vector3
 	local camera = workspace.CurrentCamera
-	local mouse = UserInputService:GetMouseLocation()
-	local ray = camera:ViewportPointToRay(mouse.X, mouse.Y)
+	-- First person (and touch screens): shots go to the screen centre, where the
+	-- crosshair is. Third person in the lobby: where the mouse points.
+	local firstPerson = (camera.CFrame.Position - camera.Focus.Position).Magnitude < 1
+	local touchOnly = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+	local point = if firstPerson or touchOnly then camera.ViewportSize / 2 else UserInputService:GetMouseLocation()
+	local ray = camera:ViewportPointToRay(point.X, point.Y)
 
 	local params = HitGroups.weaponRayParams({ character, Effects.folder })
 
@@ -308,6 +313,34 @@ function WeaponController.start()
 			cycle(1)
 		end
 	end)
+
+	-- Phones and tablets: on-screen Fire (hold), Reload and Swap buttons.
+	if UserInputService.TouchEnabled then
+		ContextActionService:BindAction("SlimeFire", function(_name: string, inputState: Enum.UserInputState, _input: InputObject): Enum.ContextActionResult
+			if inputState == Enum.UserInputState.Begin then
+				triggerHeld = true
+				tryFire()
+			elseif inputState == Enum.UserInputState.End or inputState == Enum.UserInputState.Cancel then
+				triggerHeld = false
+			end
+			return Enum.ContextActionResult.Sink
+		end, true)
+		ContextActionService:SetTitle("SlimeFire", "Fire")
+		ContextActionService:BindAction("SlimeReload", function(_name: string, inputState: Enum.UserInputState, _input: InputObject): Enum.ContextActionResult
+			if inputState == Enum.UserInputState.Begin then
+				requestReload()
+			end
+			return Enum.ContextActionResult.Sink
+		end, true)
+		ContextActionService:SetTitle("SlimeReload", "Reload")
+		ContextActionService:BindAction("SlimeSwap", function(_name: string, inputState: Enum.UserInputState, _input: InputObject): Enum.ContextActionResult
+			if inputState == Enum.UserInputState.Begin then
+				cycle(1)
+			end
+			return Enum.ContextActionResult.Sink
+		end, true)
+		ContextActionService:SetTitle("SlimeSwap", "Swap")
+	end
 
 	UserInputService.InputEnded:Connect(function(input: InputObject)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then

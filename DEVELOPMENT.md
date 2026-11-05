@@ -26,7 +26,7 @@ Nothing is marked ✅ yet: no feature has been play-tested in Studio so far.
 | 7 Match transitions | 🟡 done in code: map voting (VoteService + cards; switches on with 2+ maps), loading screen while the server really builds the map (MapService), countdown, round-end, results screen (MVP, stats, coins), automatic return to lobby, rematch when everyone agrees |
 | 8 Polish | 🟡 sound framework with volume categories (built-in sounds + marked placeholders), elimination pop-up + sound, team-coloured scoreboard. Weapon/slime animations and UI transitions came with Phases 3, 4 and 7; a further polish pass should follow play-testing |
 | 9 Additional content | 🟡 in progress: 56 Mossy Keep map (forest + castle ruins, mirrored for fairness) ✔, map voting now active; 57 2v2/4v4 modes ✔; 58-59 shop colours, hats, weapon skins ✔; 60 XP and levels (saved, server-awarded) ✔. Not yet: eye styles/expressions, trails, challenges, achievements |
-| 10 Final optimization | 🔲 |
+| 10 Final optimization | 🟡 partly: automatic Low/Medium/High graphics (64), mobile Fire/Reload/Swap buttons + crosshair aiming (66), security audit (65) and a static performance review below. Profiling (61-62), stress tests (67), bug fixing from play-tests (68) and balancing (69) need Roblox Studio and real play-testing |
 
 ## Findings from the inspection (Feature 1)
 
@@ -58,3 +58,43 @@ src/client   (StarterPlayerScripts.Client)
   UI/          screens (menu, HUD, scoreboard, shop, voting, results, settings)
 assets/maps   map models saved from Studio (.rbxm), loaded into ServerStorage
 ```
+
+## Security audit (Feature 65)
+
+Every remote, what a client can send, and what the server checks. All
+damage, scores, coins, XP, items, match state and votes are decided on the
+server; attributes a client sets on itself never reach the server.
+
+| Remote (Shared/Net/Net.luau) | Direction | Server checks |
+|---|---|---|
+| WeaponFire | client → server | types, NaN, a round is running and you're alive in it (CombatRules), equipped weapon, fire rate, swap delay, ammo, reload state, origin within 10 studs of your head with no wall between, server's own raycast decides hits, damage from WeaponConfig, no friendly fire |
+| WeaponEquip / WeaponReload | client → server | real weapon Id, 0.1 s cooldown, reload needs spare bullets |
+| MovementRequest | client → server | known action, 15 requests/s limit, cooldowns, air-jump count; speed/height watched 10×/s with lag allowance, snap-back after 3 strikes |
+| PlayPressed | client → server | no data; 1 per second |
+| QueueJoin / QueueLeave | client → server | real mode Id, must be in the lobby, 4 per second |
+| MapVote | client → server | only the match's players, only offered maps, 4 per second |
+| RematchVote | client → server | only the match's players, 2 per second |
+| ShopBuyItem / ShopEquipItem | client → server (function) | short real item Id, server price, ownership, coins spent in one step, cooldown |
+| KillFeed, WeaponState, WeaponHitConfirm, WeaponShotFx, MovementResult, MatchResults | server → client | clients only display these; text is length-checked and RichText-escaped |
+
+Known limits: aim assistance (aimbots) can't be fully stopped by any
+server; the movement checks are deliberately forgiving so laggy players
+aren't punished.
+
+## Performance notes (static review, not measured)
+
+Nothing here has been measured yet. Use Studio's MicroProfiler (Ctrl+F6)
+and the Developer Console (F9) during a 4–8 player test to confirm.
+
+- Per-frame client work: blob jiggle (only blobs within 160 studs, 64 on
+  Low; your own is skipped in first person), the camera and gun view
+  (a few CFrame updates), movement (dash/slide/sprint maths) and the dash
+  badge. Other HUD loops run 4–10 times a second, not every frame.
+- Server: movement checks run 10 times a second (not every frame); matches
+  and queues are event-driven with short polling during rounds.
+- Network: the busiest messages are shots (at most the weapon's fire rate,
+  14/s for the SMG) with one tracer message to other players per shot and an
+  ammo update to the shooter. Everything else (scores, timers, queue counts,
+  votes) is shared through attributes that change only when something happens.
+- Maps: Mossy Keep has roughly 600 anchored parts. Decorations that don't need
+  collision have collision and queries switched off.
