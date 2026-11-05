@@ -23,6 +23,7 @@ local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("ShopConfig"))
 local WeaponConfig = require(Shared:WaitForChild("Config"):WaitForChild("WeaponConfig"))
+local UpgradeConfig = require(Shared:WaitForChild("Config"):WaitForChild("UpgradeConfig"))
 local ShopRemotes = require(Shared:WaitForChild("Net"):WaitForChild("ShopRemotes"))
 local GameContract = require(Shared:WaitForChild("Net"):WaitForChild("GameContract"))
 
@@ -160,6 +161,7 @@ local function refreshCards()
 	local owned = ownedIds()
 	local myCoins = coins()
 	local month = ShopConfig.currentMonth()
+	local gunLevels = UpgradeConfig.parse(player:GetAttribute("GunLevels"))
 	for _, card in cards do
 		local item = card.item
 		local isGun = item.Category == "Weapon" -- guns are owned (in your loadout), not worn
@@ -178,7 +180,12 @@ local function refreshCards()
 			button.Text = "WEARING"
 			button.BackgroundColor3 = Colors.Mint
 		elseif isOwned then
-			status.Text = if isGun then "In your loadout" elseif item.Price <= 0 then "Free" else "Owned"
+			local gun = if isGun then ShopConfig.getWeapon(item.Id) else nil
+			local tier = if gun then UpgradeConfig.tier(gunLevels[gun.WeaponId] or 0) else nil
+			status.Text = if tier then `Loadout · Lv {tier.Level} {tier.Name}`
+				elseif isGun then "In your loadout"
+				elseif item.Price <= 0 then "Free"
+				else "Owned"
 			status.TextColor3 = Colors.SkyDeep
 			button.Text = if isGun then "OWNED" else "EQUIP"
 			button.BackgroundColor3 = if isGun then Colors.Mint else Colors.SkyDeep
@@ -652,7 +659,7 @@ function ShopController.start()
 	buildHudButton()
 
 	-- Redraw the cards whenever the server changes coins or items.
-	for _, attribute in { ATTR.Coins, ATTR.OwnedItems, ATTR.EquippedColor, ATTR.EquippedHat, ATTR.EquippedSkin } do
+	for _, attribute in { ATTR.Coins, ATTR.OwnedItems, ATTR.EquippedColor, ATTR.EquippedHat, ATTR.EquippedSkin, "GunLevels" } do
 		player:GetAttributeChangedSignal(attribute):Connect(refreshCards)
 	end
 	-- Hat previews wear your current blob color.

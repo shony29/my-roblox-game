@@ -24,6 +24,8 @@ local ShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("ShopConfi
 local HatBuilder = require(Shared:WaitForChild("Cosmetics"):WaitForChild("HatBuilder"))
 local BlobCharacter = require(script.Parent.Parent.Components.BlobCharacter)
 local WeaponSkins = require(Shared:WaitForChild("Cosmetics"):WaitForChild("WeaponSkins"))
+local GunUpgrade = require(Shared:WaitForChild("Cosmetics"):WaitForChild("GunUpgrade"))
+local UpgradeConfig = require(Shared:WaitForChild("Config"):WaitForChild("UpgradeConfig"))
 local GameContract = require(Shared:WaitForChild("Net"):WaitForChild("GameContract"))
 
 local ATTR = GameContract.PlayerAttributes
@@ -82,7 +84,12 @@ local function paintGun(player: Player, gun: Instance)
 	local skin = ShopConfig.getSkin(readString(player, ATTR.EquippedSkin))
 	if gun:GetAttribute(WeaponSkins.SKIN_ATTRIBUTE) ~= skin.Id then
 		WeaponSkins.apply(gun, skin)
+		gun:SetAttribute(GunUpgrade.LEVEL_ATTRIBUTE, nil) -- the skin repainted the body: re-apply the upgrade
 	end
+	-- Upgrade colour for the gun they're holding (Daily Squishy prize).
+	local weaponId = player:GetAttribute("EquippedWeapon")
+	local levels = UpgradeConfig.parse(player:GetAttribute("GunLevels"))
+	GunUpgrade.apply(gun, if typeof(weaponId) == "string" then levels[weaponId] or 0 else 0)
 end
 
 local function onCharacterChild(player: Player, character: Model, child: Instance)
@@ -126,7 +133,7 @@ local function onPlayerAdded(player: Player)
 	if player.Character then
 		onCharacterAdded(player, player.Character)
 	end
-	for _, attribute in { ATTR.EquippedColor, ATTR.EquippedHat, ATTR.EquippedSkin } do
+	for _, attribute in { ATTR.EquippedColor, ATTR.EquippedHat, ATTR.EquippedSkin, "GunLevels" } do
 		player:GetAttributeChangedSignal(attribute):Connect(function()
 			Cosmetics.refresh(player)
 		end)

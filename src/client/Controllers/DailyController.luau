@@ -263,6 +263,7 @@ function DailyController.start()
 		prizeName.Text = string.upper(name)
 		prizeKind.Text = if result.kind == "Coins"
 			then "You own everything, so here are coins!"
+			elseif result.kind == "Upgrade" then `Gun upgrade! It's now {tostring(result.upgradeColor)}.`
 			else (CATEGORY_TEXT[if typeof(result.category) == "string" then result.category else ""] or "New item!")
 		card.Visible = true
 		cardScale.Scale = 0.6

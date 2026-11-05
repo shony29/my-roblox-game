@@ -35,6 +35,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Schema = require(Shared:WaitForChild("Data"):WaitForChild("PlayerDataSchema"))
 local GameContract = require(Shared:WaitForChild("Net"):WaitForChild("GameContract"))
 local ShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("ShopConfig"))
+local UpgradeConfig = require(Shared:WaitForChild("Config"):WaitForChild("UpgradeConfig"))
 
 type PlayerData = Schema.PlayerData
 
@@ -151,6 +152,7 @@ local function publishAttributes(profile: Profile)
 	player:SetAttribute(ATTR.EquippedHat, profile.data.equippedItems.Hat)
 	player:SetAttribute(ATTR.EquippedSkin, profile.data.equippedItems.Skin)
 	player:SetAttribute(ATTR.EquippedTopping, profile.data.equippedItems.Topping)
+	player:SetAttribute("GunLevels", UpgradeConfig.format(profile.data.gunLevels))
 end
 
 -- Loading -------------------------------------------------------------------
@@ -467,6 +469,29 @@ function PlayerDataService.grantPurchase(player: Player, itemId: string, purchas
 	profile.dirty = true
 	publishAttributes(profile)
 	return "Granted"
+end
+
+-- A gun's upgrade level (0 = not upgraded).
+function PlayerDataService.getGunLevel(player: Player, weaponId: string): number
+	local profile = profiles[player]
+	return if profile then profile.data.gunLevels[weaponId] or 0 else 0
+end
+
+-- Raises a gun's upgrade level by one (Daily Squishy prize). Returns the
+-- new level, or nil if it was already at the top or data isn't loaded.
+function PlayerDataService.upgradeGun(player: Player, weaponId: string): number?
+	local profile = profiles[player]
+	if profile == nil then
+		return nil
+	end
+	local level = profile.data.gunLevels[weaponId] or 0
+	if level >= UpgradeConfig.MAX_LEVEL then
+		return nil
+	end
+	profile.data.gunLevels[weaponId] = level + 1
+	profile.dirty = true
+	publishAttributes(profile)
+	return level + 1
 end
 
 -- Adds experience. Only whole, positive amounts are accepted (server only).

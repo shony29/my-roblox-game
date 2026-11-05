@@ -103,6 +103,8 @@ project needs (it's listed in `rokit.toml`).
 2. The main menu appears. Click **PLAY**: you appear in the **slime bunker** lobby.
 3. Look around: slime tubes, the **SHOP** counter (left, press **E** to open) and the
    **DAILY SQUISHY** machine (right, press **E**, then tap the squishy until it bursts).
+   Prizes can be items or **gun upgrades** (red → orange → yellow → green → blue → purple;
+   upgrades change your gun's colour, not its damage).
 4. Walk through the round **portal** under the big sign into the hallway. Stand on a
    glowing pad to queue (**1v1**, **2v2**, **4v4**); step off to leave.
 5. **Testing alone?** Stand on a **vs BOTS** pad (right side of the hallway): a practice

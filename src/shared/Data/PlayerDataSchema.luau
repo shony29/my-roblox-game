@@ -31,13 +31,14 @@ export type PlayerData = {
 	xp: number, -- total experience (the level is worked out from this, see Data/Progression)
 	lastDailyAt: number, -- os.time() of the last Daily Squishy claim (0 = never)
 	receipts: { string }, -- Robux purchases already granted (so one is never granted twice)
+	gunLevels: { [string]: number }, -- weapon Id -> upgrade level 0-6 (cosmetic colour)
 	ownedItems: { string }, -- shop item Ids the player bought (free items are always owned)
 	equippedItems: EquippedItems, -- shop items the player is wearing
 }
 
 local Schema = {}
 
-Schema.VERSION = 5 -- 2: shop items. 3: xp. 4: lastDailyAt. 5: toppings and Robux receipts
+Schema.VERSION = 6 -- 2: shop items. 3: xp. 4: lastDailyAt. 5: toppings and Robux receipts. 6: gun levels
 
 -- How many coins a player earns for each elimination.
 Schema.COINS_PER_ELIMINATION = 5
@@ -58,6 +59,7 @@ function Schema.default(): PlayerData
 		xp = 0,
 		lastDailyAt = 0,
 		receipts = {},
+		gunLevels = {},
 		ownedItems = {},
 		equippedItems = {
 			Color = ShopConfig.Defaults.Color,
@@ -156,6 +158,16 @@ function Schema.reconcile(raw: unknown): PlayerData
 		table.remove(receipts, 1)
 	end
 	data.receipts = receipts
+	-- Gun upgrade levels: short weapon Ids with whole levels 0-6 (older saves: none).
+	local gunLevels: { [string]: number } = {}
+	if typeof(source.gunLevels) == "table" then
+		for weaponId, level in source.gunLevels :: { [unknown]: unknown } do
+			if typeof(weaponId) == "string" and #weaponId <= 24 and typeof(level) == "number" and level == level then
+				gunLevels[weaponId] = math.clamp(math.floor(level), 0, 6)
+			end
+		end
+	end
+	data.gunLevels = gunLevels
 	data.schemaVersion = Schema.VERSION
 	return data
 end
@@ -169,6 +181,7 @@ function Schema.copy(data: PlayerData): PlayerData
 		xp = data.xp,
 		lastDailyAt = data.lastDailyAt,
 		receipts = table.clone(data.receipts),
+		gunLevels = table.clone(data.gunLevels),
 		-- New tables, so a save snapshot never changes while it is being written.
 		ownedItems = table.clone(data.ownedItems),
 		equippedItems = {
