@@ -403,6 +403,8 @@ local function buildMenu()
 	overlay.Name = "Dim"
 	overlay.Text = ""
 	overlay.AutoButtonColor = false
+	-- Modal frees the mouse cursor (first person locks it) while the shop is open.
+	overlay.Modal = true
 	overlay.Size = UDim2.fromScale(1, 1)
 	overlay.BackgroundColor3 = Colors.Ink
 	overlay.BackgroundTransparency = 0.45

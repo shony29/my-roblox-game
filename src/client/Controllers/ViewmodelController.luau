@@ -1,0 +1,186 @@
+--!strict
+--[[
+	ViewmodelController: the gun you see in first person.
+
+	In first person Roblox hides your own character, including the gun the
+	server welded to your blob (other players still see that one). So we
+	show a copy of it in front of the camera, held by a little slime hand.
+
+	How it works:
+	  * We watch your character for the server's gun model ("EquippedGun").
+	    Whenever it changes (new weapon, new shop skin), we copy it.
+	  * The copy lives inside the camera, so only you see it, and it is
+	    purely visual: shots are decided by WeaponController and the server.
+	  * Every frame we place it at a fixed spot in front of the camera,
+	    with a gentle sway when you turn and a small bob when you move.
+	  * The copy keeps the "Muzzle" attachment, so your tracers start at
+	    the tip of the gun you see.
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local GUN_NAME = "EquippedGun" -- made by server/Components/GunModel
+local VIEWMODEL_NAME = "Viewmodel"
+local HOLD_OFFSET = CFrame.new(0.95, -0.85, -1.9) -- right, down, forward from the camera
+local SWAY_AMOUNT = 0.0016 -- how much the gun lags when you turn (per pixel of mouse movement)
+local MAX_SWAY = math.rad(4)
+local SWAY_RETURN_SPEED = 10
+
+local player = Players.LocalPlayer
+
+local ViewmodelController = {}
+local started = false
+
+local viewmodel: Model? = nil
+local sway = Vector2.zero -- radians (x = yaw, y = pitch)
+local bobTime = 0
+
+local function destroyViewmodel()
+	if viewmodel then
+		viewmodel:Destroy()
+		viewmodel = nil
+	end
+end
+
+local function blobColor(): Color3
+	local color = player:GetAttribute("BlobColor")
+	return if typeof(color) == "Color3" then color else Color3.fromRGB(120, 220, 160)
+end
+
+-- Copies the server's gun into the camera, plus a slime hand on the grip.
+local function rebuild(gun: Instance)
+	destroyViewmodel()
+	if not gun:IsA("Model") then
+		return
+	end
+	local copy = gun:Clone()
+	copy.Name = VIEWMODEL_NAME
+	for _, descendant in copy:GetDescendants() do
+		if descendant:IsA("WeldConstraint") or descendant:IsA("Weld") then
+			descendant:Destroy() -- the copy is moved by hand, not welded to the blob
+		elseif descendant:IsA("BasePart") then
+			descendant.Anchored = true
+			descendant.CanCollide = false
+			descendant.CanQuery = false
+			descendant.CanTouch = false
+			descendant.CastShadow = false
+		end
+	end
+
+	-- A soft jelly "hand" gripping the gun, in your blob's colour.
+	local grip = copy:FindFirstChild("Grip")
+	if grip and grip:IsA("BasePart") then
+		local hand = Instance.new("Part")
+		hand.Name = "SlimeHand"
+		hand.Shape = Enum.PartType.Ball
+		hand.Size = Vector3.new(0.75, 0.75, 0.75)
+		hand.Color = blobColor()
+		hand.Material = Enum.Material.SmoothPlastic
+		hand.Transparency = 0.1
+		hand.Anchored = true
+		hand.CanCollide = false
+		hand.CanQuery = false
+		hand.CanTouch = false
+		hand.CastShadow = false
+		hand.CFrame = grip.CFrame * CFrame.new(0, -0.05, 0.05)
+		hand.Parent = copy
+	end
+
+	copy.Parent = Workspace.CurrentCamera
+	viewmodel = copy
+end
+
+local function watchCharacter(character: Model)
+	destroyViewmodel()
+	local existing = character:FindFirstChild(GUN_NAME)
+	if existing then
+		rebuild(existing)
+	end
+	character.ChildAdded:Connect(function(child: Instance)
+		if child.Name == GUN_NAME then
+			-- Wait a frame so all of the gun's parts have arrived.
+			task.defer(function()
+				if child.Parent == character then
+					rebuild(child)
+				end
+			end)
+		end
+	end)
+	character.ChildRemoved:Connect(function(child: Instance)
+		if child.Name == GUN_NAME and character:FindFirstChild(GUN_NAME) == nil then
+			destroyViewmodel()
+		end
+	end)
+end
+
+local function onRenderStep(dt: number)
+	local model = viewmodel
+	local camera = Workspace.CurrentCamera
+	if not model or not camera then
+		return
+	end
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local alive = humanoid ~= nil and humanoid.Health > 0
+
+	-- Only show it while alive and actually in first person.
+	local firstPerson = (camera.CFrame.Position - camera.Focus.Position).Magnitude < 1
+	if not alive or not firstPerson then
+		model:PivotTo(CFrame.new(0, -1e4, 0)) -- tucked away out of sight
+		return
+	end
+
+	-- Sway: the gun lags a little behind fast turns, then catches up.
+	local delta = UserInputService:GetMouseDelta()
+	local target = Vector2.new(
+		math.clamp(-delta.X * SWAY_AMOUNT, -MAX_SWAY, MAX_SWAY),
+		math.clamp(-delta.Y * SWAY_AMOUNT, -MAX_SWAY, MAX_SWAY)
+	)
+	sway = sway:Lerp(target, 1 - math.exp(-SWAY_RETURN_SPEED * dt))
+
+	-- Bob while moving, matching the camera bob.
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local speed = if root and root:IsA("BasePart")
+		then Vector3.new(root.AssemblyLinearVelocity.X, 0, root.AssemblyLinearVelocity.Z).Magnitude
+		else 0
+	if speed > 1 and humanoid and humanoid.FloorMaterial ~= Enum.Material.Air then
+		bobTime += dt * 9 * math.clamp(speed / 26, 0.5, 1.2)
+	end
+	local bobScale = math.clamp(speed / 26, 0, 1)
+	local bob = CFrame.new(math.sin(bobTime) * 0.03 * bobScale, -math.abs(math.cos(bobTime)) * 0.03 * bobScale, 0)
+
+	model:PivotTo(camera.CFrame * HOLD_OFFSET * bob * CFrame.Angles(sway.Y, sway.X, 0))
+end
+
+function ViewmodelController.start()
+	if started then
+		return
+	end
+	started = true
+
+	player.CharacterAdded:Connect(watchCharacter)
+	player.CharacterRemoving:Connect(destroyViewmodel)
+	if player.Character then
+		task.spawn(watchCharacter, player.Character)
+	end
+	-- Runs after the camera (and CameraController) so it sits exactly in view.
+	RunService:BindToRenderStep("SlimeViewmodel", Enum.RenderPriority.Camera.Value + 2, onRenderStep)
+end
+
+-- Where the visible gun's tip is, for tracers. nil if there is no viewmodel.
+function ViewmodelController.getMuzzlePosition(): Vector3?
+	local model = viewmodel
+	if not model then
+		return nil
+	end
+	local muzzle = model:FindFirstChild("Muzzle", true)
+	if muzzle and muzzle:IsA("Attachment") then
+		return muzzle.WorldPosition
+	end
+	return nil
+end
+
+return ViewmodelController

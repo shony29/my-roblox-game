@@ -26,6 +26,7 @@ local HitGroups = require(Shared:WaitForChild("Combat"):WaitForChild("HitGroups"
 local ClientFolder = script.Parent.Parent
 local Effects = require(ClientFolder:WaitForChild("Effects"):WaitForChild("WeaponEffects"))
 local Hud = require(ClientFolder:WaitForChild("UI"):WaitForChild("WeaponHud"))
+local ViewmodelController = require(script.Parent:WaitForChild("ViewmodelController"))
 
 type WeaponStats = WeaponConfig.WeaponStats
 
@@ -150,7 +151,8 @@ local function tryFire()
 	remotes.Fire:FireServer(equipped, origin, direction.Unit)
 
 	-- Show the shot right away (our best guess; the server has the final say).
-	local muzzle = getMuzzlePosition(character, origin)
+	-- In first person, tracers start at the tip of the gun you can see.
+	local muzzle = ViewmodelController.getMuzzlePosition() or getMuzzlePosition(character, origin)
 	Effects.muzzleFlash(muzzle, stats.TracerColor)
 	Effects.playSound(stats.FireSoundId, 0.6, 1)
 

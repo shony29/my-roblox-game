@@ -105,7 +105,7 @@ project needs (it's listed in `rokit.toml`).
 
 | Control | What it does |
 |---------|--------------|
-| Mouse | Aim |
+| Mouse | Aim (the game is first person; menus free the mouse while open) |
 | Left click | Shoot (hold it with the Auto Rifle) |
 | 1 / 2 / 3 | Auto Rifle / Pump Shotgun / Sniper |
 | R | Reload |

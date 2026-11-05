@@ -112,7 +112,7 @@ local function stopSlide(state: CharacterState)
 		return
 	end
 	state.sliding = false
-	state.humanoid.CameraOffset = Vector3.zero
+	player:SetAttribute("Sliding", false) -- CameraController raises the view back up
 end
 
 local function tryDash()
@@ -157,7 +157,7 @@ local function trySlide()
 	state.sliding = true
 	state.slideStartedAt = os.clock()
 	state.slideDirection = flatVelocity.Unit
-	state.humanoid.CameraOffset = Vector3.new(0, -MovementConfig.SlideCameraDrop, 0)
+	player:SetAttribute("Sliding", true) -- CameraController lowers the view
 	slideReadyAt = serverNow() + MovementConfig.SlideCooldown
 
 	remotes.Request:FireServer("Slide")

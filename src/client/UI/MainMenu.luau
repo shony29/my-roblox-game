@@ -118,6 +118,8 @@ function MainMenu.create(gui: ScreenGui, onPlay: () -> (), onShop: (() -> ())?)
 
 	local play = Instance.new("TextButton")
 	play.Name = "PlayButton"
+	-- Modal frees the mouse cursor (first person locks it) while the menu shows.
+	play.Modal = true
 	play.Text = "PLAY"
 	play.Font = Theme.Fonts.Title
 	play.TextSize = 56

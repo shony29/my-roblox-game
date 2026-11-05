@@ -23,7 +23,9 @@
 
     "StarterPlayer": {
       "$properties": {
-        "LoadCharacterAppearance": false
+        "LoadCharacterAppearance": false,
+        "CameraMode": "LockFirstPerson",
+        "CameraMaxZoomDistance": 0.5
       },
       "StarterPlayerScripts": {
         "Client": {
