@@ -1,58 +1,63 @@
-# Jelly Blitz 🟩💥
+# Jelly Blitz 🟢💥
 
-A fast, cheerful first-person paint shooter for Roblox, inspired by Shell
-Shockers, except everyone is a wobbly **low-poly jelly cube** with googly eyes.
+A fast, cheerful free-for-all shooter for Roblox. Everyone is a round **blob**
+with googly eyes, running around a colourful arena.
 
-- ⚡ **Fast movement:** high run speed, **double jump**, a quick **dash** (Shift or Q) and bouncy launch pads
-- 🎨 **Low-poly look:** simple, colorful shapes, so it stays light and runs smoothly
-- 🔁 **Instant respawn:** get splatted and you're back right away, with 1.5 s of spawn protection
-- 🪙 **Coins and a shop:** earn 10 coins per splat and spend them on jelly colors (saved between visits)
+- 🔫 **Three weapons:** Auto Rifle, Pump Shotgun and Sniper (keys **1 / 2 / 3**)
+- ⚡ **Fast movement:** dash, double jump and slide
+- ⏱️ **Rounds:** 5-minute free-for-all, first to 25 eliminations wins, then a short break
+- 🔁 **Quick respawns** at the safest spawn pad, with 2 seconds of spawn protection
+- 🪙 **Saved progress:** lifetime eliminations, wins and coins (5 coins per elimination)
+- 📋 **HUD:** health, ammo, coins, round timer, kill feed and a Tab scoreboard
 
 ---
 
-## 1. Install Rojo and the Rojo Studio plugin
+## What you need
 
-**Rojo** copies the code files from this folder into Roblox Studio, and keeps
-them in sync every time you save. You need two parts: the Rojo program and the
-Rojo plugin inside Studio.
+| Thing | What it is |
+|-------|------------|
+| **Roblox Studio** | Where you play-test the game. Download it from <https://create.roblox.com>. |
+| **Rojo** | A small program that copies the code files from this folder into Studio and keeps them in sync while you edit. |
+| **The Rojo plugin** | The Studio half of Rojo. It adds a **Rojo** button to Studio. |
 
-### a) Install Rokit (it installs Rojo for you)
+---
 
-Rokit is a small tool installer. Open a terminal (on Windows, open **PowerShell**)
-and run:
+## Step 1: Install Rojo (one time only)
 
-**Windows (PowerShell):**
+We use **Rokit**, a small helper that installs the exact Rojo version this
+project needs (it's listed in `rokit.toml`).
 
-```powershell
-Invoke-RestMethod https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.ps1 | Invoke-Expression
-```
+1. Open a terminal. On Windows, open **PowerShell**. On a Mac, open **Terminal**.
+2. Paste the line for your computer and press Enter:
 
-**Mac / Linux:**
+   **Windows (PowerShell):**
 
-```bash
-curl -sSf https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh | bash
-```
+   ```powershell
+   Invoke-RestMethod https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.ps1 | Invoke-Expression
+   ```
 
-Then **close and reopen** your terminal so it can find the new command.
+   **Mac / Linux:**
 
-> Prefer not to use the terminal? You can also install the **Rojo** extension
-> for VS Code. It can install Rojo and start it from a button.
+   ```bash
+   curl -sSf https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh | bash
+   ```
 
-### b) Install the Rojo plugin in Roblox Studio
+3. **Close the terminal and open a new one**, so it can find the new command.
+
+> Don't like terminals? The **Rojo** extension for VS Code can do the same
+> thing from a button.
+
+## Step 2: Install the Rojo plugin in Studio (one time only)
 
 1. Open Roblox Studio.
-2. Go to the **Toolbox** (View → Toolbox) → **Plugins**, search for **Rojo**, and
-   install the official one by **Rojo** (it has lots of installs).
-3. You'll see a **Rojo** button in the **Plugins** tab.
+2. Open the **Toolbox** (View tab → Toolbox), switch to **Plugins**, search for
+   **Rojo**, and install the official one made by **Rojo**.
+3. You should now see a **Rojo** button in the **Plugins** tab.
 
-(Alternatively, once Rojo is installed, run `rojo plugin install` in a terminal.)
+## Step 3: Get the code onto your computer
 
----
-
-## 2. Get this code onto your computer and run `rojo serve`
-
-1. Install **Git** from <https://git-scm.com> if you don't have it. (Or use
-   GitHub's green **Code → Download ZIP** button and unzip it.)
+1. Install **Git** from <https://git-scm.com> (or use GitHub's green
+   **Code → Download ZIP** button and unzip it).
 2. Download the project:
 
    ```bash
@@ -65,103 +70,138 @@ Then **close and reopen** your terminal so it can find the new command.
    cd my-roblox-game
    ```
 
-4. Install the exact Rojo version this project uses (listed in `rokit.toml`).
-   Say **yes** if it asks whether to trust Rojo:
+4. Install the project's Rojo version (say **yes** if it asks whether to trust Rojo):
 
    ```bash
    rokit install
    ```
 
-5. Start the Rojo server:
+## Step 4: Start Rojo and connect Studio
+
+1. In the same terminal, start Rojo:
 
    ```bash
    rojo serve
    ```
 
-   It should say it's listening on `localhost:34872`. **Leave this window open**
-   while you work.
+   It should say it's listening on `localhost:34872`.
+   **Leave this window open** while you work.
+
+2. In Studio, create a new place from the **Baseplate** template.
+3. Go to the **Plugins** tab → click **Rojo** → click **Connect**.
+4. Check that the code arrived. In the **Explorer** you should see:
+   - `ReplicatedStorage → Shared` (code both sides use)
+   - `ServerScriptService → Server` (code that runs on Roblox's servers)
+   - `StarterPlayer → StarterPlayerScripts → Client` (code that runs on each player's device)
+
+   Rojo also switches off `Players → CharacterAutoLoads`, so players only
+   appear after pressing **Play** on the menu. That's expected.
+
+## Step 5: Try it alone
+
+1. Press **Play** (F5) at the top of Studio.
+2. The arena is built for you, and the main menu appears. Click **PLAY**.
+3. After a 10-second break, the round starts ("GO!").
+
+| Control | What it does |
+|---------|--------------|
+| Mouse | Aim |
+| Left click | Shoot (hold it with the Auto Rifle) |
+| 1 / 2 / 3 | Auto Rifle / Pump Shotgun / Sniper |
+| R | Reload |
+| Space, then Space again in the air | Double jump |
+| Shift | Dash |
+| Ctrl or C (while running) | Slide |
+| Tab (hold) | Scoreboard |
+
+Press **Stop** (Shift+F5) when you're done.
+
+## Step 6: Test with 2 or 3 players
+
+Shooting needs someone to shoot at, so Studio can pretend to be several players at once.
+
+1. Click the **Test** tab at the top of Studio.
+2. In the **Clients and Servers** box, choose **Local Server**, and set the
+   number next to it to **2** (or **3**).
+3. Click **Start**. Studio opens extra windows: one **Server** window and one
+   window for each player (`Player1`, `Player2`, ...). It can take a little
+   while the first time.
+4. In **each player window**, click **PLAY** on the menu.
+5. Click into one player window to control that player, then click into
+   another to switch.
+6. When you're finished, click **Cleanup** (in the Test tab, or in the Server window) to close everything.
+
+Things to check:
+
+- [ ] Shooting another player lowers their **health bar**, and the hitmarker appears for the shooter.
+- [ ] The **ammo counter** (bottom right) goes down as you shoot, and **R** reloads.
+- [ ] When someone is eliminated, the **kill feed** (top right) shows it in every window.
+- [ ] Holding **Tab** shows the elimination going up on the scoreboard.
+- [ ] The shooter's **coins** (top left) go up by 5.
+- [ ] The eliminated player comes back at a spawn pad with a bubble ("Spawn protected").
+- [ ] Dash, double jump and slide all work, and other players see your blob move.
+- [ ] When the timer runs out, the winner's name is shown and a new round starts.
+
+> **About saving:** coins and stats only *save* in a published game. In
+> Studio you'll see a yellow warning in the Output that says progress will not
+> be saved. That's expected, and the coins still count up while you test. To
+> test real saving, publish the place (File → Publish to Roblox), then turn on
+> **Game Settings → Security → Enable Studio Access to API Services**.
+
+**Tip:** with `rojo serve` running, any file you save updates Studio straight
+away. Stop the test and start it again to try your change.
 
 ---
 
-## 3. Connect from Roblox Studio and test the game
+## Changing the numbers
 
-1. In Studio, create a new place from the **Baseplate** template.
-2. Open the **Plugins** tab → click **Rojo** → click **Connect**.
-   Your scripts now appear in Studio:
-   - `ServerScriptService → Server` (server code)
-   - `StarterPlayer → StarterPlayerScripts → Client` (player code)
-   - `ReplicatedStorage → Shared` (code both use)
-3. Press **Play** (F5). A colorful arena is built for you automatically.
-   Try it out:
-   - **Mouse** to look around, **hold left click** to shoot
-   - **Space twice** to double jump, **Shift or Q** to dash
-   - **R** to reload, **B** (or the SHOP button) for the shop
-   - Step on the glowing yellow pads to bounce up high
-4. **Test with other players:** go to the **Test** tab, set the player count to
-   **2**, and click **Start** (Clients and Servers). Two windows open, and you can
-   splat each other, watch the kill feed and earn coins.
-5. **Turn on saving (optional):** coins only save in a *published* game.
-   Publish once (File → Publish to Roblox), then go to **Game Settings →
-   Security** and turn on **Enable Studio Access to API Services**. Until you
-   do this, the HUD shows a red "Progress is not being saved" note. That's
-   expected, and nothing is broken.
+Every tuning value lives in one file per system:
 
-**Tip:** edit any file (try the numbers in `src/shared/Config.luau`), save it,
-and Rojo updates Studio straight away. Stop Play and press Play again to try the
-change.
-
----
+| File | What it controls |
+|------|------------------|
+| `src/shared/Weapons/WeaponConfig.luau` | Damage, fire rate, ammo, reload time, range for each gun |
+| `src/shared/Movement/MovementConfig.luau` | Walk speed, jump, dash, slide, blob looks |
+| `src/shared/Rounds/RoundConfig.luau` | Round length, eliminations to win, break time, respawn delay, minimum players |
+| `src/shared/Data/PlayerDataSchema.luau` | Coins per elimination, what gets saved |
+| `src/client/UI/Theme.luau` | UI colours, fonts and the game title |
 
 ## How the project is organised
 
 ```
 default.project.json   Tells Rojo where each folder goes inside Roblox
 rokit.toml             Which Rojo version to install
+INTEGRATION.md         How all the systems connect (and the safety checks)
 src/
-  shared/              Code both sides use (ReplicatedStorage.Shared)
-    Config.luau          ← All the gameplay numbers: speed, damage, rewards...
-    ShopCatalog.luau     ← The colors you can buy, and their prices
-    Remotes.luau         How the server and clients send messages
-    Types.luau           Shapes of the data (for type checking)
-  server/              Runs on Roblox's servers (ServerScriptService.Server)
-    init.server.luau     Starts everything
-    Services/
-      PlayerData.luau      Saving and loading progress (DataStores)
-      CombatService.luau   Checks every shot and applies damage
-      CharacterService.luau Jelly look, speed, instant respawn
-      ShopService.luau     Buying and equipping colors
-      ArenaBuilder.luau    Builds the map if you haven't made one
-    Util/RateLimiter.luau  Stops remote spam
-  client/              Runs on each player's device (StarterPlayerScripts.Client)
-    init.client.luau     Starts everything
-    Controllers/
-      WeaponController.luau   Shooting, reloading, tracers, first-person blaster
-      MovementController.luau Double jump, dash, launch pads
-      HudController.luau      Crosshair, health, ammo, coins, kill feed
-      ShopController.luau     The shop window
-      DataController.luau     Your latest coins/colors from the server
+  shared/    → ReplicatedStorage.Shared
+    Combat/     What bullets can hit (blob hitboxes)
+    Data/       Shared names for the UI and saving, save-file shape
+    Movement/   Movement settings and remotes
+    Rounds/     Round settings and shared round state
+    Weapons/    Weapon settings, maths and remotes
+  server/    → ServerScriptService.Server
+    Data/       Saving/loading progress, coins, kill feed, Play button
+    Map/        Builds the arena
+    Movement/   Blob characters, approves dashes/jumps/slides, anti-speed-cheat
+    Rounds/     Round loop, scores, safe spawns, spawn protection
+    Weapons/    Checks every shot and deals damage
+  client/    → StarterPlayer.StarterPlayerScripts.Client
+    Movement/   Dash / double jump / slide controls and the dash badge
+    Rounds/     Round caption, winner banner, spawn-protection notice
+    UI/         Main menu, HUD, kill feed, scoreboard
+    Weapons/    Shooting, tracers, hitmarker, weapon slots
 ```
 
-## How it stays safe and solid
+## How it stays fair
 
-- **The server is the referee.** The client only says "I fired from here, this
-  way". The server checks the values are real, that you're alive, that you have
-  ammo and aren't firing too fast, and that you're not shooting through a wall.
-  Then it does its **own** raycast to decide what you hit. Coins, damage and
-  purchases are only ever changed on the server.
-- **The shop uses server prices.** The client sends just the color's name, and
-  the server looks up the real price and checks your coins.
-- **Saving is careful.** Every DataStore request is retried with growing waits.
-  A session lock stops two servers overwriting each other. If loading fails,
-  the game never saves over your real data. It also autosaves every minute,
-  saves when you leave, and saves everyone when a server shuts down.
-- **Every file uses `--!strict`** Luau typing, and each one has comments
-  explaining what it does.
-
-## Ideas for next steps
-
-- Add sounds (shooting, splat, jump) by uploading audio and playing it in `WeaponController`
-- Add more weapons: copy the `Weapon` block in `Config.luau` and add a way to switch
-- Build your own map in Studio: make a Folder named `Arena` in Workspace with
-  some `SpawnLocation`s, and the auto-built arena will step aside
-- Add a round timer and a scoreboard of the top players
+- **The server is the referee.** A player's computer can only say "I fired
+  this gun from here, aiming that way". The server checks the values are real,
+  that you're alive and holding that gun, that you have ammo and aren't firing
+  too fast, and that you aren't shooting from inside a wall. Then it does its
+  **own** raycast to decide what you hit. Damage comes only from `WeaponConfig`.
+- **Scores, coins and wins are only changed on the server.**
+- **Movement is checked.** If someone moves faster or higher than the rules
+  allow, the server snaps them back.
+- **Saving is careful.** Retries, session locking, autosave, a save when you
+  leave and when the server shuts down, and it never saves over data that
+  failed to load.
+- Every file uses `--!strict` Luau typing.

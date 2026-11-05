@@ -22,6 +22,7 @@ local SharedWeapons = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Wea
 local WeaponConfig = require(SharedWeapons:WaitForChild("WeaponConfig"))
 local WeaponMath = require(SharedWeapons:WaitForChild("WeaponMath"))
 local WeaponRemotes = require(SharedWeapons:WaitForChild("WeaponRemotes"))
+local HitGroups = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Combat"):WaitForChild("HitGroups"))
 local GunModel = require(script.Parent.GunModel)
 
 type WeaponStats = WeaponConfig.WeaponStats
@@ -35,12 +36,18 @@ type PlayerState = {
 	reloadToken: number,
 	lastFireTime: number,
 	equipTime: number,
+	-- Spam protection for the Equip and Reload messages.
+	lastEquipRequest: number,
+	lastReloadRequest: number,
 }
 
 type HitInfo = {
 	damage: number,
 	headshot: boolean,
 }
+
+-- Ignore Equip / Reload messages that arrive faster than this (seconds).
+local REQUEST_COOLDOWN = 0.1
 
 local remotes = WeaponRemotes.get()
 local rng = Random.new()
@@ -81,14 +88,27 @@ local function getAliveCharacter(player: Player): (Model?, Humanoid?, BasePart?)
 	return character, humanoid, head :: BasePart
 end
 
+-- Is this hit a headshot? A normal "Head" part counts, and so does the top
+-- of a blob body (players are blobs, see Movement/BlobCharacter).
+local function isHeadshot(hitPart: BasePart, hitPosition: Vector3): boolean
+	if hitPart.Name == "Head" then
+		return true
+	end
+	if hitPart.Name == "Body" and hitPart:GetAttribute("IsBlobPart") then
+		local localY = hitPart.CFrame:PointToObjectSpace(hitPosition).Y
+		return localY > hitPart.Size.Y * HitGroups.BLOB_HEADSHOT_FRACTION
+	end
+	return false
+end
+
 -- Walks up from the part a bullet hit to find the Humanoid it belongs to.
 -- Works for players and for test dummies (any Model with a Humanoid).
-local function findHumanoid(hitPart: Instance): (Humanoid?, boolean)
+local function findHumanoid(hitPart: BasePart, hitPosition: Vector3): (Humanoid?, boolean)
 	local model = hitPart:FindFirstAncestorOfClass("Model")
 	while model do
 		local humanoid = model:FindFirstChildOfClass("Humanoid")
 		if humanoid then
-			return humanoid, hitPart.Name == "Head"
+			return humanoid, isHeadshot(hitPart, hitPosition)
 		end
 		model = model:FindFirstAncestorOfClass("Model")
 	end
@@ -205,9 +225,7 @@ local function onFire(player: Player, weaponIdRaw: unknown, originRaw: unknown, 
 	if toOrigin.Magnitude > WeaponConfig.MaxOriginOffset then
 		return
 	end
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { character }
+	local params = HitGroups.weaponRayParams({ character })
 	if toOrigin.Magnitude > 0.05 and workspace:Raycast(head.Position, toOrigin, params) then
 		return
 	end
@@ -224,7 +242,7 @@ local function onFire(player: Player, weaponIdRaw: unknown, originRaw: unknown, 
 		local result = workspace:Raycast(origin, pelletDirection * stats.MaxRange, params)
 		if result then
 			table.insert(endPoints, result.Position)
-			local humanoid, isHead = findHumanoid(result.Instance)
+			local humanoid, isHead = findHumanoid(result.Instance, result.Position)
 			if humanoid and canDamage(player, humanoid) then
 				local damage = WeaponMath.damageAtDistance(stats, result.Distance)
 				if isHead then
@@ -275,6 +293,12 @@ local function onEquip(player: Player, weaponIdRaw: unknown)
 	if not stats or not state or state.equipped == weaponId then
 		return
 	end
+	-- Each swap rebuilds the gun model, so don't let a cheater spam it.
+	local now = os.clock()
+	if now - state.lastEquipRequest < REQUEST_COOLDOWN then
+		return
+	end
+	state.lastEquipRequest = now
 
 	state.equipped = weaponId
 	state.equipTime = os.clock()
@@ -292,9 +316,15 @@ end
 
 local function onReload(player: Player)
 	local state = states[player]
-	if state then
-		startReload(player, state)
+	if not state then
+		return
 	end
+	local now = os.clock()
+	if now - state.lastReloadRequest < REQUEST_COOLDOWN then
+		return
+	end
+	state.lastReloadRequest = now
+	startReload(player, state)
 end
 
 local function onCharacterAdded(player: Player, character: Model)
@@ -335,6 +365,8 @@ local function onPlayerAdded(player: Player)
 		reloadToken = 0,
 		lastFireTime = 0,
 		equipTime = 0,
+		lastEquipRequest = 0,
+		lastReloadRequest = 0,
 	}
 	player:SetAttribute("EquippedWeapon", WeaponConfig.Order[1])
 
@@ -349,6 +381,7 @@ end
 local WeaponService = {}
 
 function WeaponService.start()
+	HitGroups.setup()
 	remotes.Fire.OnServerEvent:Connect(onFire)
 	remotes.Equip.OnServerEvent:Connect(onEquip)
 	remotes.Reload.OnServerEvent:Connect(onReload)

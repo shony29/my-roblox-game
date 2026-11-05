@@ -129,7 +129,8 @@ local WeaponConfig = {
 
 	-- Anti-cheat tuning (server only). See WeaponService for details.
 	-- How far (studs) the shot's start point may be from the shooter's head.
-	MaxOriginOffset = 6,
+	-- 10 leaves room for lag while dashing (85 studs/s * 0.1 s = 8.5 studs).
+	MaxOriginOffset = 10,
 	-- Allow shots slightly faster than FireRate, because internet lag can
 	-- bunch messages together. 0.75 means "at least 75% of the normal gap".
 	FireRateTolerance = 0.75,

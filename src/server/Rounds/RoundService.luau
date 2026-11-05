@@ -8,15 +8,26 @@
 --
 -- How an elimination is counted: when a Humanoid dies, we look for an
 -- ObjectValue named "creator" inside it whose Value is the Player who landed
--- the final hit. This is a long-standing Roblox convention, so the blaster
--- code just needs to add that tag before calling Humanoid:TakeDamage.
+-- the final hit. The weapon system (Weapons/WeaponService) adds that tag on
+-- the server just before it deals damage, so clients can't fake it.
+--
+-- What happens on an elimination (during a round):
+--   1. The killer's round score goes up here (and the win check runs).
+--   2. PlayerDataService.recordElimination updates the scoreboard numbers,
+--      the saved lifetime eliminations and coins, and shows the kill feed.
+--   3. The victim respawns at a safe spawn point (SpawnService).
+--
+-- Players only get a character after pressing Play on the main menu.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local Workspace = game:GetService("Workspace")
 
 local RoundConfig = require(ReplicatedStorage.Shared.Rounds.RoundConfig)
 local RoundState = require(ReplicatedStorage.Shared.Rounds.RoundState)
+local GameContract = require(ReplicatedStorage.Shared.Data.GameContract)
+local PlayerDataService = require(ServerScriptService.Server.Data.PlayerDataService)
 local ScoreLogic = require(script.Parent.ScoreLogic)
 local SpawnService = require(script.Parent.SpawnService)
 
@@ -30,7 +41,6 @@ local roundNumber = 0
 local goalReached = false
 
 local stateFolder: Folder
-local eliminatedEvent: RemoteEvent
 
 ---------------------------------------------------------------------------
 -- Shared state that clients can see
@@ -39,10 +49,6 @@ local eliminatedEvent: RemoteEvent
 local function createState()
 	stateFolder = Instance.new("Folder")
 	stateFolder.Name = RoundState.FOLDER_NAME
-
-	eliminatedEvent = Instance.new("RemoteEvent")
-	eliminatedEvent.Name = RoundState.ELIMINATED_EVENT
-	eliminatedEvent.Parent = stateFolder
 
 	stateFolder:SetAttribute(RoundState.ATTR_PHASE, phase)
 	stateFolder:SetAttribute(RoundState.ATTR_ENDS_AT, 0)
@@ -57,6 +63,26 @@ local function setPhase(newPhase: Phase, duration: number)
 	stateFolder:SetAttribute(RoundState.ATTR_PHASE, newPhase)
 	-- Server time is the same on every client, so all timers stay in sync.
 	stateFolder:SetAttribute(RoundState.ATTR_ENDS_AT, Workspace:GetServerTimeNow() + duration)
+	-- The main HUD's timer (UI/Hud.luau) reads this. nil hides it while waiting.
+	GameContract.setRoundTimeRemaining(if newPhase == "Waiting" then nil else duration)
+end
+
+---------------------------------------------------------------------------
+-- Who is playing (pressed Play on the main menu)
+---------------------------------------------------------------------------
+
+local function isReady(player: Player): boolean
+	return player.Parent == Players and player:GetAttribute(GameContract.PlayerAttributes.PressedPlay) == true
+end
+
+local function readyPlayers(): { Player }
+	local list: { Player } = {}
+	for _, player in Players:GetPlayers() do
+		if isReady(player) then
+			table.insert(list, player)
+		end
+	end
+	return list
 end
 
 ---------------------------------------------------------------------------
@@ -76,6 +102,8 @@ local function resetAllScores()
 	for _, player in Players:GetPlayers() do
 		setScore(player, 0)
 	end
+	-- Also clears the ELIMS / DEATHS columns on the Tab scoreboard.
+	PlayerDataService.resetRoundStats()
 end
 
 local function getKiller(humanoid: Humanoid): Player?
@@ -105,7 +133,8 @@ local function onEliminated(victim: Player, killer: Player?)
 		end
 	end
 
-	eliminatedEvent:FireAllClients(if scorer then scorer.Name else nil, victim.Name)
+	-- Scoreboard numbers, saved eliminations + coins, and the kill feed.
+	PlayerDataService.recordElimination(scorer, victim)
 end
 
 ---------------------------------------------------------------------------
@@ -113,7 +142,11 @@ end
 ---------------------------------------------------------------------------
 
 local function onCharacterAdded(player: Player, character: Model)
-	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+	local found = character:WaitForChild("Humanoid", 10)
+	if not found or not found:IsA("Humanoid") then
+		return
+	end
+	local humanoid = found :: Humanoid
 	humanoid.Died:Once(function()
 		onEliminated(player, getKiller(humanoid))
 
@@ -139,7 +172,15 @@ local function onPlayerAdded(player: Player)
 	player.CharacterAdded:Connect(function(character: Model)
 		onCharacterAdded(player, character)
 	end)
-	SpawnService.spawn(player)
+
+	-- Spawn once they press Play (DataBootstrap sets this attribute).
+	local function trySpawn()
+		if isReady(player) and player.Character == nil then
+			SpawnService.spawn(player)
+		end
+	end
+	player:GetAttributeChangedSignal(GameContract.PlayerAttributes.PressedPlay):Connect(trySpawn)
+	trySpawn()
 end
 
 local function onPlayerRemoving(player: Player)
@@ -151,17 +192,17 @@ end
 ---------------------------------------------------------------------------
 
 local function respawnEveryone()
-	for _, player in Players:GetPlayers() do
+	for _, player in readyPlayers() do
 		task.spawn(SpawnService.spawn, player)
 	end
 end
 
 local function waitForPlayers()
-	if #Players:GetPlayers() >= RoundConfig.MIN_PLAYERS then
+	if #readyPlayers() >= RoundConfig.MIN_PLAYERS then
 		return
 	end
 	setPhase("Waiting", 0)
-	while #Players:GetPlayers() < RoundConfig.MIN_PLAYERS do
+	while #readyPlayers() < RoundConfig.MIN_PLAYERS do
 		task.wait(1)
 	end
 end
@@ -187,7 +228,10 @@ local function playRound()
 	local leaders, topScore = ScoreLogic.findLeaders(scores)
 	local names: { string } = {}
 	for _, player in leaders do
-		table.insert(names, player.Name)
+		table.insert(names, player.DisplayName)
+		if topScore > 0 and player.Parent == Players then
+			PlayerDataService.recordWin(player) -- saved "Wins" on the main menu
+		end
 	end
 	stateFolder:SetAttribute(RoundState.ATTR_WINNER_TEXT, ScoreLogic.describeWinners(names, topScore))
 	stateFolder:SetAttribute(RoundState.ATTR_WINNER_SCORE, topScore)
@@ -196,7 +240,9 @@ end
 function RoundService.start()
 	createState()
 
-	Players.CharacterAutoLoads = false -- we decide when and where people spawn
+	-- We decide when and where people spawn. (Also set in default.project.json,
+	-- so nobody spawns in the moment before this script runs.)
+	Players.CharacterAutoLoads = false
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(onPlayerRemoving)
 	for _, player in Players:GetPlayers() do

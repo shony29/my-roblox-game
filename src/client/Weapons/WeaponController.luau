@@ -22,6 +22,7 @@ local SharedWeapons = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Wea
 local WeaponConfig = require(SharedWeapons:WaitForChild("WeaponConfig"))
 local WeaponMath = require(SharedWeapons:WaitForChild("WeaponMath"))
 local WeaponRemotes = require(SharedWeapons:WaitForChild("WeaponRemotes"))
+local HitGroups = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Combat"):WaitForChild("HitGroups"))
 local Effects = require(script.Parent.Effects)
 local Hud = require(script.Parent.Hud)
 
@@ -105,9 +106,7 @@ local function getAimPoint(character: Model, range: number): Vector3
 	local mouse = UserInputService:GetMouseLocation()
 	local ray = camera:ViewportPointToRay(mouse.X, mouse.Y)
 
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { character, Effects.folder }
+	local params = HitGroups.weaponRayParams({ character, Effects.folder })
 
 	local result = workspace:Raycast(ray.Origin, ray.Direction * range, params)
 	if result then
@@ -152,9 +151,7 @@ local function tryFire()
 	Effects.muzzleFlash(muzzle, stats.TracerColor)
 	Effects.playSound(stats.FireSoundId, 0.6, 1)
 
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { character, Effects.folder }
+	local params = HitGroups.weaponRayParams({ character, Effects.folder })
 	for _ = 1, stats.Pellets do
 		local pelletDirection = WeaponMath.applySpread(direction, stats.Spread, rng)
 		local result = workspace:Raycast(origin, pelletDirection * stats.MaxRange, params)

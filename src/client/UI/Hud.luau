@@ -7,6 +7,7 @@
 	  * Ammo counter (bottom right) - reads Ammo / MaxAmmo attributes
 	  * Crosshair (center)
 	  * Round timer (top center) - reads the RoundEndsAt attribute
+	  * Coins (top left) - reads the Coins attribute the server sets on the Player
 ]]
 
 local Players = game:GetService("Players")
@@ -214,6 +215,27 @@ local function buildTimer(parent: Instance): (number?) -> ()
 	end
 end
 
+-- Coins -------------------------------------------------------------------
+
+local function buildCoins(parent: Instance)
+	local container = UIHelpers.frame("Coins", UDim2.fromOffset(150, 44), UDim2.fromOffset(M, 14))
+	UIHelpers.corner(container, UDim.new(1, 0))
+	UIHelpers.stroke(container, Colors.Ink, 3)
+	container.Parent = parent
+
+	local text = UIHelpers.label("Value", "0 coins", 22, Theme.Fonts.Title)
+	text.TextColor3 = Colors.Yolk
+	UIHelpers.textStroke(text)
+	text.Parent = container
+
+	local attribute = GameContract.PlayerAttributes.Coins
+	local function update()
+		text.Text = tostring(UIHelpers.numberAttribute(player, attribute)) .. " coins"
+	end
+	player:GetAttributeChangedSignal(attribute):Connect(update)
+	update()
+end
+
 -- Putting it together -----------------------------------------------------
 
 function Hud.create(gui: ScreenGui)
@@ -221,6 +243,7 @@ function Hud.create(gui: ScreenGui)
 	local setAmmo = buildAmmo(gui)
 	local setTimer = buildTimer(gui)
 	buildCrosshair(gui)
+	buildCoins(gui)
 
 	-- Health follows whichever character the player currently has.
 	local healthConnection: RBXScriptConnection? = nil

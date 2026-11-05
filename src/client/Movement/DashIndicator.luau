@@ -32,7 +32,8 @@ function DashIndicator.new(parent: Instance): DashIndicator
 	local badge = Instance.new("CanvasGroup")
 	badge.Name = "DashBadge"
 	badge.AnchorPoint = Vector2.new(0.5, 1)
-	badge.Position = UDim2.new(0.5, 0, 1, -24)
+	-- Above the weapon slot bar (Weapons/Hud.luau), which sits at the very bottom.
+	badge.Position = UDim2.new(0.5, 0, 1, -76)
 	badge.Size = UDim2.fromOffset(64, 64)
 	badge.BackgroundColor3 = BACKGROUND_COLOR
 	badge.BackgroundTransparency = 0.25

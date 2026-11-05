@@ -7,14 +7,14 @@
 --     Attributes copy to every client automatically, even late joiners.
 --   * Each player's score lives in leaderstats.Eliminations (an IntValue the
 --     server owns). This also shows up on Roblox's built-in player list.
---   * A RemoteEvent called "Eliminated" tells clients "A eliminated B" for the
---     kill feed. It only goes server -> client; clients never send anything.
+--   * The kill feed, scoreboard numbers and coins are handled by
+--     PlayerDataService (see Shared/Data/GameContract), which RoundService
+--     calls on every elimination.
 
 export type Phase = "Waiting" | "Playing" | "Intermission"
 
 local RoundState = table.freeze({
 	FOLDER_NAME = "RoundState",
-	ELIMINATED_EVENT = "Eliminated",
 
 	-- Attribute names on the RoundState folder.
 	ATTR_PHASE = "Phase", -- Phase

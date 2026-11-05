@@ -450,10 +450,12 @@ function PlayerDataService.recordElimination(killer: Player?, victim: Player)
 		end
 	end
 
-	if killFeedRemote then
-		local killerName = if validKiller then (killer :: Player).DisplayName else nil
-		killFeedRemote:FireAllClients(killerName, victim.DisplayName)
-	end
+	-- Fetched here (not only in start) because the round system's Script may
+	-- report an elimination before DataBootstrap has called start().
+	local remote = killFeedRemote or GameContract.getRemote(GameContract.RemoteNames.KillFeed)
+	killFeedRemote = remote
+	local killerName = if validKiller then (killer :: Player).DisplayName else nil
+	remote:FireAllClients(killerName, victim.DisplayName)
 end
 
 -- Call this when a player wins a round.

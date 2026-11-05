@@ -65,7 +65,8 @@ hitmarkerScale.Parent = hitmarker
 local ammoLabel = Instance.new("TextLabel")
 ammoLabel.Name = "Ammo"
 ammoLabel.AnchorPoint = Vector2.new(1, 1)
-ammoLabel.Position = UDim2.new(1, -24, 1, -24)
+-- Sits just above the main HUD's ammo box (UI/Hud.luau) so they don't overlap.
+ammoLabel.Position = UDim2.new(1, -24, 1, -100)
 ammoLabel.Size = UDim2.fromOffset(260, 60)
 ammoLabel.BackgroundTransparency = 1
 ammoLabel.Font = Enum.Font.FredokaOne

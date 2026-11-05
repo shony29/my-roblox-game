@@ -8,7 +8,7 @@
 
 local Theme = {}
 
-Theme.GameTitle = "SHELL PARTY" -- placeholder name, change it to your game's name
+Theme.GameTitle = "JELLY BLITZ"
 
 Theme.Colors = {
 	Yolk = Color3.fromRGB(255, 205, 60),

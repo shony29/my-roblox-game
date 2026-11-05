@@ -18,6 +18,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local MovementConfig = require(ReplicatedStorage.Shared.Movement.MovementConfig)
+local HitGroups = require(ReplicatedStorage.Shared.Combat.HitGroups)
 
 local BLOB_ATTRIBUTE = "IsBlobPart"
 local BLOB_MODEL_NAME = "Blob"
@@ -47,6 +48,8 @@ local function hide(instance: Instance)
 		instance:Destroy() -- hats and hair would float around the blob
 	elseif instance:IsA("BasePart") then
 		instance.Transparency = 1
+		-- Bullets ignore the hidden body and hit the visible blob instead.
+		instance.CollisionGroup = HitGroups.HIDDEN_BODY
 	elseif instance:IsA("Decal") then
 		instance.Transparency = 1 -- the default face
 	end
@@ -83,6 +86,7 @@ end
 
 -- Builds the blob and glues it to the character.
 function BlobCharacter.apply(character: Model, color: Color3)
+	HitGroups.setup()
 	local humanoid = character:WaitForChild("Humanoid", 10)
 	local root = character:WaitForChild("HumanoidRootPart", 10)
 	if not (humanoid and humanoid:IsA("Humanoid") and root and root:IsA("BasePart")) then
@@ -124,6 +128,8 @@ function BlobCharacter.apply(character: Model, color: Color3)
 	mesh.MeshType = Enum.MeshType.Sphere
 	mesh.Parent = body
 	body.CFrame = bodyCenter
+	-- The blob body is the hitbox that bullets hit (see Shared/Combat/HitGroups).
+	body.CanQuery = true
 	table.insert(parts, body)
 
 	-- Eyes: a white ball with a black pupil in front of it.
