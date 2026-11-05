@@ -26,13 +26,19 @@ local Shared = ReplicatedStorage.Shared
 local ModeConfig = require(Shared.Config.ModeConfig)
 local SpawnConfig = require(Shared.Config.SpawnConfig)
 local MatchState = require(Shared.Match.MatchState)
+local MapConfig = require(Shared.Config.MapConfig)
+local Schema = require(Shared.Data.PlayerDataSchema)
+local Net = require(Shared.Net.Net)
 local GameContract = require(Shared.Net.GameContract)
 local Components = script.Parent.Parent.Components
 local CombatRules = require(Components.CombatRules)
 local TeamBalancer = require(Components.TeamBalancer)
+local RateLimiter = require(Components.RateLimiter)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 local SpawnService = require(script.Parent.SpawnService)
 local LobbyService = require(script.Parent.LobbyService)
+local MapService = require(script.Parent.MapService)
+local VoteService = require(script.Parent.VoteService)
 
 type State = MatchState.State
 type TeamId = MatchState.TeamId
@@ -58,7 +64,7 @@ type Match = {
 }
 
 local MATCH_FOUND_TIME = 2
-local RESULTS_TIME = 6
+local RESULTS_TIME = 10 -- seconds on the results screen (rematch voting happens here)
 local RETURN_TIME = 1
 local POLL = 0.1
 
@@ -69,6 +75,7 @@ local MatchService = {}
 
 local stateFolder: Folder
 local endedListeners: { () -> () } = {}
+local rematchLimiter = RateLimiter.new(2, 1)
 local current: Match? = nil
 local started = false
 
@@ -202,7 +209,7 @@ local function addParticipant(match: Match, player: Player, team: TeamId)
 	end))
 end
 
-local function removeParticipant(match: Match, player: Player)
+local function removeParticipant(match: Match, player: Player, toLobby: boolean?)
 	local participant = match.participants[player]
 	if not participant then
 		return
@@ -218,7 +225,9 @@ local function removeParticipant(match: Match, player: Player)
 		if character then
 			character:Destroy() -- out of the arena...
 		end
-		task.spawn(LobbyService.spawn, player) -- ...and back to the lobby
+		if toLobby ~= false then
+			task.spawn(LobbyService.spawn, player) -- ...and back to the lobby
+		end
 	end
 end
 
@@ -367,6 +376,40 @@ end
 -- Matches
 ---------------------------------------------------------------------------
 
+-- Sends each participant the results screen data.
+local function sendResults(match: Match, winner: TeamId?)
+	local rows = {}
+	local mvp: Participant? = nil
+	for player, participant in match.participants do
+		table.insert(rows, {
+			name = player.DisplayName,
+			team = participant.team,
+			eliminations = participant.eliminations,
+			deaths = participant.deaths,
+			damage = math.floor(participant.damage),
+			coins = participant.eliminations * Schema.COINS_PER_ELIMINATION,
+		})
+		if mvp == nil
+			or participant.eliminations > mvp.eliminations
+			or (participant.eliminations == mvp.eliminations and participant.damage > mvp.damage)
+		then
+			mvp = participant
+		end
+	end
+	local results = {
+		mode = match.mode.DisplayName,
+		winner = winner or "",
+		scoreA = match.score.A or 0,
+		scoreB = match.score.B or 0,
+		mvp = if mvp then mvp.player.DisplayName else "",
+		players = rows,
+	}
+	local remote = Net.event("MatchResults")
+	for player in match.participants do
+		remote:FireClient(player, results)
+	end
+end
+
 local function runMatch(match: Match, players: { Player })
 	local teamA, teamB = TeamBalancer.split(players)
 	for _, player in teamA do
@@ -384,36 +427,100 @@ local function runMatch(match: Match, players: { Player })
 	setState("MatchFound", MATCH_FOUND_TIME)
 	waitFor(match, MATCH_FOUND_TIME)
 
+	-- Map voting (only when there are 2+ maps), then build the chosen map.
+	local mapId = MapService.currentId() or MapConfig.Default
+	local options = VoteService.pickOptions()
+	if #options >= 2 and not match.forfeitWinner then
+		setState("MapVoting", MapConfig.VoteTime)
+		mapId = VoteService.run(stateFolder, match.participants, options, MapConfig.VoteTime)
+	end
+	stateFolder:SetAttribute(ATTR.MapId, mapId)
+	if mapId ~= MapService.currentId() then
+		setState("Loading")
+		if not MapService.load(mapId) then
+			MapService.load(MapConfig.Default) -- fall back to a map we know works
+			stateFolder:SetAttribute(ATTR.MapId, MapConfig.Default)
+		end
+	end
+
 	while not isOver(match) do
 		playRound(match)
 	end
 
-	-- Results.
+	-- Results (all numbers come from the server, so they can be trusted).
 	local scoreA, scoreB = match.score.A or 0, match.score.B or 0
 	local winner: TeamId? = match.forfeitWinner
 		or (if scoreA > scoreB then "A" elseif scoreB > scoreA then "B" else nil)
 	stateFolder:SetAttribute(ATTR.MatchWinner, winner or "")
-	setState("MatchResults", RESULTS_TIME)
 	for player, participant in match.participants do
 		if winner and participant.team == winner then
 			PlayerDataService.recordWin(player)
 		end
 	end
-	task.wait(RESULTS_TIME)
+	sendResults(match, winner)
 
-	-- Clean up and send everyone back.
+	-- Rematch: if everyone still here presses REMATCH, the same players play again.
+	local rematchVotes: { [Player]: boolean } = {}
+	local function countVotes(): (number, number)
+		local total, voted = 0, 0
+		for player in match.participants do
+			total += 1
+			if rematchVotes[player] then
+				voted += 1
+			end
+		end
+		return total, voted
+	end
+	local total = countVotes()
+	stateFolder:SetAttribute(ATTR.RematchVotes, 0)
+	stateFolder:SetAttribute(ATTR.RematchNeeded, total)
+	local rematchConnection = Net.event("RematchVote").OnServerEvent:Connect(function(player: Player)
+		if match.participants[player] and rematchLimiter:allow(player) then
+			rematchVotes[player] = true
+			local _, voted = countVotes()
+			stateFolder:SetAttribute(ATTR.RematchVotes, voted)
+		end
+	end)
+	local function everyoneWantsRematch(): boolean
+		local count, voted = countVotes()
+		return count >= 2 and voted == count
+	end
+	setState("MatchResults", RESULTS_TIME)
+	local deadline = os.clock() + RESULTS_TIME
+	while os.clock() < deadline and not everyoneWantsRematch() do
+		task.wait(POLL)
+	end
+	rematchConnection:Disconnect()
+	local rematch = everyoneWantsRematch()
+
+	-- Clean up: back to the lobby, or straight into the rematch.
 	setState("Returning", RETURN_TIME)
 	local returning: { Player } = {}
 	for player in match.participants do
 		table.insert(returning, player)
 	end
 	for _, player in returning do
-		removeParticipant(match, player)
+		removeParticipant(match, player, not rematch)
 	end
 	task.wait(RETURN_TIME)
 	current = nil
 	setState("Lobby")
 	GameContract.setRoundTimeRemaining(nil)
+
+	if rematch then
+		local stillHere: { Player } = {}
+		for _, player in returning do
+			if player.Parent == Players then
+				table.insert(stillHere, player)
+			end
+		end
+		if #stillHere == #returning and MatchService.startMatch(match.mode, stillHere) then
+			return
+		end
+		for _, player in stillHere do
+			task.spawn(LobbyService.spawn, player) -- someone left: everyone back to the lobby
+		end
+	end
 
 	-- Let the queue start the next match if enough players are waiting.
 	for _, listener in endedListeners do

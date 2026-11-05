@@ -138,7 +138,8 @@ Things to check:
 - [ ] Shooting lowers the other player's **health bar**; the **ammo counter** (bottom right) shows magazine / spare bullets.
 - [ ] An elimination shows in the **kill feed** (top right) and the **scoreboard** (Tab); the shooter earns **5 coins**.
 - [ ] The eliminated player sits out; the round ends (ROUND WON / ROUND LOST) and both respawn for the next round.
-- [ ] First to 5 rounds sees **VICTORY** or **DEFEAT**, then both players return to the lobby island.
+- [ ] First to 5 rounds shows the **results screen** (VICTORY / DEFEAT, MVP, stats, coins).
+- [ ] Press **REMATCH** in both windows: a new match starts with the same players. Otherwise both return to the lobby island after 10 seconds.
 - [ ] Sprint, dash, double jump and slide work; other players see your blob jiggle as it moves.
 - [ ] Press **B** for the shop; buying a colour recolours your blob.
 

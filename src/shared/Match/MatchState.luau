@@ -55,7 +55,12 @@ MatchState.Attr = table.freeze({
 	PhaseEndsAt = "PhaseEndsAt", -- workspace:GetServerTimeNow() when this state ends (0 = no timer)
 	RoundWinner = "RoundWinner", -- "A", "B" or "" (draw)
 	MatchWinner = "MatchWinner", -- "A", "B" or ""
-	-- Also "Queue<ModeId>" = how many players are waiting for that mode, e.g. QueueDuel.
+	MapId = "MapId", -- the map being played (or just picked)
+	VoteOptions = "VoteOptions", -- comma-separated map Ids during MapVoting
+	RematchVotes = "RematchVotes", -- players who pressed REMATCH
+	RematchNeeded = "RematchNeeded", -- players needed for a rematch
+	-- Also "Queue<ModeId>" = how many players are waiting for that mode, e.g. QueueDuel,
+	-- and "Votes<MapId>" = votes for that map during MapVoting, e.g. VotesJellyArena.
 })
 
 -- Attributes on each Player

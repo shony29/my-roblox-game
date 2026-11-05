@@ -136,15 +136,7 @@ function MatchHudController.start()
 				pop("ROUND LOST", MatchState.teamInfo(winner).Color)
 			end
 		elseif state == "MatchResults" then
-			local winner = MatchState.toTeam(stateFolder:GetAttribute(ATTR.MatchWinner))
-			local final = `{getNumber(ATTR.ScoreA)} – {getNumber(ATTR.ScoreB)}`
-			if winner == nil then
-				pop("DRAW", WHITE, final)
-			elseif winner == team then
-				pop("VICTORY!", GOLD, final)
-			else
-				pop("DEFEAT", MatchState.teamInfo(winner).Color, final)
-			end
+			clearBig() -- the results screen (ResultsController) shows the outcome
 		elseif state ~= "Countdown" then
 			clearBig()
 		end

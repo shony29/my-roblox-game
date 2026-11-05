@@ -36,6 +36,9 @@ export type EventName =
 	| "MovementResult" -- server -> owner: (action, allowed, readyAt)
 	| "QueueJoin" -- client -> server: (modeId)
 	| "QueueLeave" -- client -> server: ()
+	| "MapVote" -- client -> server: (mapId)
+	| "MatchResults" -- server -> participants: (results table, see MatchService)
+	| "RematchVote" -- client -> server: ()
 
 export type FunctionName =
 	"ShopBuyItem" -- client asks: (itemId) -> (ok, message)
@@ -54,6 +57,9 @@ local EVENTS: { EventName } = {
 	"MovementResult",
 	"QueueJoin",
 	"QueueLeave",
+	"MapVote",
+	"MatchResults",
+	"RematchVote",
 }
 local FUNCTIONS: { FunctionName } = { "ShopBuyItem", "ShopEquipItem" }
 

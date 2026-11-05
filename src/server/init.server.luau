@@ -64,8 +64,9 @@ end)
 
 -- 5. Build the arena and lobby, then start matches and matchmaking.
 run("Map and matches", function()
-	local arena = require(script.Map.ArenaBuilder).build()
-	require(Services.SpawnService).init(arena.spawnPoints)
+	-- Build the default map now, so the arena is ready before the first match.
+	local MapConfig = require(Shared.Config.MapConfig)
+	require(Services.MapService).load(MapConfig.Default)
 	require(Services.LobbyService).start() -- the floating lobby island (Play puts you here)
 	require(Services.MatchService).start()
 	require(Services.QueueService).start() -- matchmaking hands full queues to MatchService

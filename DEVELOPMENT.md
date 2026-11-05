@@ -23,7 +23,7 @@ Nothing is marked ✅ yet: no feature has been play-tested in Studio so far.
 | 4 Combat | 🟡 in progress: 18-21 rifle, server-checked shooting, damage, hitmarkers (existing) ✔; 22 reserve ammo ✔; 23 recoil ✔; 24 weapon animations (fire kick, equip raise, reload dip, sprint pose, dry-fire twitch) ✔; 25 switching (1-5, mouse wheel, gamepad Y) ✔; 26 SMG + Pistol ✔ |
 | 5 Core match | 🟡 done in code: MatchService state machine (MatchFound → Countdown → InMatch → RoundEnd → MatchResults → Returning), balanced teams, team-side spawns, round timer, sit-out eliminations, fresh round resets, first-to-N victory + forfeits, team scores and per-player elims/deaths/damage. Matches start automatically with 2 players (1v1) until the Phase 6 lobby |
 | 6 Lobby | 🟡 done in code: floating lobby island with training dummies (third-person camera), Play panel with 1v1/2v2/4v4, per-mode queues with wait time and cancel (QueueService), match creation, MATCH FOUND pop-up |
-| 7 Match transitions | 🔲 |
+| 7 Match transitions | 🟡 done in code: map voting (VoteService + cards; switches on with 2+ maps), loading screen while the server really builds the map (MapService), countdown, round-end, results screen (MVP, stats, coins), automatic return to lobby, rematch when everyone agrees |
 | 8 Polish | 🔲 |
 | 9 Additional content | 🟡 **shop merged**: blob colours, hats, weapon skins (saved, server-checked) |
 | 10 Final optimization | 🔲 |
