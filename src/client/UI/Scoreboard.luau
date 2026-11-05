@@ -14,6 +14,7 @@ local UserInputService = game:GetService("UserInputService")
 local Theme = require(script.Parent:WaitForChild("Theme"))
 local UIHelpers = require(script.Parent:WaitForChild("UIHelpers"))
 local GameContract = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"):WaitForChild("GameContract"))
+local MatchState = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Match"):WaitForChild("MatchState"))
 
 local Colors = Theme.Colors
 local ATTR = GameContract.PlayerAttributes
@@ -27,6 +28,7 @@ type Row = {
 	eliminations: number,
 	deaths: number,
 	isMe: boolean,
+	teamColor: Color3?, -- Blue or Pink while in a match
 }
 
 local function collectRows(): { Row }
@@ -37,6 +39,10 @@ local function collectRows(): { Row }
 			eliminations = UIHelpers.numberAttribute(p, ATTR.RoundEliminations),
 			deaths = UIHelpers.numberAttribute(p, ATTR.RoundDeaths),
 			isMe = p == Players.LocalPlayer,
+			teamColor = (function(): Color3?
+				local team = MatchState.toTeam(p:GetAttribute(MatchState.PlayerAttr.Team))
+				return if team then MatchState.teamInfo(team).Color else nil
+			end)(),
 		})
 	end
 	table.sort(rows, function(a: Row, b: Row)
@@ -52,7 +58,7 @@ local function collectRows(): { Row }
 end
 
 -- One line of the table: name, eliminations, deaths.
-local function makeRow(parent: Instance, order: number, cells: { string }, isHeader: boolean, highlight: boolean)
+local function makeRow(parent: Instance, order: number, cells: { string }, isHeader: boolean, highlight: boolean, nameColor: Color3?)
 	local row = Instance.new("Frame")
 	row.Name = if isHeader then "Header" else "Row"
 	row.LayoutOrder = order
@@ -71,7 +77,7 @@ local function makeRow(parent: Instance, order: number, cells: { string }, isHea
 		cell.Size = UDim2.fromScale(widths[i], 1)
 		cell.TextXAlignment = if i == 1 then Enum.TextXAlignment.Left else Enum.TextXAlignment.Center
 		cell.TextTruncate = Enum.TextTruncate.AtEnd
-		cell.TextColor3 = if isHeader then Colors.Sky else Colors.Shell
+		cell.TextColor3 = if isHeader then Colors.Sky elseif i == 1 and nameColor then nameColor else Colors.Shell
 		if i == 1 then
 			local pad = Instance.new("UIPadding")
 			pad.PaddingLeft = UDim.new(0, 12)
@@ -131,7 +137,7 @@ function Scoreboard.create(gui: ScreenGui)
 			end
 		end
 		for i, row in collectRows() do
-			makeRow(list, i, { row.name, tostring(row.eliminations), tostring(row.deaths) }, false, row.isMe)
+			makeRow(list, i, { row.name, tostring(row.eliminations), tostring(row.deaths) }, false, row.isMe, row.teamColor)
 		end
 	end
 

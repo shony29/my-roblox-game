@@ -135,6 +135,7 @@ local function tryDash()
 	fovBoost = CameraConfig.DashFovBoost
 
 	remotes.Request:FireServer("Dash")
+	player:SetAttribute("DashedAt", os.clock()) -- FeedbackController plays the dash sound (this device only)
 end
 
 local function trySlide()
