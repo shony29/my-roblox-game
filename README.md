@@ -100,7 +100,7 @@ project needs (it's listed in `rokit.toml`).
    player's device loads the whole world and nobody falls through a floor
    that hasn't loaded yet.
 5. Press **Play** in Studio. The bottom-left corner of the game's main menu
-   shows the version, for example **Slime Showdown v0.4.0**.
+   shows the version, for example **Slime Showdown v0.4.1**.
 
 ## Getting the newest version (every time the game is updated)
 

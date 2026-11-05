@@ -28,7 +28,12 @@ local MovementConfig =
 
 local GUN_NAME = "EquippedGun" -- made by server/Components/GunModel
 local VIEWMODEL_NAME = "Viewmodel"
-local HOLD_OFFSET = CFrame.new(0.95, -0.85, -1.9) -- right, down, forward from the camera
+-- Where the gun sits: right, down and forward from the camera, turned a
+-- little toward the crosshair. The gun's back end starts here.
+local HOLD_OFFSET = CFrame.new(1.05, -0.95, -1.3) * CFrame.Angles(0, math.rad(3), 0)
+-- How much bigger than the real gun the first-person copy is. Bigger = the
+-- gun and its skin are easier to see (other players see the normal size).
+local VIEWMODEL_SCALE = 1.5
 local SWAY_AMOUNT = 0.0016 -- how much the gun lags when you turn (per pixel of mouse movement)
 local MAX_SWAY = math.rad(4)
 local SWAY_RETURN_SPEED = 10
@@ -64,9 +69,18 @@ local function blobColor(): Color3
 	return if typeof(color) == "Color3" then color else Color3.fromRGB(120, 220, 160)
 end
 
+-- Moves the gun along its length so its back end sits at HOLD_OFFSET
+-- (long guns like the sniper then never poke into the camera).
+local holdShift = CFrame.new()
+local gunChanged: RBXScriptConnection? = nil
+
 -- Copies the server's gun into the camera, plus a slime hand on the grip.
 local function rebuild(gun: Instance)
 	destroyViewmodel()
+	if gunChanged then
+		gunChanged:Disconnect()
+		gunChanged = nil
+	end
 	if not gun:IsA("Model") then
 		return
 	end
@@ -103,9 +117,26 @@ local function rebuild(gun: Instance)
 		hand.Parent = copy
 	end
 
+	-- Bigger in first person, so the gun and its skin are clear to see.
+	pcall(function()
+		copy:ScaleTo(VIEWMODEL_SCALE)
+	end)
+	local body = copy.PrimaryPart or copy:FindFirstChild("Body")
+	local length = if body and body:IsA("BasePart") then body.Size.Z else 2
+	holdShift = CFrame.new(0, 0, -length / 2 + 0.5)
+
 	copy.Parent = Workspace.CurrentCamera
 	viewmodel = copy
 	equipStartedAt = os.clock() -- play the "raise into view" animation
+
+	-- A new skin or upgrade colour on the gun you're holding: copy it again.
+	gunChanged = gun.AttributeChanged:Connect(function()
+		task.defer(function()
+			if gun.Parent and gun.Parent == player.Character then
+				rebuild(gun)
+			end
+		end)
+	end)
 end
 
 local function watchCharacter(character: Model)
@@ -187,7 +218,7 @@ local function onRenderStep(dt: number)
 			math.rad(-20) * reloadBlend
 		)
 
-	model:PivotTo(camera.CFrame * HOLD_OFFSET * bob * CFrame.Angles(sway.Y, sway.X, 0) * pose)
+	model:PivotTo(camera.CFrame * HOLD_OFFSET * bob * CFrame.Angles(sway.Y, sway.X, 0) * pose * holdShift)
 end
 
 -- Called by WeaponController on every shot. `strength` is the weapon's RecoilKick.
