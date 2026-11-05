@@ -15,6 +15,11 @@ type WeaponStats = WeaponConfig.WeaponStats
 
 local GUN_NAME = "EquippedGun"
 
+-- The Movement system turns players into blobs and hides every other part
+-- added to the character, unless it carries this attribute. We set it so
+-- the gun stays visible.
+local KEEP_VISIBLE_ATTRIBUTE = "IsBlobPart"
+
 local function makePart(name: string, size: Vector3, color: Color3): Part
 	local part = Instance.new("Part")
 	part.Name = name
@@ -29,6 +34,7 @@ local function makePart(name: string, size: Vector3, color: Color3): Part
 	-- CanQuery = false makes bullets fly through guns instead of hitting them.
 	part.CanQuery = false
 	part.CastShadow = false
+	part:SetAttribute(KEEP_VISIBLE_ATTRIBUTE, true)
 	return part
 end
 
@@ -63,6 +69,7 @@ function GunModel.attach(character: Model, stats: WeaponStats)
 
 	local model = Instance.new("Model")
 	model.Name = GUN_NAME
+	model:SetAttribute(KEEP_VISIBLE_ATTRIBUTE, true)
 
 	local length = stats.GunLength
 	local body = makePart("Body", Vector3.new(0.35, 0.45, length), stats.GunColor)

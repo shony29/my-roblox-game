@@ -55,7 +55,17 @@ local function fullAmmo(): { [string]: number }
 end
 
 local function sendState(player: Player, state: PlayerState)
-	remotes.State:FireClient(player, state.equipped, state.ammo[state.equipped] or 0, state.reloading)
+	local ammo = state.ammo[state.equipped] or 0
+	remotes.State:FireClient(player, state.equipped, ammo, state.reloading)
+
+	-- The game's main HUD (UI team) reads these two attributes on the character
+	-- to show the ammo counter. Names agreed in Shared/Data/GameContract.
+	local character = player.Character
+	local stats = WeaponConfig.get(state.equipped)
+	if character and stats then
+		character:SetAttribute("Ammo", ammo)
+		character:SetAttribute("MaxAmmo", stats.MagazineSize)
+	end
 end
 
 local function getAliveCharacter(player: Player): (Model?, Humanoid?, BasePart?)

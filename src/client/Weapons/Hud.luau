@@ -3,7 +3,9 @@
 	Hud: the weapon display on screen.
 	  - Hitmarker: a small "X" that pops up where you aimed when a hit is confirmed.
 	    White = normal hit, orange = headshot, red = kill.
-	  - Ammo counter in the bottom-right corner.
+	  - A "Reloading..." message in the bottom-right corner. (The ammo number
+	    itself is shown by the game's main HUD, which reads the Ammo and
+	    MaxAmmo attributes the server puts on your character.)
 	  - Three slots (1, 2, 3) at the bottom, with the held weapon lit up.
 ]]
 
@@ -59,7 +61,7 @@ end
 local hitmarkerScale = Instance.new("UIScale")
 hitmarkerScale.Parent = hitmarker
 
--- Ammo counter.
+-- Reload message.
 local ammoLabel = Instance.new("TextLabel")
 ammoLabel.Name = "Ammo"
 ammoLabel.AnchorPoint = Vector2.new(1, 1)
@@ -117,11 +119,14 @@ function Hud.setAmmo(weaponId: string, ammo: number, reloading: boolean)
 		return
 	end
 	if reloading then
-		ammoLabel.Text = `{stats.DisplayName}  Reloading...`
+		ammoLabel.Text = "Reloading..."
+		ammoLabel.TextColor3 = Color3.new(1, 1, 1)
+	elseif ammo == 0 then
+		ammoLabel.Text = "Press R to reload"
+		ammoLabel.TextColor3 = COLOR_KILL
 	else
-		ammoLabel.Text = `{stats.DisplayName}  {ammo} / {stats.MagazineSize}`
+		ammoLabel.Text = ""
 	end
-	ammoLabel.TextColor3 = if ammo == 0 and not reloading then COLOR_KILL else Color3.new(1, 1, 1)
 end
 
 function Hud.setEquipped(weaponId: string)
