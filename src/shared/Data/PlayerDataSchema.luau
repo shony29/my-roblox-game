@@ -28,13 +28,14 @@ export type PlayerData = {
 	wins: number, -- lifetime round wins
 	coins: number, -- spendable coins
 	xp: number, -- total experience (the level is worked out from this, see Data/Progression)
+	lastDailyAt: number, -- os.time() of the last Daily Squishy claim (0 = never)
 	ownedItems: { string }, -- shop item Ids the player bought (free items are always owned)
 	equippedItems: EquippedItems, -- shop items the player is wearing
 }
 
 local Schema = {}
 
-Schema.VERSION = 3 -- 2: added ownedItems and equippedItems (the shop). 3: added xp
+Schema.VERSION = 4 -- 2: added ownedItems and equippedItems (the shop). 3: added xp. 4: added lastDailyAt
 
 -- How many coins a player earns for each elimination.
 Schema.COINS_PER_ELIMINATION = 5
@@ -53,6 +54,7 @@ function Schema.default(): PlayerData
 		wins = 0,
 		coins = 0,
 		xp = 0,
+		lastDailyAt = 0,
 		ownedItems = {},
 		equippedItems = {
 			Color = ShopConfig.Defaults.Color,
@@ -125,6 +127,7 @@ function Schema.reconcile(raw: unknown): PlayerData
 	data.wins = cleanNumber(source.wins)
 	data.coins = cleanNumber(source.coins)
 	data.xp = cleanNumber(source.xp) -- version 1-2 saves have no xp, so they start at 0
+	data.lastDailyAt = cleanNumber(source.lastDailyAt) -- older saves: never claimed
 	-- Version 1 saves have no shop fields; they get the free defaults.
 	data.ownedItems = cleanOwnedItems(source.ownedItems)
 	local equipped: { [string]: unknown } = if typeof(source.equippedItems) == "table"
@@ -146,6 +149,7 @@ function Schema.copy(data: PlayerData): PlayerData
 		wins = data.wins,
 		coins = data.coins,
 		xp = data.xp,
+		lastDailyAt = data.lastDailyAt,
 		-- New tables, so a save snapshot never changes while it is being written.
 		ownedItems = table.clone(data.ownedItems),
 		equippedItems = {

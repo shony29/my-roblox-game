@@ -79,6 +79,9 @@ local JOB_ID = if game.JobId ~= "" then game.JobId else "studio"
 
 local PlayerDataService = {}
 
+-- Seconds between Daily Squishy claims.
+PlayerDataService.DAILY_COOLDOWN = 24 * 60 * 60
+
 local store: DataStore? = nil
 local profiles: { [Player]: Profile } = {}
 local loading: { [Player]: boolean } = {}
@@ -141,6 +144,7 @@ local function publishAttributes(profile: Profile)
 	player:SetAttribute(ATTR.Wins, profile.data.wins)
 	player:SetAttribute(ATTR.Coins, profile.data.coins)
 	player:SetAttribute(ATTR.XP, profile.data.xp)
+	player:SetAttribute(ATTR.DailyReadyAt, profile.data.lastDailyAt + PlayerDataService.DAILY_COOLDOWN)
 	-- Shop: what they own and wear (everyone can see these, which is fine).
 	player:SetAttribute(ATTR.OwnedItems, table.concat(profile.data.ownedItems, ","))
 	player:SetAttribute(ATTR.EquippedColor, profile.data.equippedItems.Color)
@@ -423,6 +427,22 @@ function PlayerDataService.getData(player: Player): PlayerData?
 end
 
 -- Adds coins. Only whole, positive amounts are accepted.
+--[[
+	Marks today's Daily Squishy as claimed, if it's ready. Check and change
+	happen together with no waiting in between, so it can't be claimed twice.
+	Returns true if the claim may go ahead.
+]]
+function PlayerDataService.tryClaimDaily(player: Player, now: number): boolean
+	local profile = profiles[player]
+	if profile == nil or now < profile.data.lastDailyAt + PlayerDataService.DAILY_COOLDOWN then
+		return false
+	end
+	profile.data.lastDailyAt = now
+	profile.dirty = true
+	publishAttributes(profile)
+	return true
+end
+
 -- Adds experience. Only whole, positive amounts are accepted (server only).
 function PlayerDataService.addXp(player: Player, amount: number): boolean
 	local profile = profiles[player]

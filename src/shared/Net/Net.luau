@@ -43,6 +43,7 @@ export type EventName =
 export type FunctionName =
 	"ShopBuyItem" -- client asks: (itemId) -> (ok, message)
 	| "ShopEquipItem" -- client asks: (itemId) -> (ok, message)
+	| "DailyClaim" -- client asks: () -> result table (see DailyService)
 
 local EVENTS: { EventName } = {
 	"KillFeed",
@@ -61,7 +62,7 @@ local EVENTS: { EventName } = {
 	"MatchResults",
 	"RematchVote",
 }
-local FUNCTIONS: { FunctionName } = { "ShopBuyItem", "ShopEquipItem" }
+local FUNCTIONS: { FunctionName } = { "ShopBuyItem", "ShopEquipItem", "DailyClaim" }
 
 local FOLDER_NAME = "Remotes"
 

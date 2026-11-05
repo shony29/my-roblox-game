@@ -32,6 +32,7 @@ GameContract.PlayerAttributes = {
 	Wins = "Wins",
 	Coins = "Coins",
 	XP = "XP", -- total experience (saved); level comes from Data/Progression
+	DailyReadyAt = "DailyReadyAt", -- unix time when the next Daily Squishy can be opened
 	DataLoaded = "DataLoaded",
 	-- This round only
 	RoundEliminations = "RoundEliminations",

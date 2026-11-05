@@ -53,6 +53,9 @@ end)
 run("ShopService", function()
 	require(Services.ShopService).start()
 end)
+run("DailyService", function()
+	require(Services.DailyService).start()
+end)
 
 -- 4. Gameplay systems.
 run("MovementService", function()
