@@ -1,0 +1,67 @@
+--!strict
+--[[
+	MovementConfig
+	==============
+	Every tuning number for movement and the blob characters lives here.
+	Change a value, press Play in Studio, and feel the difference.
+
+	Both the client (what the player feels) and the server (what it allows)
+	read from this one file, so they always agree.
+]]
+
+local MovementConfig = {
+	-- WALKING ------------------------------------------------------------
+	WalkSpeed = 24, -- studs per second (normal Roblox is 16)
+	JumpPower = 55, -- upward speed of the first jump (normal Roblox is 50)
+
+	-- DOUBLE JUMP --------------------------------------------------------
+	MaxAirJumps = 1, -- extra jumps allowed while in the air
+	DoubleJumpPower = 52, -- upward speed of an air jump
+	DoubleJumpDelay = 0.12, -- seconds after leaving the ground before an air jump works
+	JumpRetapTime = 0.1, -- jump must be released for this long to count as a new press
+
+	-- DASH (Shift) -------------------------------------------------------
+	DashKeys = { Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonX },
+	DashSpeed = 85, -- studs per second during the dash
+	DashDuration = 0.18, -- seconds the dash lasts (85 * 0.18 is about 15 studs)
+	DashCooldown = 1.5, -- seconds before you can dash again
+
+	-- SLIDE (crouch while running) ---------------------------------------
+	SlideKeys = { Enum.KeyCode.LeftControl, Enum.KeyCode.C, Enum.KeyCode.ButtonB },
+	SlideStartSpeed = 55, -- studs per second at the start of a slide
+	SlideEndSpeed = 14, -- studs per second when the slide finishes
+	SlideDuration = 0.7, -- seconds a slide lasts
+	SlideCooldown = 0.8, -- seconds before you can slide again
+	SlideMinSpeed = 18, -- you must be moving at least this fast to slide
+	SlideCameraDrop = 1.5, -- how far the camera lowers while sliding
+
+	-- CAMERA FEEL --------------------------------------------------------
+	FieldOfView = 70, -- normal camera field of view
+	DashFovBoost = 12, -- extra field of view during a dash (speed feeling)
+	FovLerpSpeed = 12, -- how quickly the field of view eases back
+
+	-- BLOB LOOKS ---------------------------------------------------------
+	BlobBodySize = Vector3.new(4.2, 3.6, 4.2), -- a slightly squashed ball
+	BlobEyeSize = 1.1,
+	BlobPupilSize = 0.55,
+	BlobSmileDotSize = 0.28,
+	BlobSmileDots = 5,
+	BlobColorSaturation = 0.75, -- 0 = grey, 1 = very vivid
+	BlobColorBrightness = 1, -- 0 = black, 1 = very bright
+
+	-- SERVER CHECKS (fairness) -------------------------------------------
+	-- These keep cheaters from moving faster or higher than the rules allow,
+	-- while being forgiving enough that laggy players are not punished.
+	CheckInterval = 0.1, -- seconds between server position checks
+	SpeedTolerance = 1.35, -- allow 35% over the expected speed (lag wiggle room)
+	DistanceSlack = 2.5, -- extra studs allowed per check
+	HeightTolerance = 1.25, -- allow 25% over the expected jump height
+	HeightSlack = 3, -- extra studs of height allowed
+	StrikesBeforeCorrection = 3, -- suspicious checks in a row before snapping back
+	ActionGraceTime = 0.35, -- extra seconds a dash/slide speed allowance lasts (lag)
+	CooldownLeniency = 0.15, -- seconds a cooldown may be "early" because of lag
+	SpawnGraceTime = 1, -- seconds of no checks right after spawning
+	MaxRequestsPerSecond = 15, -- ignore players who spam the server faster than this
+}
+
+return table.freeze(MovementConfig)
