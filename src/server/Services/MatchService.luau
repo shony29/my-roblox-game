@@ -3,16 +3,15 @@
 	MatchService: runs matches from start to finish. The server is the only
 	one who changes match state; clients just read MatchState attributes.
 
-	  1. Players who press Play join the queue (Phase 6 adds a real lobby and
-	     mode picker; for now everyone queues for the default mode, 1v1 Duel).
-	  2. When enough players are queued: teams are balanced (MatchFound).
+	  1. QueueService hands over players when a mode's queue is full
+	     (MatchService.startMatch). Teams are balanced (MatchFound).
 	  3. Each round: everyone respawns on their team's side, frozen, with full
 	     health and ammo (Countdown) -> combat (InMatch) -> RoundEnd.
 	     Eliminated players sit out until the next round.
 	  4. A round ends when one team has nobody left, or the timer runs out
 	     (more players alive wins, then more total health, else a draw).
 	  5. First team to win RoundsToWin rounds wins (MatchResults), wins are
-	     saved, then everyone is cleaned up (Returning) and re-queued.
+	     saved, then everyone goes back to the lobby (Returning).
 
 	Safety: only one match runs at a time; firing and damage are only allowed
 	during InMatch, by alive participants, against the other team
@@ -33,6 +32,7 @@ local CombatRules = require(Components.CombatRules)
 local TeamBalancer = require(Components.TeamBalancer)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 local SpawnService = require(script.Parent.SpawnService)
+local LobbyService = require(script.Parent.LobbyService)
 
 type State = MatchState.State
 type TeamId = MatchState.TeamId
@@ -68,7 +68,7 @@ local PATTR = MatchState.PlayerAttr
 local MatchService = {}
 
 local stateFolder: Folder
-local queue: { Player } = {}
+local endedListeners: { () -> () } = {}
 local current: Match? = nil
 local started = false
 
@@ -102,27 +102,31 @@ end
 
 local function canFire(shooter: Player): boolean
 	local match = current
-	if not match or match.state ~= "InMatch" then
-		return false
+	if match then
+		local participant = match.participants[shooter]
+		if participant then
+			return match.state == "InMatch" and participant.alive
+		end
 	end
-	local participant = match.participants[shooter]
-	return participant ~= nil and participant.alive
+	-- Not in a match: practice on the lobby's training range is allowed.
+	return LobbyService.isInLobby(shooter)
 end
 
 local function canDamage(attacker: Player, victim: Player?): boolean
 	local match = current
-	if not match or match.state ~= "InMatch" then
-		return false
+	local attackerInfo = if match then match.participants[attacker] else nil
+	if match and attackerInfo then
+		if match.state ~= "InMatch" then
+			return false
+		end
+		if victim == nil then
+			return true -- non-player targets
+		end
+		local victimInfo = match.participants[victim]
+		return victimInfo ~= nil and victimInfo.team ~= attackerInfo.team
 	end
-	local attackerInfo = match.participants[attacker]
-	if not attackerInfo then
-		return false
-	end
-	if victim == nil then
-		return true -- practice dummies and other non-player targets
-	end
-	local victimInfo = match.participants[victim]
-	return victimInfo ~= nil and victimInfo.team ~= attackerInfo.team
+	-- In the lobby you can only hurt practice dummies, never players.
+	return victim == nil and LobbyService.isInLobby(attacker)
 end
 
 local function onDamage(attacker: Player, _victim: Player?, amount: number)
@@ -192,6 +196,7 @@ local function addParticipant(match: Match, player: Player, team: TeamId)
 	player:SetAttribute(PATTR.Deaths, 0)
 	player:SetAttribute(PATTR.Damage, 0)
 	setStatus(player, "InMatch")
+	LobbyService.useMatchCamera(player)
 	table.insert(participant.connections, player.CharacterAdded:Connect(function(character: Model)
 		watchCharacter(match, participant, character)
 	end))
@@ -211,8 +216,9 @@ local function removeParticipant(match: Match, player: Player)
 		setStatus(player, "Lobby")
 		local character = player.Character
 		if character then
-			character:Destroy() -- back out of the arena
+			character:Destroy() -- out of the arena...
 		end
+		task.spawn(LobbyService.spawn, player) -- ...and back to the lobby
 	end
 end
 
@@ -361,8 +367,6 @@ end
 -- Matches
 ---------------------------------------------------------------------------
 
-local enqueue: (Player) -> ()
-
 local function runMatch(match: Match, players: { Player })
 	local teamA, teamB = TeamBalancer.split(players)
 	for _, player in teamA do
@@ -378,7 +382,6 @@ local function runMatch(match: Match, players: { Player })
 	stateFolder:SetAttribute(ATTR.MatchWinner, "")
 	publishScore(match)
 	setState("MatchFound", MATCH_FOUND_TIME)
-	CombatRules.setRules(canFire, canDamage)
 	waitFor(match, MATCH_FOUND_TIME)
 
 	while not isOver(match) do
@@ -390,7 +393,6 @@ local function runMatch(match: Match, players: { Player })
 	local winner: TeamId? = match.forfeitWinner
 		or (if scoreA > scoreB then "A" elseif scoreB > scoreA then "B" else nil)
 	stateFolder:SetAttribute(ATTR.MatchWinner, winner or "")
-	CombatRules.reset()
 	setState("MatchResults", RESULTS_TIME)
 	for player, participant in match.participants do
 		if winner and participant.team == winner then
@@ -413,31 +415,26 @@ local function runMatch(match: Match, players: { Player })
 	setState("Lobby")
 	GameContract.setRoundTimeRemaining(nil)
 
-	-- Phase 5 prototype: players who are still here queue again straight away.
-	for _, player in returning do
-		if player.Parent == Players then
-			enqueue(player)
-		end
+	-- Let the queue start the next match if enough players are waiting.
+	for _, listener in endedListeners do
+		task.spawn(listener)
 	end
 end
 
-function MatchService.tryStart()
-	if current or not started then
-		return
-	end
-	for i = #queue, 1, -1 do
-		if queue[i].Parent ~= Players then
-			table.remove(queue, i)
-		end
-	end
-	local mode = ModeConfig.Modes[ModeConfig.Default]
-	local needed = mode.TeamSize * mode.TeamCount
-	if #queue < needed then
-		return
-	end
-	local players: { Player } = {}
-	for _ = 1, needed do
-		table.insert(players, table.remove(queue, 1) :: Player)
+-- True while a match is running (there is one arena, so one match at a time).
+function MatchService.isBusy(): boolean
+	return current ~= nil
+end
+
+-- Called with no arguments after every match, once players are back in the lobby.
+function MatchService.onMatchEnded(listener: () -> ())
+	table.insert(endedListeners, listener)
+end
+
+-- Starts a match for exactly these players. Returns false if one is already running.
+function MatchService.startMatch(mode: Mode, players: { Player }): boolean
+	if current then
+		return false
 	end
 	local match: Match = {
 		mode = mode,
@@ -449,37 +446,10 @@ function MatchService.tryStart()
 	}
 	current = match -- set before anything yields, so two matches can never start
 	task.spawn(runMatch, match, players)
-end
-
-enqueue = function(player: Player)
-	if player.Parent ~= Players or table.find(queue, player) then
-		return
-	end
-	local match = current
-	if match and match.participants[player] then
-		return
-	end
-	table.insert(queue, player)
-	setStatus(player, "Queued")
-	MatchService.tryStart()
-end
-
-local function onPlayerAdded(player: Player)
-	setStatus(player, "Lobby")
-	local function onPlayPressed()
-		if player:GetAttribute(GameContract.PlayerAttributes.PressedPlay) == true then
-			enqueue(player)
-		end
-	end
-	player:GetAttributeChangedSignal(GameContract.PlayerAttributes.PressedPlay):Connect(onPlayPressed)
-	onPlayPressed()
+	return true
 end
 
 local function onPlayerRemoving(player: Player)
-	local index = table.find(queue, player)
-	if index then
-		table.remove(queue, index)
-	end
 	local match = current
 	if match and match.participants[player] then
 		removeParticipant(match, player)
@@ -510,14 +480,10 @@ function MatchService.start()
 
 	-- We decide when and where people spawn (also set in default.project.json).
 	Players.CharacterAutoLoads = false
-	CombatRules.reset()
+	-- The rules ask about the current match each time, so set them once.
+	CombatRules.setRules(canFire, canDamage)
 	CombatRules.onDamage(onDamage)
-
-	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(onPlayerRemoving)
-	for _, player in Players:GetPlayers() do
-		task.spawn(onPlayerAdded, player)
-	end
 end
 
 return MatchService

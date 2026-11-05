@@ -100,15 +100,16 @@ project needs (it's listed in `rokit.toml`).
 ## Step 5: Try it alone
 
 1. Press **Play** (F5) at the top of Studio.
-2. The arena is built for you, and the main menu appears. Click **PLAY**.
-3. On your own you'll see **"Waiting for an opponent..."**, because matches are 1v1 duels.
-   Use Step 6 to test with 2 players. Walking around the menu-free arena alone isn't possible yet
-   (a practice area comes with the lobby).
+2. The main menu appears. Click **PLAY**: you land on the **lobby island**.
+3. Walk over to the **training range** and shoot the practice dummies (left click).
+   In the lobby the camera is third person and the mouse is free.
+4. On the left is the **Play panel**: pick a mode and press **FIND MATCH**.
+   Alone, you'll wait in the queue, since a 1v1 needs a second player (Step 6).
 
 | Control | What it does |
 |---------|--------------|
-| Mouse | Aim (the game is first person; menus free the mouse while open) |
-| Left click | Shoot (hold it with the Auto Rifle) |
+| Mouse | Aim (first person in matches; menus free the mouse while open) |
+| Left click | Shoot (hold it with automatic weapons) |
 | 1 – 5 or mouse wheel | Auto Rifle / Buzz SMG / Pump Shotgun / Sniper / Pop Pistol |
 | R | Reload |
 | Space, then Space again in the air | Double jump |
@@ -116,35 +117,30 @@ project needs (it's listed in `rokit.toml`).
 | Q | Dash |
 | Ctrl or C (while running) | Slide |
 | Tab (hold) | Scoreboard |
+| B | Shop |
 
 Press **Stop** (Shift+F5) when you're done.
 
 ## Step 6: Test with 2 or 3 players
 
-Shooting needs someone to shoot at, so Studio can pretend to be several players at once.
-
 1. Click the **Test** tab at the top of Studio.
-2. In the **Clients and Servers** box, choose **Local Server**, and set the
-   number next to it to **2** (or **3**).
-3. Click **Start**. Studio opens extra windows: one **Server** window and one
-   window for each player (`Player1`, `Player2`, ...). It can take a little
-   while the first time.
-4. In **each player window**, click **PLAY** on the menu.
-5. Click into one player window to control that player, then click into
-   another to switch.
-6. When you're finished, click **Cleanup** (in the Test tab, or in the Server window) to close everything.
+2. In the **Clients and Servers** box, choose **Local Server** and set the number to **2**
+   (use **4** to try 2v2).
+3. Click **Start**. Studio opens a **Server** window and one window per player.
+4. In **each player window**: click **PLAY**, choose **1v1 Duel**, press **FIND MATCH**.
+5. Click into a player window to control that player.
+6. When you're finished, click **Cleanup** in the Test tab.
 
 Things to check:
 
-- [ ] Shooting another player lowers their **health bar**, and the hitmarker appears for the shooter.
-- [ ] The **ammo counter** (bottom right) goes down as you shoot, and **R** reloads.
-- [ ] When someone is eliminated, the **kill feed** (top right) shows it in every window.
-- [ ] Holding **Tab** shows the elimination going up on the scoreboard.
-- [ ] The shooter's **coins** (top left) go up by 5.
-- [ ] The eliminated player sits out until the next round; then **both** respawn on their own side with a 3-2-1 countdown.
-- [ ] Dash, double jump and slide all work, and other players see your blob move.
-- [ ] Each round shows ROUND WON / ROUND LOST; the first to win 5 rounds sees VICTORY or DEFEAT, then a new match starts.
-- [ ] You can't shoot during the countdown or between rounds.
+- [ ] Both players appear in the arena on opposite sides, frozen, with a 3-2-1 countdown, then **GO!**
+- [ ] You can't shoot during the countdown or between rounds, and never your own teammates.
+- [ ] Shooting lowers the other player's **health bar**; the **ammo counter** (bottom right) shows magazine / spare bullets.
+- [ ] An elimination shows in the **kill feed** (top right) and the **scoreboard** (Tab); the shooter earns **5 coins**.
+- [ ] The eliminated player sits out; the round ends (ROUND WON / ROUND LOST) and both respawn for the next round.
+- [ ] First to 5 rounds sees **VICTORY** or **DEFEAT**, then both players return to the lobby island.
+- [ ] Sprint, dash, double jump and slide work; other players see your blob jiggle as it moves.
+- [ ] Press **B** for the shop; buying a colour recolours your blob.
 
 > **About saving:** coins and stats only *save* in a published game. In
 > Studio you'll see a yellow warning in the Output that says progress will not

@@ -55,12 +55,15 @@ MatchState.Attr = table.freeze({
 	PhaseEndsAt = "PhaseEndsAt", -- workspace:GetServerTimeNow() when this state ends (0 = no timer)
 	RoundWinner = "RoundWinner", -- "A", "B" or "" (draw)
 	MatchWinner = "MatchWinner", -- "A", "B" or ""
+	-- Also "Queue<ModeId>" = how many players are waiting for that mode, e.g. QueueDuel.
 })
 
 -- Attributes on each Player
 MatchState.PlayerAttr = table.freeze({
 	Team = "Team", -- "A", "B", or nil when not in a match
-	Status = "MatchStatus", -- "Lobby", "Queued" or "InMatch"
+	Status = "MatchStatus", -- "Menu" (before Play), "Lobby", "Queued" or "InMatch"
+	QueueMode = "QueueMode", -- mode Id while queued
+	QueuedAt = "QueuedAt", -- workspace:GetServerTimeNow() when they joined the queue
 	Eliminations = "MatchEliminations",
 	Deaths = "MatchDeaths",
 	Damage = "MatchDamage",

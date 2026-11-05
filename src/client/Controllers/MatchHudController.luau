@@ -167,9 +167,8 @@ function MatchHudController.start()
 			roundLine.Text = ""
 		end
 
-		-- Status line.
-		local playerStatus = player:GetAttribute(PATTR.Status)
-		status.Text = if playerStatus == "Queued" then "Waiting for an opponent..." else ""
+		-- Status line (queue status is shown on the lobby's Play panel instead).
+		status.Text = ""
 
 		-- Countdown numbers, from the server's end time.
 		if inMatch and state == "Countdown" then

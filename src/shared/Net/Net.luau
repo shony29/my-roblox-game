@@ -34,6 +34,8 @@ export type EventName =
 	| "WeaponShotFx" -- server -> others: (shooter, weaponId, origin, endPoints)
 	| "MovementRequest" -- client -> server: (action)
 	| "MovementResult" -- server -> owner: (action, allowed, readyAt)
+	| "QueueJoin" -- client -> server: (modeId)
+	| "QueueLeave" -- client -> server: ()
 
 export type FunctionName =
 	"ShopBuyItem" -- client asks: (itemId) -> (ok, message)
@@ -50,6 +52,8 @@ local EVENTS: { EventName } = {
 	"WeaponShotFx",
 	"MovementRequest",
 	"MovementResult",
+	"QueueJoin",
+	"QueueLeave",
 }
 local FUNCTIONS: { FunctionName } = { "ShopBuyItem", "ShopEquipItem" }
 

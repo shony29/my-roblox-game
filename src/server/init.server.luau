@@ -62,11 +62,13 @@ run("WeaponService", function()
 	require(Services.WeaponService).start()
 end)
 
--- 5. Build the map, then start the match system (which spawns players).
+-- 5. Build the arena and lobby, then start matches and matchmaking.
 run("Map and matches", function()
 	local arena = require(script.Map.ArenaBuilder).build()
 	require(Services.SpawnService).init(arena.spawnPoints)
+	require(Services.LobbyService).start() -- the floating lobby island (Play puts you here)
 	require(Services.MatchService).start()
+	require(Services.QueueService).start() -- matchmaking hands full queues to MatchService
 end)
 
 print("[Slime Showdown] Server started")
