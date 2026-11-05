@@ -25,7 +25,7 @@ Nothing is marked ✅ yet: no feature has been play-tested in Studio so far.
 | 6 Lobby | 🟡 done in code: floating lobby island with training dummies (third-person camera), Play panel with 1v1/2v2/4v4, per-mode queues with wait time and cancel (QueueService), match creation, MATCH FOUND pop-up |
 | 7 Match transitions | 🟡 done in code: map voting (VoteService + cards; switches on with 2+ maps), loading screen while the server really builds the map (MapService), countdown, round-end, results screen (MVP, stats, coins), automatic return to lobby, rematch when everyone agrees |
 | 8 Polish | 🟡 sound framework with volume categories (built-in sounds + marked placeholders), elimination pop-up + sound, team-coloured scoreboard. Weapon/slime animations and UI transitions came with Phases 3, 4 and 7; a further polish pass should follow play-testing |
-| 9 Additional content | 🟡 **shop merged**: blob colours, hats, weapon skins (saved, server-checked) |
+| 9 Additional content | 🟡 in progress: 56 Mossy Keep map (forest + castle ruins, mirrored for fairness) ✔, map voting now active; 57 2v2/4v4 modes ✔; 58-59 shop colours, hats, weapon skins ✔ |
 | 10 Final optimization | 🔲 |
 
 ## Findings from the inspection (Feature 1)

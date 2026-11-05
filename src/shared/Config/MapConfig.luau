@@ -23,11 +23,18 @@ local Maps: { [string]: MapInfo } = {
 		Builder = "ArenaBuilder",
 		PreviewColor = Color3.fromRGB(134, 220, 132),
 	},
+	MossyKeep = {
+		Id = "MossyKeep",
+		DisplayName = "Mossy Keep",
+		Description = "Castle ruins in a pine forest: towers, gate arches and campfires.",
+		Builder = "MossyKeepBuilder",
+		PreviewColor = Color3.fromRGB(96, 150, 90),
+	},
 }
 
 local MapConfig = {
 	Maps = Maps,
-	Order = { "JellyArena" } :: { string },
+	Order = { "JellyArena", "MossyKeep" } :: { string },
 	Default = "JellyArena",
 	VoteTime = 10, -- seconds of map voting
 	MaxChoices = 3, -- map cards shown per vote
