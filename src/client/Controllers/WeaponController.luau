@@ -44,6 +44,7 @@ local rng = Random.new()
 -- (see remotes.State), and those always win.
 local equipped = WeaponConfig.Order[1]
 local ammo: { [string]: number } = {}
+local reserve: { [string]: number } = {}
 local reloading = false
 local lastFireTime = 0
 local equipTime = 0
@@ -51,6 +52,7 @@ local triggerHeld = false
 
 for id, stats in WeaponConfig.Weapons do
 	ammo[id] = stats.MagazineSize
+	reserve[id] = stats.ReserveAmmo
 end
 
 local function getAliveCharacter(): (Model?, BasePart?)
@@ -80,12 +82,12 @@ end
 
 local function refreshHud()
 	Hud.setEquipped(equipped)
-	Hud.setAmmo(equipped, ammo[equipped] or 0, reloading)
+	Hud.setAmmo(equipped, ammo[equipped] or 0, reloading, reserve[equipped] or 0)
 end
 
 local function requestReload()
 	local stats = WeaponConfig.get(equipped)
-	if not stats or reloading or (ammo[equipped] or 0) >= stats.MagazineSize then
+	if not stats or reloading or (ammo[equipped] or 0) >= stats.MagazineSize or (reserve[equipped] or 0) <= 0 then
 		return
 	end
 	remotes.Reload:FireServer()
@@ -171,7 +173,7 @@ local function tryFire()
 end
 
 -- Server says: here is your real ammo.
-local function onState(weaponIdRaw: unknown, ammoRaw: unknown, reloadingRaw: unknown)
+local function onState(weaponIdRaw: unknown, ammoRaw: unknown, reloadingRaw: unknown, reserveRaw: unknown)
 	if typeof(weaponIdRaw) ~= "string" or typeof(ammoRaw) ~= "number" or typeof(reloadingRaw) ~= "boolean" then
 		return
 	end
@@ -184,6 +186,9 @@ local function onState(weaponIdRaw: unknown, ammoRaw: unknown, reloadingRaw: unk
 		ammo[weaponId] = math.min(ammo[weaponId] or serverAmmo, serverAmmo)
 	else
 		ammo[weaponId] = serverAmmo
+	end
+	if typeof(reserveRaw) == "number" then
+		reserve[weaponId] = reserveRaw
 	end
 	-- Ignore reload news for a weapon we already swapped away from.
 	if weaponId == equipped then
@@ -236,6 +241,7 @@ local function onCharacterAdded()
 	-- New life: full ammo, same weapon as before.
 	for id, stats in WeaponConfig.Weapons do
 		ammo[id] = stats.MagazineSize
+		reserve[id] = stats.ReserveAmmo
 	end
 	reloading = false
 	equipTime = os.clock()

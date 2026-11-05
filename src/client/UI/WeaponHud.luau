@@ -114,7 +114,7 @@ local hitmarkerTweens: { Tween } = {}
 
 local Hud = {}
 
-function Hud.setAmmo(weaponId: string, ammo: number, reloading: boolean)
+function Hud.setAmmo(weaponId: string, ammo: number, reloading: boolean, reserve: number)
 	local stats = WeaponConfig.get(weaponId)
 	if not stats then
 		return
@@ -123,7 +123,7 @@ function Hud.setAmmo(weaponId: string, ammo: number, reloading: boolean)
 		ammoLabel.Text = "Reloading..."
 		ammoLabel.TextColor3 = Color3.new(1, 1, 1)
 	elseif ammo == 0 then
-		ammoLabel.Text = "Press R to reload"
+		ammoLabel.Text = if reserve > 0 then "Press R to reload" else "Out of ammo"
 		ammoLabel.TextColor3 = COLOR_KILL
 	else
 		ammoLabel.Text = ""

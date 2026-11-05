@@ -4,7 +4,7 @@
 	===
 	The in-game heads-up display:
 	  * Health bar (bottom left)  - reads the character's Humanoid
-	  * Ammo counter (bottom right) - reads Ammo / MaxAmmo attributes
+	  * Ammo counter (bottom right) - reads Ammo / MaxAmmo / ReserveAmmo attributes
 	  * Crosshair (center)
 	  * Round timer (top center) - reads the RoundEndsAt attribute
 	  * Coins (top left) - reads the Coins attribute the server sets on the Player
@@ -84,7 +84,7 @@ end
 
 -- Ammo --------------------------------------------------------------------
 
-local function buildAmmo(parent: Instance): (number?, number?) -> ()
+local function buildAmmo(parent: Instance): (number?, number?, number?) -> ()
 	local container = UIHelpers.frame("Ammo", UDim2.fromOffset(190, 70), UDim2.new(1, -M, 1, -M), Vector2.new(1, 1))
 	UIHelpers.corner(container)
 	UIHelpers.stroke(container, Colors.Ink, 3)
@@ -110,27 +110,29 @@ local function buildAmmo(parent: Instance): (number?, number?) -> ()
 	max.Parent = container
 
 	local lastText = ""
-	return function(ammo: number?, maxAmmo: number?)
+	return function(ammo: number?, maxAmmo: number?, reserve: number?)
 		container.Visible = ammo ~= nil
 		if ammo == nil then
 			return
 		end
-		local text = tostring(math.floor(ammo)) .. "|" .. tostring(maxAmmo)
+		local text = tostring(math.floor(ammo)) .. "|" .. tostring(maxAmmo) .. "|" .. tostring(reserve)
 		if text == lastText then
 			return
 		end
 		lastText = text
 		current.Text = tostring(math.floor(ammo))
-		max.Text = if maxAmmo then "/ " .. tostring(math.floor(maxAmmo)) else ""
+		-- Second number: spare bullets (reserve) if the weapon has them, else magazine size.
+		local second = reserve or maxAmmo
+		max.Text = if second then "/ " .. tostring(math.floor(second)) else ""
 		local low = maxAmmo ~= nil and maxAmmo > 0 and ammo / maxAmmo <= LOW_AMMO_FRACTION
 		current.TextColor3 = if low then Colors.Coral else Colors.Yolk
 	end
 end
 
 -- Looks for Ammo on the equipped Tool first, then on the character.
-local function readAmmo(character: Model?): (number?, number?)
+local function readAmmo(character: Model?): (number?, number?, number?)
 	if character == nil then
-		return nil, nil
+		return nil, nil, nil
 	end
 	local sources: { Instance } = {}
 	local tool = character:FindFirstChildOfClass("Tool")
@@ -143,10 +145,13 @@ local function readAmmo(character: Model?): (number?, number?)
 		local ammo = source:GetAttribute(GameContract.WeaponAttributes.Ammo)
 		if typeof(ammo) == "number" then
 			local maxAmmo = source:GetAttribute(GameContract.WeaponAttributes.MaxAmmo)
-			return ammo, if typeof(maxAmmo) == "number" then maxAmmo else nil
+			local reserve = source:GetAttribute(GameContract.WeaponAttributes.ReserveAmmo)
+			return ammo,
+				if typeof(maxAmmo) == "number" then maxAmmo else nil,
+				if typeof(reserve) == "number" then reserve else nil
 		end
 	end
-	return nil, nil
+	return nil, nil, nil
 end
 
 -- Crosshair ---------------------------------------------------------------

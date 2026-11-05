@@ -30,6 +30,7 @@ type WeaponStats = WeaponConfig.WeaponStats
 type PlayerState = {
 	equipped: string,
 	ammo: { [string]: number },
+	reserve: { [string]: number }, -- spare bullets per weapon
 	reloading: boolean,
 	-- Each reload gets a number. Swapping weapons bumps it, so an old reload
 	-- that finishes later knows it was cancelled.
@@ -61,9 +62,18 @@ local function fullAmmo(): { [string]: number }
 	return ammo
 end
 
+local function fullReserve(): { [string]: number }
+	local reserve = {}
+	for id, stats in WeaponConfig.Weapons do
+		reserve[id] = stats.ReserveAmmo
+	end
+	return reserve
+end
+
 local function sendState(player: Player, state: PlayerState)
 	local ammo = state.ammo[state.equipped] or 0
-	remotes.State:FireClient(player, state.equipped, ammo, state.reloading)
+	local reserve = state.reserve[state.equipped] or 0
+	remotes.State:FireClient(player, state.equipped, ammo, state.reloading, reserve)
 
 	-- The game's main HUD (UI team) reads these two attributes on the character
 	-- to show the ammo counter. Names agreed in Shared/Data/GameContract.
@@ -72,6 +82,7 @@ local function sendState(player: Player, state: PlayerState)
 	if character and stats then
 		character:SetAttribute("Ammo", ammo)
 		character:SetAttribute("MaxAmmo", stats.MagazineSize)
+		character:SetAttribute("ReserveAmmo", reserve)
 	end
 end
 
@@ -156,8 +167,8 @@ local function startReload(player: Player, state: PlayerState)
 	if not stats or state.reloading then
 		return
 	end
-	if (state.ammo[stats.Id] or 0) >= stats.MagazineSize then
-		return
+	if (state.ammo[stats.Id] or 0) >= stats.MagazineSize or (state.reserve[stats.Id] or 0) <= 0 then
+		return -- already full, or no spare bullets left
 	end
 	state.reloading = true
 	state.reloadToken += 1
@@ -169,7 +180,11 @@ local function startReload(player: Player, state: PlayerState)
 		if states[player] ~= state or state.reloadToken ~= token then
 			return
 		end
-		state.ammo[stats.Id] = stats.MagazineSize
+		-- Move bullets from the reserve into the magazine.
+		local current = state.ammo[stats.Id] or 0
+		local taken = math.min(stats.MagazineSize - current, state.reserve[stats.Id] or 0)
+		state.ammo[stats.Id] = current + taken
+		state.reserve[stats.Id] = (state.reserve[stats.Id] or 0) - taken
 		state.reloading = false
 		sendState(player, state)
 	end)
@@ -334,6 +349,7 @@ local function onCharacterAdded(player: Player, character: Model)
 	end
 	-- Fresh life, full ammo.
 	state.ammo = fullAmmo()
+	state.reserve = fullReserve()
 	state.reloading = false
 	state.reloadToken += 1
 	state.equipTime = os.clock()
@@ -361,6 +377,7 @@ local function onPlayerAdded(player: Player)
 	states[player] = {
 		equipped = WeaponConfig.Order[1],
 		ammo = fullAmmo(),
+		reserve = fullReserve(),
 		reloading = false,
 		reloadToken = 0,
 		lastFireTime = 0,

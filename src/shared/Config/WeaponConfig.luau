@@ -17,6 +17,7 @@
 	  FalloffStart        damage starts dropping after this many studs
 	  FalloffMinMultiplier  share of damage left at MaxRange (0.4 = 40%)
 	  MagazineSize        bullets before you must reload
+	  ReserveAmmo         spare bullets for reloading (refilled on respawn)
 	  ReloadTime          seconds a reload takes
 ]]
 
@@ -33,6 +34,7 @@ export type WeaponStats = {
 	FalloffStart: number,
 	FalloffMinMultiplier: number,
 	MagazineSize: number,
+	ReserveAmmo: number, -- spare bullets carried (refilled on respawn)
 	ReloadTime: number,
 
 	-- Looks and sound
@@ -59,6 +61,7 @@ local Weapons: { [string]: WeaponStats } = {
 		FalloffStart = 120,
 		FalloffMinMultiplier = 0.7,
 		MagazineSize = 30,
+		ReserveAmmo = 90,
 		ReloadTime = 1.8,
 
 		TracerColor = Color3.fromRGB(255, 230, 120),
@@ -82,6 +85,7 @@ local Weapons: { [string]: WeaponStats } = {
 		FalloffStart = 20,
 		FalloffMinMultiplier = 0.3,
 		MagazineSize = 6,
+		ReserveAmmo = 24,
 		ReloadTime = 2.2,
 
 		TracerColor = Color3.fromRGB(255, 170, 80),
@@ -105,6 +109,7 @@ local Weapons: { [string]: WeaponStats } = {
 		FalloffStart = 1000,
 		FalloffMinMultiplier = 1,
 		MagazineSize = 5,
+		ReserveAmmo = 15,
 		ReloadTime = 2.6,
 
 		TracerColor = Color3.fromRGB(140, 255, 255),

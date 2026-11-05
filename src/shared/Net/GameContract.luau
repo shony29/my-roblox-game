@@ -47,6 +47,7 @@ GameContract.PlayerAttributes = {
 GameContract.WeaponAttributes = {
 	Ammo = "Ammo",
 	MaxAmmo = "MaxAmmo",
+	ReserveAmmo = "ReserveAmmo",
 }
 
 GameContract.RoundEndsAtAttribute = "RoundEndsAt"
