@@ -116,8 +116,8 @@ local function canFire(shooter: Player): boolean
 			return match.state == "InMatch" and participant.alive
 		end
 	end
-	-- Not in a match: practice on the lobby's training range is allowed.
-	return LobbyService.isInLobby(shooter)
+	-- Not in a match: no shooting (the lobby has no guns).
+	return false
 end
 
 local function canDamage(attacker: Player, victim: Player?): boolean
@@ -133,8 +133,8 @@ local function canDamage(attacker: Player, victim: Player?): boolean
 		local victimInfo = match.participants[victim]
 		return victimInfo ~= nil and victimInfo.team ~= attackerInfo.team
 	end
-	-- In the lobby you can only hurt practice dummies, never players.
-	return victim == nil and LobbyService.isInLobby(attacker)
+	-- Not in a match: nobody can be hurt.
+	return false
 end
 
 local function onDamage(attacker: Player, _victim: Player?, amount: number)

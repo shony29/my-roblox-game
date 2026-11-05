@@ -72,6 +72,9 @@ function ShopService.equip(player: Player, item: ShopConfig.ShopItem): (boolean,
 	if not PlayerDataService.ownsItem(player, item.Id) then
 		return false, "You don't own " .. item.DisplayName .. " yet."
 	end
+	if item.Category == "Weapon" then
+		return true, item.DisplayName .. " is in your loadout!" -- guns aren't worn, owning is enough
+	end
 	if not PlayerDataService.setEquippedItem(player, item.Category, item.Id) then
 		return false, "Couldn't equip that. Try again!"
 	end

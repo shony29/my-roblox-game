@@ -15,7 +15,7 @@
 	Items show in the shop in the same order as in these lists.
 ]]
 
-export type Category = "Color" | "Hat" | "Skin"
+export type Category = "Color" | "Hat" | "Skin" | "Weapon"
 
 -- What the shop needs to know about any item.
 export type ShopItem = {
@@ -304,12 +304,39 @@ ShopConfig.Skins = {
 	},
 } :: { SkinItem }
 
+-- GUNS --------------------------------------------------------------------
+-- Owning a gun puts it in your loadout (keys 1-5 in matches). The Auto Rifle
+-- is free, so everyone starts with it. Gun stats live in Config/WeaponConfig.
+export type WeaponItem = {
+	Id: string,
+	WeaponId: string, -- the key in WeaponConfig.Weapons
+	DisplayName: string,
+	Price: number,
+	Blurb: string,
+}
+
+ShopConfig.STARTER_WEAPON = "Rifle"
+
+ShopConfig.Weapons = {
+	{ Id = "Weapon_Rifle", WeaponId = "Rifle", DisplayName = "Auto Rifle", Price = 0, Blurb = "Steady all-rounder" },
+	{ Id = "Weapon_Pistol", WeaponId = "Pistol", DisplayName = "Pop Pistol", Price = 75, Blurb = "Precise sidearm" },
+	{ Id = "Weapon_SMG", WeaponId = "SMG", DisplayName = "Buzz SMG", Price = 150, Blurb = "Fast, close range" },
+	{ Id = "Weapon_Shotgun", WeaponId = "Shotgun", DisplayName = "Pump Shotgun", Price = 200, Blurb = "Huge up close" },
+	{ Id = "Weapon_Sniper", WeaponId = "Sniper", DisplayName = "Sniper", Price = 300, Blurb = "One shot, long range" },
+} :: { WeaponItem }
+
+-- The shop item Id for a gun, e.g. "Rifle" -> "Weapon_Rifle".
+function ShopConfig.weaponItemId(weaponId: string): string
+	return "Weapon_" .. weaponId
+end
+
 -- Lookups (built once from the lists above) ---------------------------------
 
 local items: { [string]: ShopItem } = {}
 local colorsById: { [string]: ColorItem } = {}
 local hatsById: { [string]: HatItem } = {}
 local skinsById: { [string]: SkinItem } = {}
+local weaponsById: { [string]: WeaponItem } = {}
 
 local function register(id: string, category: Category, displayName: string, price: number)
 	assert(items[id] == nil, "ShopConfig: duplicate item Id " .. id)
@@ -328,6 +355,14 @@ end
 for _, item in ShopConfig.Skins do
 	register(item.Id, "Skin", item.DisplayName, item.Price)
 	skinsById[item.Id] = item
+end
+for _, item in ShopConfig.Weapons do
+	register(item.Id, "Weapon", item.DisplayName, item.Price)
+	weaponsById[item.Id] = item
+end
+
+function ShopConfig.getWeapon(id: string): WeaponItem?
+	return weaponsById[id]
 end
 
 -- Returns the item with this Id, or nil if there is no such item.
@@ -359,6 +394,8 @@ function ShopConfig.defaultFor(category: Category): string
 		return ShopConfig.Defaults.Color
 	elseif category == "Hat" then
 		return ShopConfig.Defaults.Hat
+	elseif category == "Weapon" then
+		return ShopConfig.weaponItemId(ShopConfig.STARTER_WEAPON)
 	end
 	return ShopConfig.Defaults.Skin
 end

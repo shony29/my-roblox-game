@@ -553,8 +553,10 @@ function PlayerDataService.setEquippedItem(player: Player, category: ShopConfig.
 		equipped.Color = itemId
 	elseif category == "Hat" then
 		equipped.Hat = itemId
-	else
+	elseif category == "Skin" then
 		equipped.Skin = itemId
+	else
+		return false -- guns are owned, not worn
 	end
 	profile.dirty = true
 	publishAttributes(profile)

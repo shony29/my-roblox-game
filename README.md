@@ -141,7 +141,8 @@ Things to check:
 - [ ] First to 5 rounds shows the **results screen** (VICTORY / DEFEAT, MVP, stats, coins).
 - [ ] Press **REMATCH** in both windows: a new match starts with the same players. Otherwise both return to the lobby island after 10 seconds.
 - [ ] Sprint, dash, double jump and slide work; other players see your blob jiggle as it moves.
-- [ ] Press **B** for the shop; buying a colour recolours your blob.
+- [ ] Press **B** for the shop; buying a colour recolours your blob. In the **Guns** tab, buy a gun: it appears in your weapon bar next match (everyone starts with only the Auto Rifle).
+- [ ] In the lobby there are no guns, no crosshair and no weapon bar.
 
 > **About saving:** coins and stats only *save* in a published game. In
 > Studio you'll see a yellow warning in the Output that says progress will not

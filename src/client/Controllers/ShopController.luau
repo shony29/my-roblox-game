@@ -21,6 +21,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("ShopConfig"))
+local WeaponConfig = require(Shared:WaitForChild("Config"):WaitForChild("WeaponConfig"))
 local ShopRemotes = require(Shared:WaitForChild("Net"):WaitForChild("ShopRemotes"))
 local GameContract = require(Shared:WaitForChild("Net"):WaitForChild("GameContract"))
 
@@ -52,6 +53,7 @@ local TABS: { { category: Category, title: string } } = {
 	{ category = "Color", title = "Colors" },
 	{ category = "Hat", title = "Hats" },
 	{ category = "Skin", title = "Skins" },
+	{ category = "Weapon", title = "Guns" },
 }
 
 local ShopController = {}
@@ -154,7 +156,8 @@ local function refreshCards()
 	local myCoins = coins()
 	for _, card in cards do
 		local item = card.item
-		local isEquipped = equippedId(item.Category) == item.Id
+		local isGun = item.Category == "Weapon" -- guns are owned (in your loadout), not worn
+		local isEquipped = not isGun and equippedId(item.Category) == item.Id
 		local isOwned = item.Price <= 0 or owned[item.Id] == true
 		local status, button = card.status, card.button
 
@@ -164,10 +167,10 @@ local function refreshCards()
 			button.Text = "WEARING"
 			button.BackgroundColor3 = Colors.Mint
 		elseif isOwned then
-			status.Text = if item.Price <= 0 then "Free" else "Owned"
+			status.Text = if isGun then "In your loadout" elseif item.Price <= 0 then "Free" else "Owned"
 			status.TextColor3 = Colors.SkyDeep
-			button.Text = "EQUIP"
-			button.BackgroundColor3 = Colors.SkyDeep
+			button.Text = if isGun then "OWNED" else "EQUIP"
+			button.BackgroundColor3 = if isGun then Colors.Mint else Colors.SkyDeep
 		else
 			status.Text = tostring(item.Price) .. " coins"
 			status.TextColor3 = Colors.YolkDark
@@ -216,6 +219,10 @@ local function onCardPressed(item: ShopItem)
 	local remotes = ShopRemotes.get()
 	if equippedId(item.Category) == item.Id then
 		showToast("You're already wearing " .. item.DisplayName .. "!", true)
+		return
+	end
+	if item.Category == "Weapon" and (item.Price <= 0 or ownedIds()[item.Id]) then
+		showToast(item.DisplayName .. " is already in your loadout!", true)
 		return
 	end
 	if item.Price <= 0 or ownedIds()[item.Id] then
@@ -271,6 +278,16 @@ local function buildCard(page: ScrollingFrame, item: ShopItem, order: number)
 	elseif item.Category == "Hat" then
 		local blobColor = ShopConfig.getColor(equippedId("Color")).Color
 		table.insert(hatColorSetters, ItemPreview.hat(previewBox, ShopConfig.getHat(item.Id), blobColor))
+	elseif item.Category == "Weapon" then
+		-- Guns: what it's good at and its key numbers.
+		local gun = ShopConfig.getWeapon(item.Id)
+		local stats = if gun then WeaponConfig.get(gun.WeaponId) else nil
+		if gun and stats then
+			local damage = if stats.Pellets > 1 then `{stats.Damage} x{stats.Pellets}` else tostring(stats.Damage)
+			local info = UIHelpers.label("GunInfo", `{gun.Blurb}\nDamage {damage} · {stats.FireRate}/s\nMagazine {stats.MagazineSize}`, 16, Theme.Fonts.Title)
+			info.TextColor3 = Colors.Ink
+			info.Parent = previewBox
+		end
 	else
 		ItemPreview.skin(previewBox, ShopConfig.getSkin(item.Id))
 	end

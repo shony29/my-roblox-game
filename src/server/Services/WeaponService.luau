@@ -25,6 +25,20 @@ local WeaponRemotes = require(Shared:WaitForChild("Net"):WaitForChild("WeaponRem
 local HitGroups = require(Shared:WaitForChild("Combat"):WaitForChild("HitGroups"))
 local GunModel = require(script.Parent.Parent.Components.GunModel)
 local CombatRules = require(script.Parent.Parent.Components.CombatRules)
+local ShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("ShopConfig"))
+local MatchState = require(Shared:WaitForChild("Match"):WaitForChild("MatchState"))
+local PlayerDataService = require(script.Parent.PlayerDataService)
+
+-- Everyone owns the starter gun; the others are bought in the shop.
+local function ownsWeapon(player: Player, weaponId: string): boolean
+	local itemId = ShopConfig.weaponItemId(weaponId)
+	return ShopConfig.isFree(itemId) or PlayerDataService.ownsItem(player, itemId)
+end
+
+-- Guns only exist in matches (none in the lobby).
+local function isInMatch(player: Player): boolean
+	return player:GetAttribute(MatchState.PlayerAttr.Status) == "InMatch"
+end
 
 type WeaponStats = WeaponConfig.WeaponStats
 
@@ -321,6 +335,9 @@ local function onEquip(player: Player, weaponIdRaw: unknown)
 	if not stats or not state or state.equipped == weaponId then
 		return
 	end
+	if not ownsWeapon(player, weaponId) then
+		return -- not in their loadout (buy it in the shop first)
+	end
 	-- Each swap rebuilds the gun model, so don't let a cheater spam it.
 	local now = os.clock()
 	if now - state.lastEquipRequest < REQUEST_COOLDOWN then
@@ -336,7 +353,7 @@ local function onEquip(player: Player, weaponIdRaw: unknown)
 	player:SetAttribute("EquippedWeapon", weaponId)
 
 	local character = player.Character
-	if character then
+	if character and isInMatch(player) then
 		GunModel.attach(character, stats)
 	end
 	sendState(player, state)
@@ -366,6 +383,12 @@ local function onCharacterAdded(player: Player, character: Model)
 	state.reloading = false
 	state.reloadToken += 1
 	state.equipTime = os.clock()
+	if not isInMatch(player) then
+		return -- no guns in the lobby
+	end
+	if not ownsWeapon(player, state.equipped) then
+		state.equipped = ShopConfig.STARTER_WEAPON
+	end
 
 	local stats = WeaponConfig.get(state.equipped)
 	if stats then

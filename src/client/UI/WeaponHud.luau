@@ -94,22 +94,32 @@ slotLayout.SortOrder = Enum.SortOrder.LayoutOrder
 slotLayout.Parent = slotBar
 
 local slotFrames: { [string]: TextLabel } = {}
-for index, weaponId in WeaponConfig.Order do
-	local stats = WeaponConfig.get(weaponId)
-	local slot = Instance.new("TextLabel")
-	slot.Name = weaponId
-	slot.LayoutOrder = index
-	slot.Size = UDim2.fromOffset(SLOT_WIDTH, 44)
-	slot.BackgroundColor3 = COLOR_SLOT
-	slot.BackgroundTransparency = 0.35
-	slot.Font = Enum.Font.FredokaOne
-	slot.TextSize = 18
-	slot.TextColor3 = Color3.new(1, 1, 1)
-	slot.Text = `{index}  {if stats then stats.DisplayName else weaponId}`
-	slot.Parent = slotBar
-	addCorner(slot, 10)
-	slotFrames[weaponId] = slot
+
+-- (Re)builds one slot per gun in your loadout: "1  Auto Rifle", "2  ...".
+local function buildSlots(weaponIds: { string })
+	for _, slot in slotFrames do
+		slot:Destroy()
+	end
+	table.clear(slotFrames)
+	slotBar.Size = UDim2.fromOffset(math.max(#weaponIds, 1) * (SLOT_WIDTH + 8) - 8, 44)
+	for index, weaponId in weaponIds do
+		local stats = WeaponConfig.get(weaponId)
+		local slot = Instance.new("TextLabel")
+		slot.Name = weaponId
+		slot.LayoutOrder = index
+		slot.Size = UDim2.fromOffset(SLOT_WIDTH, 44)
+		slot.BackgroundColor3 = COLOR_SLOT
+		slot.BackgroundTransparency = 0.35
+		slot.Font = Enum.Font.FredokaOne
+		slot.TextSize = 18
+		slot.TextColor3 = Color3.new(1, 1, 1)
+		slot.Text = `{index}  {if stats then stats.DisplayName else weaponId}`
+		slot.Parent = slotBar
+		addCorner(slot, 10)
+		slotFrames[weaponId] = slot
+	end
 end
+buildSlots({ WeaponConfig.Order[1] })
 
 local hitmarkerTweens: { Tween } = {}
 
@@ -129,6 +139,16 @@ function Hud.setAmmo(weaponId: string, ammo: number, reloading: boolean, reserve
 	else
 		ammoLabel.Text = ""
 	end
+end
+
+-- Shows only the guns you own (WeaponController calls this when it changes).
+function Hud.setLoadout(weaponIds: { string })
+	buildSlots(weaponIds)
+end
+
+-- The weapon HUD only shows during matches.
+function Hud.setVisible(visible: boolean)
+	gui.Enabled = visible
 end
 
 function Hud.setEquipped(weaponId: string)

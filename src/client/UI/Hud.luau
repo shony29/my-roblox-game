@@ -156,7 +156,7 @@ end
 
 -- Crosshair ---------------------------------------------------------------
 
-local function buildCrosshair(parent: Instance)
+local function buildCrosshair(parent: Instance): Frame
 	local holder = Instance.new("Frame")
 	holder.Name = "Crosshair"
 	holder.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -184,6 +184,7 @@ local function buildCrosshair(parent: Instance)
 	piece("Bottom", UDim2.fromOffset(3, 10), UDim2.new(0.5, 0, 0.5, 12))
 	piece("Left", UDim2.fromOffset(10, 3), UDim2.new(0.5, -12, 0.5, 0))
 	piece("Right", UDim2.fromOffset(10, 3), UDim2.new(0.5, 12, 0.5, 0))
+	return holder
 end
 
 -- Round timer -------------------------------------------------------------
@@ -247,7 +248,7 @@ function Hud.create(gui: ScreenGui)
 	local setHealth = buildHealthBar(gui)
 	local setAmmo = buildAmmo(gui)
 	local setTimer = buildTimer(gui)
-	buildCrosshair(gui)
+	local crosshair = buildCrosshair(gui)
 	buildCoins(gui)
 
 	-- Health follows whichever character the player currently has.
@@ -276,6 +277,8 @@ function Hud.create(gui: ScreenGui)
 	task.spawn(function()
 		while gui.Parent do
 			if gui.Enabled then
+				-- No crosshair (or guns) in the lobby, only in matches.
+				crosshair.Visible = player:GetAttribute("MatchStatus") == "InMatch"
 				setAmmo(readAmmo(player.Character))
 				setTimer(GameContract.getRoundTimeRemaining())
 			end

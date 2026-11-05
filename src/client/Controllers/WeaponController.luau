@@ -29,6 +29,31 @@ local Effects = require(ClientFolder:WaitForChild("Effects"):WaitForChild("Weapo
 local Hud = require(ClientFolder:WaitForChild("UI"):WaitForChild("WeaponHud"))
 local ViewmodelController = require(script.Parent:WaitForChild("ViewmodelController"))
 local CameraController = require(script.Parent:WaitForChild("CameraController"))
+local ShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("ShopConfig"))
+
+-- Your loadout: the guns you own, in WeaponConfig.Order. The server checks
+-- this too; this list is only for the keys, mouse wheel and slot bar.
+local function loadout(): { string }
+	local owned: { [string]: boolean } = {}
+	local ownedText = Players.LocalPlayer:GetAttribute("OwnedItems")
+	if typeof(ownedText) == "string" then
+		for _, id in string.split(ownedText, ",") do
+			owned[id] = true
+		end
+	end
+	local list: { string } = {}
+	for _, weaponId in WeaponConfig.Order do
+		local itemId = ShopConfig.weaponItemId(weaponId)
+		if ShopConfig.isFree(itemId) or owned[itemId] then
+			table.insert(list, weaponId)
+		end
+	end
+	return list
+end
+
+local function inMatch(): boolean
+	return Players.LocalPlayer:GetAttribute("MatchStatus") == "InMatch"
+end
 
 type WeaponStats = WeaponConfig.WeaponStats
 
@@ -130,6 +155,9 @@ local function getAimPoint(character: Model, range: number): Vector3
 end
 
 local function tryFire()
+	if not inMatch() then
+		return -- no shooting in the lobby
+	end
 	local stats = WeaponConfig.get(equipped)
 	local character, head = getAliveCharacter()
 	if not stats or not character or not head then
@@ -285,7 +313,7 @@ function WeaponController.start()
 		end
 		local slot = SLOT_KEYS[input.KeyCode]
 		if slot then
-			local weaponId = WeaponConfig.Order[slot]
+			local weaponId = loadout()[slot]
 			if weaponId then
 				equip(weaponId)
 			end
@@ -299,9 +327,12 @@ function WeaponController.start()
 		if os.clock() - equipTime < WeaponConfig.SwapTime then
 			return -- one swap at a time, so a fast wheel spin doesn't spam the server
 		end
-		local count = #WeaponConfig.Order
-		local index = table.find(WeaponConfig.Order, equipped) or 1
-		equip(WeaponConfig.Order[((index - 1 + step) % count) + 1])
+		local guns = loadout()
+		if #guns == 0 then
+			return
+		end
+		local index = table.find(guns, equipped) or 1
+		equip(guns[((index - 1 + step) % #guns) + 1])
 	end
 	UserInputService.InputChanged:Connect(function(input: InputObject, gameProcessed: boolean)
 		if not gameProcessed and input.UserInputType == Enum.UserInputType.MouseWheel then
@@ -360,6 +391,23 @@ function WeaponController.start()
 	end)
 
 	localPlayer.CharacterAdded:Connect(onCharacterAdded)
+
+	-- Slot bar shows your loadout; the weapon HUD only shows in matches.
+	local function syncLoadout()
+		local guns = loadout()
+		Hud.setLoadout(guns)
+		if not table.find(guns, equipped) and guns[1] then
+			equipped = guns[1]
+		end
+		refreshHud()
+	end
+	localPlayer:GetAttributeChangedSignal("OwnedItems"):Connect(syncLoadout)
+	localPlayer:GetAttributeChangedSignal("MatchStatus"):Connect(function()
+		Hud.setVisible(inMatch())
+		triggerHeld = false
+	end)
+	syncLoadout()
+	Hud.setVisible(inMatch())
 	refreshHud()
 end
 
