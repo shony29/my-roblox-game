@@ -54,6 +54,25 @@ local MovementConfig = {
 	BlobColorBrightness = 0.95, -- 0 = black, 1 = very bright
 	BlobHitboxSize = Vector3.new(4.6, 3.8, 4.4), -- the invisible box bullets hit (same for everyone)
 
+	-- BLOB JIGGLE (purely visual, client/Controllers/BlobAnimator) ------------
+	JiggleIntensity = 1, -- 0 = no jiggle at all (reduced motion), 1 = normal
+	JiggleStiffness = 120, -- higher = snappier lean, lower = gooier
+	JiggleDamping = 8, -- higher = settles faster, lower = wobbles longer
+	SquashStiffness = 170,
+	SquashDamping = 9,
+	LeanAmount = 0.018, -- forward lean per stud/s of speed
+	MaxLean = 0.7, -- studs (at the top of the blob)
+	StretchAmount = 0.006, -- stretch per stud/s of up/down speed (jumping, falling)
+	MaxStretch = 0.28,
+	SpeedFlatten = 0.12, -- how much it flattens at full dash speed
+	WalkBounceAmount = 0.06, -- squash-and-stretch per step while walking
+	SprintBounceAmount = 0.09,
+	StepsPerStud = 0.22, -- bounce rhythm: steps per stud travelled
+	LandingSquashPerSpeed = 0.006, -- extra squish per stud/s of fall speed on landing (capped)
+	BreatheAmount = 0.03, -- gentle idle "breathing"
+	BreatheSpeed = 2.2,
+	JiggleDistance = 160, -- only animate blobs closer than this (studs), to save work
+
 	-- SERVER CHECKS (fairness) -------------------------------------------
 	-- These keep cheaters from moving faster or higher than the rules allow,
 	-- while being forgiving enough that laggy players are not punished.
