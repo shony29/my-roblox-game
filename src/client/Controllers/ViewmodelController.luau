@@ -18,9 +18,13 @@
 ]]
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
+
+local MovementConfig =
+	require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("MovementConfig"))
 
 local GUN_NAME = "EquippedGun" -- made by server/Components/GunModel
 local VIEWMODEL_NAME = "Viewmodel"
@@ -28,6 +32,9 @@ local HOLD_OFFSET = CFrame.new(0.95, -0.85, -1.9) -- right, down, forward from t
 local SWAY_AMOUNT = 0.0016 -- how much the gun lags when you turn (per pixel of mouse movement)
 local MAX_SWAY = math.rad(4)
 local SWAY_RETURN_SPEED = 10
+local EQUIP_TIME = 0.22 -- seconds for a new gun to rise into view
+local KICK_STIFFNESS, KICK_DAMPING = 300, 22 -- spring that returns the gun after a shot
+local MAX_KICK_PITCH = math.rad(12)
 
 local player = Players.LocalPlayer
 
@@ -37,6 +44,13 @@ local started = false
 local viewmodel: Model? = nil
 local sway = Vector2.zero -- radians (x = yaw, y = pitch)
 local bobTime = 0
+
+-- Animation state (all ease back to rest on their own).
+local kickZ, kickZVelocity = 0, 0 -- how far the gun is pushed back after a shot (studs)
+local kickPitch = 0 -- how far the barrel tips up after a shot (radians)
+local equipStartedAt = 0
+local reloading = false
+local reloadBlend, sprintBlend = 0, 0
 
 local function destroyViewmodel()
 	if viewmodel then
@@ -91,6 +105,7 @@ local function rebuild(gun: Instance)
 
 	copy.Parent = Workspace.CurrentCamera
 	viewmodel = copy
+	equipStartedAt = os.clock() -- play the "raise into view" animation
 end
 
 local function watchCharacter(character: Model)
@@ -152,7 +167,38 @@ local function onRenderStep(dt: number)
 	local bobScale = math.clamp(speed / 26, 0, 1)
 	local bob = CFrame.new(math.sin(bobTime) * 0.03 * bobScale, -math.abs(math.cos(bobTime)) * 0.03 * bobScale, 0)
 
-	model:PivotTo(camera.CFrame * HOLD_OFFSET * bob * CFrame.Angles(sway.Y, sway.X, 0))
+	-- Fire kick: pushed back, then a spring brings it forward; the tip settles down.
+	local kickAccel = -kickZ * KICK_STIFFNESS - kickZVelocity * KICK_DAMPING
+	kickZVelocity += kickAccel * dt
+	kickZ += kickZVelocity * dt
+	kickPitch -= kickPitch * (1 - math.exp(-14 * dt))
+
+	-- Equip: rises into view. Reload: dips and rolls. Sprint: lowers and angles away.
+	local equipT = math.clamp((os.clock() - equipStartedAt) / EQUIP_TIME, 0, 1)
+	local equipEase = 1 - (1 - equipT) ^ 3
+	reloadBlend += ((if reloading then 1 else 0) - reloadBlend) * (1 - math.exp(-12 * dt))
+	local sprinting = speed > MovementConfig.WalkSpeed + 1 and humanoid ~= nil and humanoid.FloorMaterial ~= Enum.Material.Air
+	sprintBlend += ((if sprinting and not reloading then 1 else 0) - sprintBlend) * (1 - math.exp(-10 * dt))
+
+	local pose = CFrame.new(0, -0.7 * (1 - equipEase) - 0.25 * reloadBlend - 0.12 * sprintBlend, kickZ)
+		* CFrame.Angles(
+			kickPitch - math.rad(25) * reloadBlend - math.rad(10) * sprintBlend,
+			math.rad(18) * sprintBlend,
+			math.rad(-20) * reloadBlend
+		)
+
+	model:PivotTo(camera.CFrame * HOLD_OFFSET * bob * CFrame.Angles(sway.Y, sway.X, 0) * pose)
+end
+
+-- Called by WeaponController on every shot. `strength` is the weapon's RecoilKick.
+function ViewmodelController.kick(strength: number)
+	kickZVelocity += 3 + strength * 2
+	kickPitch = math.min(kickPitch + math.rad(1 + strength * 1.5), MAX_KICK_PITCH)
+end
+
+-- Called by WeaponController whenever the reload state changes.
+function ViewmodelController.setReloading(value: boolean)
+	reloading = value
 end
 
 function ViewmodelController.start()

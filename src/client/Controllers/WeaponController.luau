@@ -50,6 +50,7 @@ local reloading = false
 local lastFireTime = 0
 local equipTime = 0
 local triggerHeld = false
+local lastDryFireAt = 0
 
 for id, stats in WeaponConfig.Weapons do
 	ammo[id] = stats.MagazineSize
@@ -84,6 +85,7 @@ end
 local function refreshHud()
 	Hud.setEquipped(equipped)
 	Hud.setAmmo(equipped, ammo[equipped] or 0, reloading, reserve[equipped] or 0)
+	ViewmodelController.setReloading(reloading)
 end
 
 local function requestReload()
@@ -135,6 +137,10 @@ local function tryFire()
 		return
 	end
 	if (ammo[equipped] or 0) <= 0 then
+		if (reserve[equipped] or 0) <= 0 and now - lastDryFireAt > 0.3 then
+			lastDryFireAt = now
+			ViewmodelController.kick(0.15) -- a little "click" twitch: no bullets left
+		end
 		requestReload()
 		return
 	end
@@ -154,6 +160,7 @@ local function tryFire()
 	remotes.Fire:FireServer(equipped, origin, direction.Unit)
 	-- Recoil: the view kicks up (after aiming this shot) and recovers by itself.
 	CameraController.kick(stats.RecoilKick)
+	ViewmodelController.kick(stats.RecoilKick)
 
 	-- Show the shot right away (our best guess; the server has the final say).
 	-- In first person, tracers start at the tip of the gun you can see.
