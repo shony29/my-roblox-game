@@ -74,6 +74,7 @@ run("Map and matches", function()
 	local MapConfig = require(Shared.Config.MapConfig)
 	require(Services.MapService).load(MapConfig.Default)
 	require(Services.LobbyService).start() -- the floating lobby island (Play puts you here)
+	require(Services.BotService).start() -- practice bots (only act during rounds)
 	require(Services.MatchService).start()
 	require(Services.QueueService).start() -- matchmaking hands full queues to MatchService
 end)

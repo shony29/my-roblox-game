@@ -28,7 +28,7 @@ type Row = {
 	eliminations: number,
 	deaths: number,
 	isMe: boolean,
-	teamColor: Color3?, -- Blue or Pink while in a match
+	teamColor: Color3?, -- Blue or Red while in a match
 }
 
 local function collectRows(): { Row }

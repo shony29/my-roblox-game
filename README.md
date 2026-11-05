@@ -104,8 +104,9 @@ project needs (it's listed in `rokit.toml`).
 3. Look around: slime tubes, the **SHOP** counter (left, press **E** to open) and the
    **DAILY SQUISHY** machine (right, press **E**, then tap the squishy until it bursts).
 4. Walk through the round **portal** under the big sign into the hallway. Stand on a
-   glowing pad to queue (**1v1**, **2v2**, **4v4**); step off to leave. Alone, the
-   1v1 pad shows **1/2**: use Step 6 to fill it with a second player.
+   glowing pad to queue (**1v1**, **2v2**, **4v4**); step off to leave.
+5. **Testing alone?** Stand on a **vs BOTS** pad (right side of the hallway): a practice
+   match starts with bots (no coins or XP from practice). Teams have **blue** and **red** outlines.
 
 | Control | What it does |
 |---------|--------------|

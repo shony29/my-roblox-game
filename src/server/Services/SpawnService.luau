@@ -44,7 +44,7 @@ local function isOnTeamSide(point: BasePart, team: TeamId?): boolean
 end
 
 -- Positions of every living player who is NOT on `team` (and isn't `player`).
-local function enemyPositions(player: Player, team: TeamId?): { Vector3 }
+local function enemyPositions(player: Player?, team: TeamId?): { Vector3 }
 	local positions: { Vector3 } = {}
 	for _, other in Players:GetPlayers() do
 		if other == player or (team ~= nil and MatchState.toTeam(other:GetAttribute(MatchState.PlayerAttr.Team)) == team) then
@@ -60,7 +60,8 @@ local function enemyPositions(player: Player, team: TeamId?): { Vector3 }
 	return positions
 end
 
-function SpawnService.chooseSpawn(player: Player, team: TeamId?): CFrame
+-- `player` is nil for bots.
+function SpawnService.chooseSpawn(player: Player?, team: TeamId?): CFrame
 	local allowed: { BasePart } = {}
 	for _, point in spawnPoints do
 		if isOnTeamSide(point, team) then

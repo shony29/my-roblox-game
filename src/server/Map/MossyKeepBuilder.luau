@@ -2,12 +2,12 @@
 --[[
 	MossyKeepBuilder: "Mossy Keep", a forest clearing around a ruined castle.
 
-	Bird's-eye view (Blue spawns west, Pink spawns east; mirrored left/right,
+	Bird's-eye view (Blue spawns west, Red spawns east; mirrored left/right,
 	so neither team has an advantage):
 
 	   trees  trees  rocks  trees  trees
 	   CAMP   pines  [T]==gap==[T]  pines  CAMP
-	   (Blue)  logs  arch  well  arch  logs  (Pink)
+	   (Blue)  logs  arch  well  arch  logs  (Red)
 	   CAMP   pines  [T]==gap==[T]  pines  CAMP
 	   trees  mushrooms  ruins  mushrooms  trees
 

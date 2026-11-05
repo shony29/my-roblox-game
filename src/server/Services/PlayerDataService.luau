@@ -506,7 +506,7 @@ end
 	Gives the killer +1 elimination and coins, gives the victim +1 death,
 	and shows the kill feed to everyone.
 ]]
-function PlayerDataService.recordElimination(killer: Player?, victim: Player)
+function PlayerDataService.recordElimination(killer: Player?, victim: Player, killerName: string?)
 	if not isInGame(victim) then
 		return
 	end
@@ -528,8 +528,16 @@ function PlayerDataService.recordElimination(killer: Player?, victim: Player)
 	-- report an elimination before DataBootstrap has called start().
 	local remote = killFeedRemote or GameContract.getRemote(GameContract.RemoteNames.KillFeed)
 	killFeedRemote = remote
-	local killerName = if validKiller then (killer :: Player).DisplayName else nil
-	remote:FireAllClients(killerName, victim.DisplayName)
+	-- killerName names a bot when a bot made the elimination.
+	local shownKiller = if validKiller then (killer :: Player).DisplayName else killerName
+	remote:FireAllClients(shownKiller, victim.DisplayName)
+end
+
+-- Kill feed only (for bots being eliminated: no stats, no coins).
+function PlayerDataService.announceElimination(killerName: string?, victimName: string)
+	local remote = killFeedRemote or GameContract.getRemote(GameContract.RemoteNames.KillFeed)
+	killFeedRemote = remote
+	remote:FireAllClients(killerName, victimName)
 end
 
 -- Call this when a player wins a round.

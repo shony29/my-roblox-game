@@ -37,6 +37,7 @@ local TeamBalancer = require(Components.TeamBalancer)
 local RateLimiter = require(Components.RateLimiter)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 local SpawnService = require(script.Parent.SpawnService)
+local BotService = require(script.Parent.BotService)
 local LobbyService = require(script.Parent.LobbyService)
 local MapService = require(script.Parent.MapService)
 local VoteService = require(script.Parent.VoteService)
@@ -55,6 +56,12 @@ type Participant = {
 	connections: { RBXScriptConnection },
 }
 
+type BotEntry = {
+	team: TeamId,
+	alive: boolean,
+	name: string,
+}
+
 type Match = {
 	mode: Mode,
 	participants: { [Player]: Participant },
@@ -63,6 +70,7 @@ type Match = {
 	state: State,
 	forfeitWinner: TeamId?,
 	withBots: boolean, -- practice: bots fill the empty places
+	bots: { [Model]: BotEntry },
 }
 
 local MATCH_FOUND_TIME = 2
@@ -86,6 +94,7 @@ local started = false
 ---------------------------------------------------------------------------
 
 local function setState(state: State, duration: number?)
+	BotService.setActive(state == "InMatch")
 	local match = current
 	if match then
 		match.state = state
@@ -121,7 +130,7 @@ local function canFire(shooter: Player): boolean
 	return false
 end
 
-local function canDamage(attacker: Player, victim: Player?): boolean
+local function canDamage(attacker: Player, victim: Player?, victimModel: Model?): boolean
 	local match = current
 	local attackerInfo = if match then match.participants[attacker] else nil
 	if match and attackerInfo then
@@ -129,7 +138,9 @@ local function canDamage(attacker: Player, victim: Player?): boolean
 			return false
 		end
 		if victim == nil then
-			return true -- non-player targets
+			-- A bot: only hurt it if it's on the other team.
+			local bot = if victimModel then match.bots[victimModel] else nil
+			return bot == nil or bot.team ~= attackerInfo.team
 		end
 		local victimInfo = match.participants[victim]
 		return victimInfo ~= nil and victimInfo.team ~= attackerInfo.team
@@ -185,7 +196,8 @@ local function watchCharacter(match: Match, participant: Participant, character:
 			credited = killerInfo.player
 		end
 		-- Kill feed, scoreboard numbers, saved eliminations and coins.
-		PlayerDataService.recordElimination(credited, participant.player)
+		local botName = humanoid:GetAttribute("LastHitBy")
+		PlayerDataService.recordElimination(credited, participant.player, if typeof(botName) == "string" then botName else nil)
 	end)
 end
 
@@ -240,6 +252,11 @@ local function teamCount(match: Match, team: TeamId, aliveOnly: boolean): number
 			count += 1
 		end
 	end
+	for _, bot in match.bots do
+		if bot.team == team and (bot.alive or not aliveOnly) then
+			count += 1
+		end
+	end
 	return count
 end
 
@@ -252,6 +269,12 @@ local function teamHealth(match: Match, team: TeamId): number
 			total += humanoid.Health
 		end
 	end
+	for model, bot in match.bots do
+		local humanoid = model:FindFirstChildOfClass("Humanoid")
+		if bot.team == team and bot.alive and humanoid then
+			total += humanoid.Health
+		end
+	end
 	return total
 end
 
@@ -260,7 +283,51 @@ end
 ---------------------------------------------------------------------------
 
 -- Respawns every participant on their side, frozen until the countdown ends.
+-- Practice matches: bots fill every empty place on both teams.
+local function spawnBots(match: Match)
+	BotService.removeAll()
+	table.clear(match.bots)
+	for _, team in { "A", "B" } :: { TeamId } do
+		local humans = 0
+		for _, participant in match.participants do
+			if participant.team == team then
+				humans += 1
+			end
+		end
+		for _ = 1, match.mode.TeamSize - humans do
+			local model = BotService.spawn(team, SpawnService.chooseSpawn(nil, team))
+			local root = model:FindFirstChild("HumanoidRootPart")
+			if root and root:IsA("BasePart") then
+				root.Anchored = true -- frozen until the countdown ends, like players
+			end
+			local entry: BotEntry = { team = team, alive = true, name = model.Name }
+			match.bots[model] = entry
+			local humanoid = model:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				humanoid.Died:Once(function()
+					if current ~= match or match.bots[model] ~= entry then
+						return
+					end
+					entry.alive = false
+					local killer = getKiller(humanoid)
+					local killerInfo = if killer then match.participants[killer] else nil
+					if killerInfo and killerInfo.team ~= team then
+						killerInfo.eliminations += 1
+						killerInfo.player:SetAttribute(PATTR.Eliminations, killerInfo.eliminations)
+					end
+					local lastHit = humanoid:GetAttribute("LastHitBy")
+					local killerName = if killerInfo then killerInfo.player.DisplayName elseif typeof(lastHit) == "string" then lastHit else nil
+					PlayerDataService.announceElimination(killerName, entry.name)
+				end)
+			end
+		end
+	end
+end
+
 local function spawnAll(match: Match)
+	if match.withBots then
+		spawnBots(match)
+	end
 	local pending = 0
 	for player, participant in match.participants do
 		pending += 1
@@ -284,6 +351,13 @@ local function spawnAll(match: Match)
 end
 
 local function unfreezeAll(match: Match)
+	for model in match.bots do
+		local root = model:FindFirstChild("HumanoidRootPart")
+		if root and root:IsA("BasePart") then
+			root.Anchored = false
+			BotService.release(model)
+		end
+	end
 	for player in match.participants do
 		local character = player.Character
 		local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -389,8 +463,8 @@ local function sendResults(match: Match, winner: TeamId?)
 			eliminations = participant.eliminations,
 			deaths = participant.deaths,
 			damage = math.floor(participant.damage),
-			coins = participant.eliminations * Schema.COINS_PER_ELIMINATION,
-			xp = Progression.matchXp(participant.eliminations, winner ~= nil and participant.team == winner),
+			coins = if match.withBots then 0 else participant.eliminations * Schema.COINS_PER_ELIMINATION,
+			xp = if match.withBots then 0 else Progression.matchXp(participant.eliminations, winner ~= nil and participant.team == winner),
 		})
 		if mvp == nil
 			or participant.eliminations > mvp.eliminations
@@ -415,6 +489,9 @@ end
 
 local function runMatch(match: Match, players: { Player })
 	local teamA, teamB = TeamBalancer.split(players)
+	if match.withBots then
+		teamA, teamB = players, {} -- practice: humans together, bots fill the rest
+	end
 	for _, player in teamA do
 		addParticipant(match, player, "A")
 	end
@@ -457,11 +534,14 @@ local function runMatch(match: Match, players: { Player })
 	stateFolder:SetAttribute(ATTR.MatchWinner, winner or "")
 	for player, participant in match.participants do
 		local won = winner ~= nil and participant.team == winner
-		if won then
-			PlayerDataService.recordWin(player)
+		if not match.withBots then -- practice against bots gives no rewards
+			if won then
+				PlayerDataService.recordWin(player)
+			end
+			PlayerDataService.addXp(player, Progression.matchXp(participant.eliminations, won))
 		end
-		PlayerDataService.addXp(player, Progression.matchXp(participant.eliminations, won))
 	end
+	BotService.removeAll()
 	sendResults(match, winner)
 
 	-- Rematch: if everyone still here presses REMATCH, the same players play again.
@@ -556,6 +636,7 @@ function MatchService.startMatch(mode: Mode, players: { Player }, withBots: bool
 		state = "MatchFound",
 		forfeitWinner = nil,
 		withBots = withBots == true,
+		bots = {},
 	}
 	current = match -- set before anything yields, so two matches can never start
 	task.spawn(runMatch, match, players)
@@ -566,8 +647,11 @@ local function onPlayerRemoving(player: Player)
 	local match = current
 	if match and match.participants[player] then
 		removeParticipant(match, player)
-		-- A team with nobody left forfeits.
-		if not match.forfeitWinner then
+		-- A team with nobody left forfeits (in practice: no humans left at all).
+		local humansLeft = next(match.participants) ~= nil
+		if match.withBots and not humansLeft then
+			match.forfeitWinner = "B"
+		elseif not match.forfeitWinner then
 			if teamCount(match, "A", false) == 0 then
 				match.forfeitWinner = "B"
 			elseif teamCount(match, "B", false) == 0 then

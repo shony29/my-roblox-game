@@ -46,7 +46,7 @@ local queues: { [Pad]: { Player } } = {}
 local started = false
 
 -- Set by BotService when bots are available (practice pads need them).
-QueueService.botsAvailable = false
+QueueService.botsAvailable = true
 
 local function needed(pad: Pad): number
 	local mode = ModeConfig.get(pad.mode)

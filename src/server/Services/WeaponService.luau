@@ -154,7 +154,7 @@ local function canDamage(shooter: Player, humanoid: Humanoid): boolean
 		return false
 	end
 	-- Match rules: only during a round, and only the other team (Components/CombatRules).
-	return CombatRules.canDamage(shooter, victim)
+	return CombatRules.canDamage(shooter, victim, if parent and parent:IsA("Model") then parent else nil)
 end
 
 -- The classic Roblox "creator" tag: lets a future scoreboard know who got the kill.

@@ -79,7 +79,7 @@ MatchState.PROTECTED_ATTR = "SpawnProtected"
 
 MatchState.Teams = table.freeze({
 	A = table.freeze({ Name = "Blue", Color = Color3.fromRGB(90, 170, 255) }),
-	B = table.freeze({ Name = "Pink", Color = Color3.fromRGB(255, 120, 170) }),
+	B = table.freeze({ Name = "Red", Color = Color3.fromRGB(255, 85, 85) }),
 })
 
 -- Reads a state value safely (anything unexpected counts as "Lobby").

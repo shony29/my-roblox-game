@@ -188,7 +188,7 @@ function ResultsController.start()
 			title.TextColor3 = MatchState.teamInfo(winner).Color
 		end
 		local mode = if typeof(results.mode) == "string" then results.mode else ""
-		subtitle.Text = `{mode} · Blue {num(results.scoreA)} – {num(results.scoreB)} Pink`
+		subtitle.Text = `{mode} · {MatchState.teamInfo("A").Name} {num(results.scoreA)} – {num(results.scoreB)} {MatchState.teamInfo("B").Name}`
 		local mvp = if typeof(results.mvp) == "string" then string.sub(results.mvp, 1, 24) else ""
 		mvpLabel.Text = if mvp ~= "" then `MVP: {mvp}` else ""
 
