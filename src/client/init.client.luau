@@ -102,6 +102,9 @@ end)
 run("PracticeController", function()
 	require(Controllers.PracticeController).start() -- practice range: leave button, target pops
 end)
+run("FreeForAllController", function()
+	require(Controllers.FreeForAllController).start() -- drop-in free for all: timer, scores, LEAVE
+end)
 run("CornerMenuController", function()
 	-- Top right: settings, tasks and notifications (starts those three too).
 	require(Controllers.CornerMenuController).start()

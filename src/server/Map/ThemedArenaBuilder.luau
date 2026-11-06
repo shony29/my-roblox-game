@@ -43,17 +43,23 @@ local function mirrored(fn: (sign: number) -> ())
 	fn(-1)
 end
 
-function Builder.build(scale: number?, themeName: string?, freeForAll: boolean?): Built
+--[[
+	Builds the arena. `origin` moves it somewhere else in the world and
+	`modelName` names it (the free-for-all arena uses both, so it can stand
+	next to the match arena without replacing it).
+]]
+function Builder.build(scale: number?, themeName: string?, freeForAll: boolean?, origin: Vector3?, modelName: string?): Built
 	local theme = ArenaThemes.get(themeName or "Kitchen")
 	local size = math.clamp(scale or 1, 0.8, 2.2)
 	local half = BASE_HALF * size
+	local name = modelName or "ThemedArena"
 
-	local old = Workspace:FindFirstChild("ThemedArena")
+	local old = Workspace:FindFirstChild(name)
 	if old then
 		old:Destroy()
 	end
 	local model = Instance.new("Model")
-	model.Name = "ThemedArena"
+	model.Name = name
 
 	-- A point on the floor, from fractions of the arena (-1..1).
 	local function at(u: number, v: number): Vector3
@@ -122,16 +128,29 @@ function Builder.build(scale: number?, themeName: string?, freeForAll: boolean?)
 		end
 	end
 
-	-- Slime ammo balls in the lanes (mirrored) and one in each flank.
+	-- Ammo crates on the floor: in the middle lane, on the flanks and near
+	-- each side's spawn (all mirrored, so it's fair).
 	local ammoSpots = {
-		at(0.3, 0) + Vector3.new(0, 1, 0),
-		at(-0.3, 0) + Vector3.new(0, 1, 0),
-		at(0.62, 0.62) + Vector3.new(0, 1, 0),
-		at(-0.62, 0.62) + Vector3.new(0, 1, 0),
-		at(0.62, -0.62) + Vector3.new(0, 1, 0),
-		at(-0.62, -0.62) + Vector3.new(0, 1, 0),
+		at(0.3, 0),
+		at(-0.3, 0),
+		at(0.62, 0.62),
+		at(-0.62, 0.62),
+		at(0.62, -0.62),
+		at(-0.62, -0.62),
+		at(0.1, 0.62),
+		at(-0.1, -0.62),
+		at(0.75, 0.05),
+		at(-0.75, -0.05),
 	}
 
+	-- Built around the world's centre; move it to `origin` if asked.
+	if origin then
+		model.WorldPivot = CFrame.new()
+		model:PivotTo(CFrame.new(origin))
+		for index, spot in ammoSpots do
+			ammoSpots[index] = spot + origin
+		end
+	end
 	model.Parent = Workspace
 	return { model = model, spawnPoints = spawnPoints, ammoSpots = ammoSpots }
 end

@@ -168,10 +168,11 @@ shop look jagged. A game can't change this setting, so turn it up yourself:
    Or walk through the round **portal** under the big sign into the hallway and stand on
    any glowing pad (**1v1**, **2v2**, **4v4**); step off to leave. The big screen behind
    each pad shows **0/2** and the faces of everyone waiting.
-   At the very end of the hallway is the big **FREE FOR ALL** pad: everyone for
-   themselves, **3 to 25 players**. Once 3 are waiting, others get 15 seconds to hop on.
-   You respawn after being eliminated; first to **20 eliminations** (or the most after
-   5 minutes) wins.
+   At the very end of the hallway is the big **FREE FOR ALL** pad: step on it and you
+   jump straight into the free-for-all arena (no waiting, no minimum, up to 25 players).
+   Everyone for themselves; you respawn after being eliminated; first to
+   **20 eliminations** (or the most after 5 minutes) wins the round, then the next
+   round starts in a new arena. Leave any time with **LEAVE** or **L**.
 5. **Testing alone?** The **vs BOTS** pads (right side of the hallway) start a practice
    match with bots (no coins or XP from practice). Teams have **blue** and **red** outlines.
 6. **Left door: WEAPONS room.** Every gun sits on a table with its price. Press **E** at the
@@ -263,7 +264,8 @@ Things to check:
 - [ ] PLAY puts you on a pad; the screen behind it shows your face and the count.
 - [ ] Shop: Colors and Squishies show the real 3D slime; each gun in the Guns tab has its own toy design (click its picture for the details window); the Skins tab has the Glue, Activator, Foam, Clay and Water guns plus this month's themed gun.
 - [ ] The practice range: targets pop when shot, the TASKS list counts them, coins arrive with a message.
-- [ ] With **3 player windows**: stand on the **FREE FOR ALL** pad at the end of the hallway. After 15 seconds the match starts; everyone can hit everyone, you respawn, and the top line shows the leader.
+- [ ] Stand on the **FREE FOR ALL** pad at the end of the hallway: you're in the free-for-all arena at once. With 2+ player windows everyone can hit everyone, you respawn, and the top shows the timer and the leader. **L** takes you back to the lobby.
+- [ ] Eliminated players drop a green **AMMO** crate; walking over one (or the crates on the map) refills spare ammo.
 
 > **About saving:** coins and stats only *save* in a published game. In
 > Studio you'll see a yellow warning in the Output that says progress will not

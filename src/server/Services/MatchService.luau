@@ -48,6 +48,8 @@ local LobbyService = require(script.Parent.LobbyService)
 local MapService = require(script.Parent.MapService)
 local VoteService = require(script.Parent.VoteService)
 local QuestService = require(script.Parent.QuestService)
+local AmmoService = require(script.Parent.AmmoService)
+local FreeForAllService = require(script.Parent.FreeForAllService)
 local QuestConfig = require(Shared.Config.QuestConfig)
 
 type State = MatchState.State
@@ -130,6 +132,9 @@ local function canFire(shooter: Player): boolean
 	if shooter:GetAttribute(PATTR.Status) == "Practice" then
 		return true -- the practice range: shoot targets (nobody can be hurt there, see canDamage)
 	end
+	if FreeForAllService.isPlaying(shooter) then
+		return FreeForAllService.canFire(shooter) -- the drop-in free-for-all arena
+	end
 	local match = current
 	if match then
 		local participant = match.participants[shooter]
@@ -142,6 +147,9 @@ local function canFire(shooter: Player): boolean
 end
 
 local function canDamage(attacker: Player, victim: Player?, victimModel: Model?): boolean
+	if FreeForAllService.isPlaying(attacker) then
+		return FreeForAllService.canDamage(attacker, victim)
+	end
 	local match = current
 	local attackerInfo = if match then match.participants[attacker] else nil
 	if match and attackerInfo then
@@ -216,6 +224,11 @@ local function watchCharacter(match: Match, participant: Participant, character:
 	humanoid.Died:Once(function()
 		if current ~= match or match.participants[participant.player] ~= participant or not participant.alive then
 			return
+		end
+		-- They drop an ammo crate where they fell.
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if root and root:IsA("BasePart") then
+			AmmoService.dropAt(root.Position)
 		end
 		participant.alive = false
 		participant.deaths += 1

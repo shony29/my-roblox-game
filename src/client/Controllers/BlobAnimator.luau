@@ -11,10 +11,12 @@
 	  Death     collapses and bursts into the eliminator's topping (Effects/ToppingEffects)
 
 	How: the server (Components/BlobCharacter) builds each blob from pieces
-	welded to the character and tags it "Blob". Every frame we move those
-	welds and stretch the pieces' meshes, using springs for the bouncy
-	follow-through. Frame-rate independent (scaled by frame time), no
-	networking, and the hitbox never moves, so aiming and hits are unaffected.
+	joined to the character with Motor6Ds and tags it "Blob". Every frame we
+	set each joint's Transform (cheap: made for per-frame animation, unlike
+	changing a Weld, which rebuilds the character) and stretch the pieces'
+	meshes, using springs for the bouncy follow-through. Frame-rate
+	independent (scaled by frame time), no networking, and the hitbox never
+	moves, so aiming and hits are unaffected.
 
 	Intensity: MovementConfig.JiggleIntensity, reduced to a quarter when the
 	player's "ReducedMotion" attribute is true (a future Settings option).
@@ -44,7 +46,7 @@ local HURT_TIME = 0.25 -- seconds of ripple and squint after taking damage
 local COLLAPSE_TIME = 0.22 -- seconds to squash flat when eliminated
 local LANDING_MIN_FALL_SPEED = 8 -- studs/s; slower landings don't squish extra
 
-type Piece = { weld: Weld, base: Vector3, mesh: SpecialMesh?, wobble: number, phase: number }
+type Piece = { weld: Motor6D, base: Vector3, mesh: SpecialMesh?, wobble: number, phase: number }
 type Eye = { frame: Frame, openSize: UDim2 }
 type Blob = {
 	model: Model,
@@ -84,7 +86,7 @@ end
 -- Finds the welded pieces and the eyes. Safe to run again when parts stream in;
 -- keeps the resting positions it already recorded.
 local function scan(blob: Blob)
-	local known: { [Weld]: Piece } = {}
+	local known: { [Motor6D]: Piece } = {}
 	for _, piece in blob.pieces do
 		known[piece.weld] = piece
 	end
@@ -92,7 +94,7 @@ local function scan(blob: Blob)
 	local eyes: { Eye } = {}
 	for _, descendant in blob.model:GetDescendants() do
 		if descendant:IsA("BasePart") and descendant:GetAttribute(VISUAL_ATTRIBUTE) == true then
-			local weld = descendant:FindFirstChildOfClass("Weld")
+			local weld = descendant:FindFirstChildOfClass("Motor6D")
 			if weld and weld.Part0 then
 				blob.root = weld.Part0
 				table.insert(pieces, known[weld] or {
@@ -140,12 +142,22 @@ local function onBlobRemoved(instance: Instance)
 end
 
 -- Hides (or shows again) every visible piece of a blob, on this screen only.
+-- Its gun goes too (the server also removes it a moment later).
 local function setBlobHidden(blob: Blob, hidden: boolean)
 	for _, descendant in blob.model:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			descendant.LocalTransparencyModifier = if hidden then 1 else 0
 		elseif descendant:IsA("SurfaceGui") or descendant:IsA("BillboardGui") then
 			descendant.Enabled = not hidden
+		end
+	end
+	local character = blob.model.Parent
+	local gun = character and character:FindFirstChild("EquippedGun")
+	if gun then
+		for _, part in gun:GetDescendants() do
+			if part:IsA("BasePart") then
+				part.LocalTransparencyModifier = if hidden then 1 else 0
+			end
 		end
 	end
 end
@@ -325,7 +337,7 @@ local function updateBlob(blob: Blob, dt: number, now: number, cameraPosition: V
 			local pulse = 1 + 0.035 * piece.wobble * intensity * math.sin(now * 4 + p)
 			scale = Vector3.new(meshScale.X * pulse, meshScale.Y / pulse, meshScale.Z * pulse)
 		end
-		piece.weld.C0 = CFrame.new(position)
+		piece.weld.Transform = CFrame.new(position - piece.base)
 		local mesh = piece.mesh
 		if mesh then
 			mesh.Scale = scale

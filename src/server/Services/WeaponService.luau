@@ -455,6 +455,15 @@ local function onCharacterAdded(player: Player, character: Model)
 	if not holdsGuns(player) then
 		return -- no guns in the lobby
 	end
+	-- When this slime is eliminated, its gun disappears with it.
+	task.spawn(function()
+		local humanoid = character:WaitForChild("Humanoid", 10)
+		if humanoid and humanoid:IsA("Humanoid") then
+			humanoid.Died:Once(function()
+				GunModel.remove(character)
+			end)
+		end
+	end)
 	if not ownsWeapon(player, state.equipped) then
 		state.equipped = ShopConfig.STARTER_WEAPON
 	end

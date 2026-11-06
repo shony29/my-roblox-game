@@ -59,8 +59,11 @@ local Modes: { [ModeId]: Mode } = {
 		RoundEndTime = 4,
 		RespawnInRound = false,
 	},
-	-- Everyone for themselves: 3 to 25 players, quick respawns, one long
-	-- round. First to 20 eliminations (or the most when time runs out) wins.
+	-- Everyone for themselves, drop-in: step on the pad and you're in
+	-- (server/Services/FreeForAllService, its own arena). Quick respawns;
+	-- first to EliminationsToWin (or the most when RoundTime runs out) wins
+	-- the round, then a new round starts. (MinPlayers and FillTime are only
+	-- used if free for all is ever run as a queued match by MatchService.)
 	FreeForAll = {
 		Id = "FreeForAll",
 		DisplayName = "Free For All",

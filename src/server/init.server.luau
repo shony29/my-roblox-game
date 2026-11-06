@@ -125,6 +125,9 @@ end)
 run("QueueService", function()
 	require(Services.QueueService).start() -- the queue pads hand full queues to MatchService
 end)
+run("FreeForAllService", function()
+	require(Services.FreeForAllService).start() -- drop-in free for all (its own arena)
+end)
 
 -- The report: in the Output, and as attributes the client's start-up shows on screen.
 ReplicatedStorage:SetAttribute("ServerVersion", GameConfig.Version)

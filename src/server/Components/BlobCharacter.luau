@@ -148,13 +148,16 @@ type PieceOptions = {
 }
 
 local function weldToRoot(part: BasePart, root: BasePart, offset: Vector3)
-	-- A Weld (not a WeldConstraint) because the client animator changes
-	-- its C0 every frame to squish and wobble the blob.
-	local weld = Instance.new("Weld")
-	weld.Part0 = root
-	weld.Part1 = part
-	weld.C0 = CFrame.new(offset)
-	weld.Parent = part
+	-- A Motor6D (not a Weld): the client animator moves each piece every
+	-- frame through Motor6D.Transform, which Roblox made for exactly that.
+	-- (Changing a Weld's C0 every frame makes Roblox rebuild the whole
+	-- character each frame, which made moving slimes look choppy.)
+	local motor = Instance.new("Motor6D")
+	motor.Name = "BlobJoint"
+	motor.Part0 = root
+	motor.Part1 = part
+	motor.C0 = CFrame.new(offset)
+	motor.Parent = part
 end
 
 -- A soft rounded piece. A Block part with a Sphere mesh can be any oval

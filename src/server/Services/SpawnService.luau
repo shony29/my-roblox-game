@@ -61,16 +61,18 @@ local function enemyPositions(player: Player?, team: TeamId?): { Vector3 }
 	return positions
 end
 
--- `player` is nil for bots.
-function SpawnService.chooseSpawn(player: Player?, team: TeamId?): CFrame
+-- `player` is nil for bots. `points` picks from another arena's pads
+-- (the free-for-all arena) instead of the match map's.
+function SpawnService.chooseSpawn(player: Player?, team: TeamId?, points: { BasePart }?): CFrame
+	local pool = points or spawnPoints
 	local allowed: { BasePart } = {}
-	for _, point in spawnPoints do
+	for _, point in pool do
 		if isOnTeamSide(point, team) then
 			table.insert(allowed, point)
 		end
 	end
 	if #allowed == 0 then
-		allowed = spawnPoints
+		allowed = pool
 	end
 
 	local enemies = enemyPositions(player, team)
@@ -109,11 +111,11 @@ end
 	ammo on every new character) at a spawn point for `team`.
 	Yields until the character exists. Returns it, or nil if they left.
 ]]
-function SpawnService.spawn(player: Player, team: TeamId?): Model?
+function SpawnService.spawn(player: Player, team: TeamId?, points: { BasePart }?): Model?
 	if player.Parent ~= Players then
 		return nil
 	end
-	local spawnCFrame = SpawnService.chooseSpawn(player, team)
+	local spawnCFrame = SpawnService.chooseSpawn(player, team, points)
 	-- With instance streaming on, load the floor there first (see LobbyService.streamAround).
 	if Workspace.StreamingEnabled then
 		pcall(function()

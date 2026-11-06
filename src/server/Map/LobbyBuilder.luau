@@ -40,6 +40,7 @@ export type Lobby = {
 	pads: { Pad },
 	problems: { string }, -- pieces that failed to build (empty when all is well)
 	rangePad: BasePart?, -- step on it to go to the practice range (PracticeService)
+	ffaPad: Pad?, -- step on it to jump into free for all (FreeForAllService)
 }
 
 local ORIGIN = Vector3.new(0, 300, 700) -- centre of the main hall's floor
@@ -429,8 +430,9 @@ local function queueScreen(parent: Instance, cframe: CFrame, title: string, colo
 	return count, avatars
 end
 
--- The hallway behind the portal, with queue pads on both sides.
-local function buildHallway(model: Model): { Pad }
+-- The hallway behind the portal, with queue pads on both sides and the
+-- free-for-all pad at the end.
+local function buildHallway(model: Model): ({ Pad }, Pad?)
 	local startZ = HALL_FRONT - 2
 	local endZ = startZ - HALL_LENGTH
 	local midZ = (startZ + endZ) / 2
@@ -491,7 +493,8 @@ local function buildHallway(model: Model): { Pad }
 		end
 	end
 
-	-- FREE FOR ALL at the end of the hallway: one big pad for 3 to 25 players.
+	-- FREE FOR ALL at the end of the hallway: step on it to jump straight in.
+	local ffaPad: Pad? = nil
 	try("free for all pad", function()
 		local ffaColor = Color3.fromRGB(255, 80, 120)
 		local ffaRadius = 10
@@ -503,9 +506,9 @@ local function buildHallway(model: Model): { Pad }
 			screenCount, avatars = queueScreen(model, CFrame.lookAt(screenPos, screenPos + Vector3.new(0, 0, 1)), "FREE FOR ALL", ffaColor)
 		end)
 		local signPos = Vector3.new(ORIGIN.X, ORIGIN.Y + 19, endZ + 0.4)
-		Props.neonSign(model, "FreeForAllSign", Vector3.new(18, 4, 0.4), CFrame.lookAt(signPos, signPos + Vector3.new(0, 0, 1)), "3 - 25 PLAYERS", ffaColor)
+		Props.neonSign(model, "FreeForAllSign", Vector3.new(18, 4, 0.4), CFrame.lookAt(signPos, signPos + Vector3.new(0, 0, 1)), "JUMP IN ANY TIME", ffaColor)
 		if pad and counter then
-			table.insert(pads, {
+			ffaPad = {
 				part = pad,
 				mode = "FreeForAll",
 				bots = false,
@@ -513,10 +516,10 @@ local function buildHallway(model: Model): { Pad }
 				counter = counter,
 				screenCount = screenCount,
 				avatars = avatars,
-			})
+			}
 		end
 	end)
-	return pads
+	return pads, ffaPad
 end
 
 function LobbyBuilder.build(): Lobby
@@ -538,8 +541,9 @@ function LobbyBuilder.build(): Lobby
 		buildDailyMachine(model)
 	end)
 	local pads: { Pad } = {}
+	local ffaPad: Pad? = nil
 	try("hallway and queue pads", function()
-		pads = buildHallway(model)
+		pads, ffaPad = buildHallway(model)
 	end)
 	try("weapons room", function()
 		buildWeaponsRoom(model)
@@ -557,6 +561,7 @@ function LobbyBuilder.build(): Lobby
 		pads = pads,
 		problems = table.clone(problems),
 		rangePad = rangePad,
+		ffaPad = ffaPad,
 	}
 end
 

@@ -40,6 +40,12 @@ function LobbyService.getRangePad(): BasePart?
 	return if current then current.rangePad else nil
 end
 
+-- The big FREE FOR ALL pad at the end of the hallway (nil if missing).
+function LobbyService.getFfaPad(): LobbyBuilder.Pad?
+	local current = lobby
+	return if current then current.ffaPad else nil
+end
+
 function LobbyService.isInLobby(player: Player): boolean
 	local status = player:GetAttribute(PATTR.Status)
 	return status == "Lobby" or status == "Queued"
