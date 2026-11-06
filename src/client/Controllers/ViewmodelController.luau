@@ -69,7 +69,7 @@ local function blobColor(): Color3
 	return if typeof(color) == "Color3" then color else Color3.fromRGB(120, 220, 160)
 end
 
--- Moves the gun along its length so its back end sits at HOLD_OFFSET
+-- Moves the gun forward so its back end (the stock) sits at HOLD_OFFSET
 -- (long guns like the sniper then never poke into the camera).
 local holdShift = CFrame.new()
 local gunChanged: RBXScriptConnection? = nil
@@ -121,9 +121,19 @@ local function rebuild(gun: Instance)
 	pcall(function()
 		copy:ScaleTo(VIEWMODEL_SCALE)
 	end)
+	-- How far the gun reaches back from its main block (stocks included),
+	-- so the whole gun stays in front of the camera.
 	local body = copy.PrimaryPart or copy:FindFirstChild("Body")
-	local length = if body and body:IsA("BasePart") then body.Size.Z else 2
-	holdShift = CFrame.new(0, 0, -length / 2 + 0.5)
+	local rear = 1
+	if body and body:IsA("BasePart") then
+		rear = 0
+		for _, part in copy:GetDescendants() do
+			if part:IsA("BasePart") then
+				rear = math.max(rear, body.CFrame:PointToObjectSpace(part.Position).Z + part.Size.Magnitude / 2)
+			end
+		end
+	end
+	holdShift = CFrame.new(0, 0, -rear + 0.5)
 
 	copy.Parent = Workspace.CurrentCamera
 	viewmodel = copy

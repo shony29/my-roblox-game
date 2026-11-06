@@ -287,7 +287,9 @@ local function buildWeaponsRoom(model: Model)
 				-- The gun lies side-on to the middle of the room, so you see its full length.
 				local gunPos = base + Vector3.new(0, 3.9, 0)
 				local face = CFrame.lookAt(gunPos, Vector3.new(roomCenter.X, gunPos.Y, roomCenter.Z))
-				local gun = GunModel.display(stats, CFrame.lookAt(gunPos, gunPos + face.RightVector) * CFrame.Angles(0, 0, math.rad(10)), 1.8)
+				local gun = GunModel.display(stats, CFrame.lookAt(gunPos, gunPos + face.RightVector) * CFrame.Angles(0, 0, math.rad(10)), 1.5)
+				local box = gun:GetBoundingBox()
+				gun:PivotTo(gun:GetPivot() + (gunPos - box.Position)) -- centred on the table
 				gun.Parent = model
 				-- Name and price floating above.
 				local tag = Kit.part(model, "PriceTag", Vector3.new(1, 1, 1), CFrame.new(base + Vector3.new(0, 5.8, 0)), PURPLE, { collide = false, transparency = 1, shadow = false })

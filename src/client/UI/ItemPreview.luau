@@ -5,7 +5,8 @@
 	The little 3D pictures on each shop card:
 	  * Colors:     the real jelly slime, painted in that colour.
 	  * Squishies:  the slime (in your colour) wearing the squishy.
-	  * Skins:      a gun painted with the skin.
+	  * Skins:      the Auto Rifle painted with the skin.
+	  * Guns:       each gun in its own colours (Cosmetics/GunBuilder).
 	The slime comes from Shared/Cosmetics/BlobLook (the same shape as the
 	real character) and the squishies and skins use the exact same
 	building code as the game (HatBuilder and WeaponSkins), so what you
@@ -19,10 +20,9 @@ local ShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("ShopConfi
 local HatBuilder = require(Shared:WaitForChild("Cosmetics"):WaitForChild("HatBuilder"))
 local WeaponSkins = require(Shared:WaitForChild("Cosmetics"):WaitForChild("WeaponSkins"))
 local BlobLook = require(Shared:WaitForChild("Cosmetics"):WaitForChild("BlobLook"))
+local GunBuilder = require(Shared:WaitForChild("Cosmetics"):WaitForChild("GunBuilder"))
 local WeaponConfig = require(Shared:WaitForChild("Config"):WaitForChild("WeaponConfig"))
 local MovementConfig = require(Shared:WaitForChild("Config"):WaitForChild("MovementConfig"))
-
-local TRIM_COLOR = Color3.fromRGB(45, 45, 55) -- matches Server/Weapons/GunModel
 
 local ItemPreview = {}
 
@@ -42,18 +42,6 @@ local function makeViewport(parent: GuiObject, cameraCFrame: CFrame, fieldOfView
 	camera.Parent = viewport
 	viewport.CurrentCamera = camera
 	return viewport
-end
-
-local function previewPart(name: string, size: Vector3, color: Color3, cframe: CFrame, parent: Instance): Part
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Size = size
-	part.Color = color
-	part.Material = Enum.Material.SmoothPlastic
-	part.Anchored = true
-	part.CFrame = cframe
-	part.Parent = parent
-	return part
 end
 
 -- The real jelly slime in this colour (shine, glow and all).
@@ -89,34 +77,34 @@ function ItemPreview.hat(parent: GuiObject, hat: ShopConfig.HatItem, blobColor: 
 	end
 end
 
--- A small gun painted with `skin`.
-function ItemPreview.skin(parent: GuiObject, skin: ShopConfig.SkinItem)
-	local viewport = makeViewport(parent, CFrame.lookAt(Vector3.new(4.2, 1.5, -1.6), Vector3.new(0, -0.1, -0.35)), 40)
-
-	local firstWeapon = WeaponConfig.get(WeaponConfig.Order[1])
-	local bodyColor = if firstWeapon then firstWeapon.GunColor else Color3.fromRGB(80, 170, 255)
-	local length = if firstWeapon then firstWeapon.GunLength else 2.2
-
-	-- The same three blocks as Server/Weapons/GunModel.
-	local gun = Instance.new("Model")
-	gun.Name = "PreviewGun"
-	local body = previewPart("Body", Vector3.new(0.35, 0.45, length), bodyColor, CFrame.new(), gun)
-	previewPart("Grip", Vector3.new(0.3, 0.6, 0.35), TRIM_COLOR, CFrame.new(0, -0.45, length / 2 - 0.25), gun)
-	previewPart(
-		"Barrel",
-		Vector3.new(0.2, 0.2, 0.5),
-		TRIM_COLOR,
-		body.CFrame * CFrame.new(0, 0.05, -length / 2 - 0.25),
-		gun
-	)
-	gun.Parent = viewport
-
-	WeaponSkins.apply(gun, skin)
-	for _, part in gun:GetChildren() do
+-- Shows a gun from the side (a little from above), filling the picture.
+local function showGun(parent: GuiObject, gun: Model)
+	for _, part in gun:GetDescendants() do
 		if part:IsA("BasePart") then
 			part.Anchored = true
 		end
 	end
+	local box, size = gun:GetBoundingBox()
+	local center = box.Position
+	local distance = math.max(size.Z, size.Y * 1.6) * 1.75
+	local viewport = makeViewport(parent, CFrame.lookAt(center + Vector3.new(distance, distance * 0.3, distance * 0.12), center), 30)
+	gun.Parent = viewport
+end
+
+-- The Auto Rifle painted with `skin`.
+function ItemPreview.skin(parent: GuiObject, skin: ShopConfig.SkinItem)
+	local stats = WeaponConfig.get(WeaponConfig.Order[1])
+	if not stats then
+		return
+	end
+	local gun = GunBuilder.build(stats, CFrame.new(), { anchored = true })
+	WeaponSkins.apply(gun, skin)
+	showGun(parent, gun)
+end
+
+-- A gun in its own colours (the Guns tab and its details window).
+function ItemPreview.weapon(parent: GuiObject, stats: WeaponConfig.WeaponStats)
+	showGun(parent, GunBuilder.build(stats, CFrame.new(), { anchored = true }))
 end
 
 return ItemPreview

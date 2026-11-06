@@ -1,15 +1,18 @@
 --!strict
 --[[
-	GunModel: builds a simple low-poly gun out of blocks and welds it to the
-	character's right hand, so everyone can see what you're holding.
+	GunModel: puts a gun in a slime's right hand, so everyone can see what
+	you're holding (and the first-person view copies it).
 
-	It has an Attachment called "Muzzle" at the tip. The client uses it as
-	the spot where the muzzle flash and tracers start.
+	The gun itself comes from Shared/Cosmetics/GunBuilder: a chunky toy-like
+	model with its own design for every weapon. It has an Attachment called
+	"Muzzle" at the tip, where the muzzle flash and tracers start.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local WeaponConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("WeaponConfig"))
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local WeaponConfig = require(Shared:WaitForChild("Config"):WaitForChild("WeaponConfig"))
+local GunBuilder = require(Shared:WaitForChild("Cosmetics"):WaitForChild("GunBuilder"))
 
 type WeaponStats = WeaponConfig.WeaponStats
 
@@ -19,24 +22,6 @@ local GUN_NAME = "EquippedGun"
 -- added to the character, unless it carries this attribute. We set it so
 -- the gun stays visible.
 local KEEP_VISIBLE_ATTRIBUTE = "IsBlobPart"
-
-local function makePart(name: string, size: Vector3, color: Color3): Part
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Size = size
-	part.Color = color
-	part.Material = Enum.Material.SmoothPlastic
-	part.TopSurface = Enum.SurfaceType.Smooth
-	part.BottomSurface = Enum.SurfaceType.Smooth
-	part.Massless = true
-	part.CanCollide = false
-	part.CanTouch = false
-	-- CanQuery = false makes bullets fly through guns instead of hitting them.
-	part.CanQuery = false
-	part.CastShadow = false
-	part:SetAttribute(KEEP_VISIBLE_ATTRIBUTE, true)
-	return part
-end
 
 local function weld(a: BasePart, b: BasePart)
 	local w = Instance.new("WeldConstraint")
@@ -67,58 +52,32 @@ function GunModel.attach(character: Model, stats: WeaponStats)
 		return
 	end
 
-	local model = Instance.new("Model")
+	-- The grip sits where the hand is, pointing forward (-Z is "forward" in Roblox).
+	local handBottom = hand.CFrame * CFrame.new(0, -hand.Size.Y / 2, 0)
+	local model = GunBuilder.build(stats, handBottom, nil)
 	model.Name = GUN_NAME
 	model:SetAttribute(KEEP_VISIBLE_ATTRIBUTE, true)
-
-	local length = stats.GunLength
-	local body = makePart("Body", Vector3.new(0.35, 0.45, length), stats.GunColor)
-	local grip = makePart("Grip", Vector3.new(0.3, 0.6, 0.35), Color3.fromRGB(45, 45, 55))
-	local barrel = makePart("Barrel", Vector3.new(0.2, 0.2, 0.5), Color3.fromRGB(45, 45, 55))
-
-	-- Line the gun up with the hand, pointing forward (-Z is "forward" in Roblox).
-	local handBottom = hand.CFrame * CFrame.new(0, -hand.Size.Y / 2, 0)
-	body.CFrame = handBottom * CFrame.new(0, 0, -length / 2 + 0.3)
-	grip.CFrame = handBottom * CFrame.new(0, -0.35, 0.05)
-	barrel.CFrame = body.CFrame * CFrame.new(0, 0.05, -length / 2 - 0.25)
-
-	local muzzle = Instance.new("Attachment")
-	muzzle.Name = "Muzzle"
-	muzzle.Position = Vector3.new(0, 0, -0.25)
-	muzzle.Parent = barrel
-
-	for _, part in { body, grip, barrel } do
-		part.Parent = model
+	local body = model.PrimaryPart
+	if body == nil then
+		model:Destroy()
+		return
+	end
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") and part ~= body then
+			weld(body, part)
+		end
 	end
 	weld(hand, body)
-	weld(body, grip)
-	weld(body, barrel)
-
-	model.PrimaryPart = body
 	model.Parent = character
 end
 
 --[[
 	A bigger copy of a gun for showing off (the lobby's weapons room). Not
-	held by anyone: anchored at `cframe`, pointing along its -Z.
+	held by anyone: anchored with its grip at `cframe`, pointing along -Z.
 ]]
 function GunModel.display(stats: WeaponStats, cframe: CFrame, scale: number): Model
-	local model = Instance.new("Model")
+	local model = GunBuilder.build(stats, cframe, { anchored = true, shadows = true, scale = scale })
 	model.Name = "Display_" .. stats.Id
-	local length = stats.GunLength * scale
-	local dark = Color3.fromRGB(45, 45, 55)
-	local body = makePart("Body", Vector3.new(0.35, 0.45, stats.GunLength) * scale, stats.GunColor)
-	local grip = makePart("Grip", Vector3.new(0.3, 0.6, 0.35) * scale, dark)
-	local barrel = makePart("Barrel", Vector3.new(0.2, 0.2, 0.5) * scale, dark)
-	body.CFrame = cframe
-	grip.CFrame = cframe * CFrame.new(0, -0.35 * scale, length / 2 - 0.25 * scale)
-	barrel.CFrame = cframe * CFrame.new(0, 0.05 * scale, -length / 2 - 0.25 * scale)
-	for _, part in { body, grip, barrel } do
-		part.Anchored = true
-		part.CastShadow = true
-		part.Parent = model
-	end
-	model.PrimaryPart = body
 	return model
 end
 

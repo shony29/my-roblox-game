@@ -62,15 +62,19 @@ export type HatItem = {
 	Theme: string?,
 }
 
--- Weapon skins. "Body" is the main block of the gun, "trim" is the grip and
--- barrel. A nil color means "keep the gun's normal color".
-export type SkinPattern = "None" | "Stripes" | "Spots" | "Line"
+-- Weapon skins, named after slime ingredients. They repaint a gun's pieces
+-- by role (see Cosmetics/GunBuilder): Body = the main colour, Trim = grips,
+-- magazines and caps, Accent = small details. A nil colour means "keep the
+-- gun's own colour". Pattern adds details (Cosmetics/WeaponSkins).
+export type SkinPattern = "None" | "Stripes" | "Spots" | "Line" | "Bubbles" | "Drips"
 export type SkinItem = {
 	Id: string,
 	DisplayName: string,
 	Price: number,
 	BodyColor: Color3?,
 	TrimColor: Color3?,
+	AccentColor: Color3?,
+	BodyTransparency: number?, -- see-through skins (activator, water)
 	BodyMaterial: Enum.Material,
 	TrimMaterial: Enum.Material,
 	Reflectance: number,
@@ -87,6 +91,7 @@ export type SkinItem = {
 local rgb = Color3.fromRGB
 local Smooth = Enum.Material.SmoothPlastic
 local Neon = Enum.Material.Neon
+local Glass = Enum.Material.Glass
 
 local ShopConfig = {}
 
@@ -226,66 +231,85 @@ ShopConfig.Skins = {
 		Id = "Skin_Classic",
 		DisplayName = "Classic",
 		Price = 0,
-		BodyColor = nil,
-		TrimColor = nil,
+		-- No colours: every gun keeps its own toy colours.
 		BodyMaterial = Smooth,
 		TrimMaterial = Smooth,
-		Reflectance = 0,
+		Reflectance = 0.04,
 		Pattern = "None",
 		PatternColors = {},
 		PatternMaterial = Smooth,
 	},
 	{
-		Id = "Skin_Candy",
-		DisplayName = "Candy Stripe",
-		Price = 100,
-		BodyColor = rgb(255, 120, 190),
-		TrimColor = rgb(255, 255, 255),
+		Id = "Skin_Glue",
+		DisplayName = "Glue Gun",
+		Price = 60,
+		BodyColor = rgb(250, 250, 252),
+		TrimColor = rgb(255, 140, 40),
+		AccentColor = rgb(60, 130, 235),
 		BodyMaterial = Smooth,
 		TrimMaterial = Smooth,
-		Reflectance = 0,
-		Pattern = "Stripes",
+		Reflectance = 0.15,
+		Pattern = "Drips",
 		PatternColors = { rgb(255, 255, 255) },
 		PatternMaterial = Smooth,
 	},
 	{
-		Id = "Skin_Camo",
-		DisplayName = "Camo",
+		Id = "Skin_Activator",
+		DisplayName = "Activator Gun",
+		Price = 100,
+		BodyColor = rgb(70, 190, 255),
+		TrimColor = rgb(235, 250, 255),
+		AccentColor = rgb(20, 90, 210),
+		BodyTransparency = 0.15,
+		BodyMaterial = Glass,
+		TrimMaterial = Smooth,
+		Reflectance = 0.1,
+		Pattern = "Bubbles",
+		PatternColors = { rgb(255, 255, 255) },
+		PatternMaterial = Glass,
+	},
+	{
+		Id = "Skin_Foam",
+		DisplayName = "Foam Gun",
 		Price = 150,
-		BodyColor = rgb(110, 132, 70),
-		TrimColor = rgb(75, 60, 40),
+		BodyColor = rgb(255, 185, 215),
+		TrimColor = rgb(255, 235, 150),
+		AccentColor = rgb(150, 225, 200),
 		BodyMaterial = Smooth,
 		TrimMaterial = Smooth,
-		Reflectance = 0,
+		Reflectance = 0.02,
 		Pattern = "Spots",
-		PatternColors = { rgb(60, 85, 45), rgb(190, 170, 120), rgb(120, 90, 55) },
+		PatternColors = { rgb(255, 120, 150), rgb(255, 210, 90), rgb(120, 210, 255), rgb(160, 230, 140), rgb(200, 160, 255) },
 		PatternMaterial = Smooth,
 	},
 	{
-		Id = "Skin_Neon",
-		DisplayName = "Neon",
-		Price = 300,
-		BodyColor = rgb(0, 240, 255),
-		TrimColor = rgb(35, 25, 60),
-		BodyMaterial = Neon,
-		TrimMaterial = Smooth,
-		Reflectance = 0,
-		Pattern = "Line",
-		PatternColors = { rgb(255, 60, 220) },
-		PatternMaterial = Neon,
-	},
-	{
-		Id = "Skin_Gold",
-		DisplayName = "Gold",
-		Price = 500,
-		BodyColor = rgb(255, 195, 45),
-		TrimColor = rgb(215, 150, 30),
+		Id = "Skin_Clay",
+		DisplayName = "Clay Gun",
+		Price = 220,
+		BodyColor = rgb(255, 200, 155),
+		TrimColor = rgb(190, 160, 240),
+		AccentColor = rgb(150, 225, 190),
 		BodyMaterial = Smooth,
 		TrimMaterial = Smooth,
-		Reflectance = 0.3,
-		Pattern = "None",
-		PatternColors = {},
+		Reflectance = 0,
+		Pattern = "Stripes",
+		PatternColors = { rgb(255, 225, 190), rgb(255, 170, 140) },
 		PatternMaterial = Smooth,
+	},
+	{
+		Id = "Skin_Water",
+		DisplayName = "Water Gun",
+		Price = 300,
+		BodyColor = rgb(90, 215, 255),
+		TrimColor = rgb(255, 150, 40),
+		AccentColor = rgb(255, 230, 70),
+		BodyTransparency = 0.25,
+		BodyMaterial = Glass,
+		TrimMaterial = Smooth,
+		Reflectance = 0.12,
+		Pattern = "Line",
+		PatternColors = { rgb(255, 255, 255) },
+		PatternMaterial = Neon,
 	},
 } :: { SkinItem }
 
@@ -409,8 +433,8 @@ for _, theme in ShopConfig.Themes do
 	})
 	local skinRobux, skinProduct = robux("Skin", base .. "Skin")
 	table.insert(ShopConfig.Skins, {
-		Id = base .. "Skin", DisplayName = theme.Name .. " Skin", Price = ShopConfig.ROBUX_ONLY,
-		BodyColor = theme.Main, TrimColor = theme.Accent, BodyMaterial = Smooth, TrimMaterial = Smooth,
+		Id = base .. "Skin", DisplayName = theme.Name .. " Gun", Price = ShopConfig.ROBUX_ONLY,
+		BodyColor = theme.Main, TrimColor = theme.Accent, AccentColor = rgb(255, 255, 255), BodyMaterial = Smooth, TrimMaterial = Smooth,
 		Reflectance = 0.1, Pattern = "Stripes", PatternColors = { theme.Accent, rgb(255, 255, 255) }, PatternMaterial = Neon,
 		Robux = skinRobux, ProductId = skinProduct, Month = theme.Month, Theme = theme.Name,
 	})

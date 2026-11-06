@@ -100,7 +100,7 @@ project needs (it's listed in `rokit.toml`).
    player's device loads the whole world and nobody falls through a floor
    that hasn't loaded yet.
 5. Press **Play** in Studio. The bottom-left corner of the game's main menu
-   shows the version, for example **Slime Showdown v0.4.4**.
+   shows the version, for example **Slime Showdown v0.5.0**.
 
 ## Getting the newest version (every time the game is updated)
 
@@ -212,6 +212,7 @@ Things to check:
 - [ ] Press **B** for the shop; buying a colour recolours your blob. In the **Guns** tab, buy a gun: it appears in your weapon bar next match (everyone starts with only the Auto Rifle).
 - [ ] In the lobby there are no guns, no crosshair, no ammo counter and no weapon bar.
 - [ ] PLAY puts you on a pad; the screen behind it shows your face and the count.
+- [ ] Shop: Colors and Squishies show the real 3D slime; each gun in the Guns tab has its own toy design (click its picture for the details window); the Skins tab has the Glue, Activator, Foam, Clay and Water guns plus this month's themed gun.
 - [ ] The practice range: targets pop when shot, the TASKS list counts them, coins arrive with a message.
 
 > **About saving:** coins and stats only *save* in a published game. In

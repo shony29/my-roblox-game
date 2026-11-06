@@ -288,6 +288,135 @@ end
 
 -- Building the menu ---------------------------------------------------------------
 
+-- Gun details ---------------------------------------------------------------
+-- Clicking a gun's picture in the Guns tab opens this window: a big 3D view
+-- of the gun, what it's good at, and its numbers as bars.
+
+type DetailsUi = { backdrop: TextButton, preview: Frame, title: TextLabel, blurb: TextLabel, rows: { [string]: { fill: Frame, value: TextLabel } } }
+local details: DetailsUi? = nil
+local STAT_ROWS = { "Damage", "Fire rate", "Magazine", "Reload", "Range" }
+
+local function buildDetails(): DetailsUi
+	local backdrop = Instance.new("TextButton")
+	backdrop.Name = "GunDetails"
+	backdrop.Size = UDim2.fromScale(1, 1)
+	backdrop.BackgroundColor3 = Color3.new(0, 0, 0)
+	backdrop.BackgroundTransparency = 0.4
+	backdrop.AutoButtonColor = false
+	backdrop.Text = ""
+	backdrop.ZIndex = 20
+	backdrop.Modal = true -- frees the mouse in first person
+	backdrop.Visible = false
+	backdrop.Parent = shopGui
+	backdrop.Activated:Connect(function()
+		backdrop.Visible = false
+	end)
+
+	local panel = UIHelpers.frame("Panel", UDim2.fromOffset(560, 420), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+	panel.BackgroundColor3 = Colors.Shell
+	panel.BackgroundTransparency = 0
+	panel.Active = true -- clicks on the window don't close it
+	UIHelpers.corner(panel, UDim.new(0, 20))
+	UIHelpers.stroke(panel, Colors.Ink, 4)
+	panel.Parent = backdrop
+
+	local title = UIHelpers.label("Title", "", 30, Theme.Fonts.Title)
+	title.Position = UDim2.fromOffset(20, 12)
+	title.Size = UDim2.new(1, -90, 0, 40)
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextColor3 = Colors.Ink
+	title.Parent = panel
+
+	local close = Instance.new("TextButton")
+	close.Name = "Close"
+	close.AnchorPoint = Vector2.new(1, 0)
+	close.Position = UDim2.new(1, -14, 0, 12)
+	close.Size = UDim2.fromOffset(42, 42)
+	close.BackgroundColor3 = Colors.Coral
+	close.Font = Theme.Fonts.Title
+	close.TextSize = 24
+	close.TextColor3 = Colors.White
+	close.Text = "X"
+	UIHelpers.corner(close, UDim.new(0, 10))
+	UIHelpers.stroke(close, Colors.Ink, 3)
+	close.Parent = panel
+	close.Activated:Connect(function()
+		backdrop.Visible = false
+	end)
+
+	local preview = Instance.new("Frame")
+	preview.Name = "Preview"
+	preview.Position = UDim2.fromOffset(20, 62)
+	preview.Size = UDim2.new(1, -40, 0, 150)
+	preview.BackgroundColor3 = Colors.Sky:Lerp(Colors.White, 0.7)
+	preview.BorderSizePixel = 0
+	UIHelpers.corner(preview, UDim.new(0, 14))
+	preview.Parent = panel
+
+	local blurb = UIHelpers.label("Blurb", "", 20, Theme.Fonts.Title)
+	blurb.Position = UDim2.fromOffset(20, 218)
+	blurb.Size = UDim2.new(1, -40, 0, 28)
+	blurb.TextColor3 = Colors.SkyDeep
+	blurb.Parent = panel
+
+	local rows: { [string]: { fill: Frame, value: TextLabel } } = {}
+	for index, name in STAT_ROWS do
+		local y = 252 + (index - 1) * 32
+		local label = UIHelpers.label(name, name, 18, Theme.Fonts.Title)
+		label.Position = UDim2.fromOffset(24, y)
+		label.Size = UDim2.fromOffset(120, 26)
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		label.TextColor3 = Colors.Ink
+		label.Parent = panel
+		local track = UIHelpers.frame("Track", UDim2.fromOffset(250, 14), UDim2.fromOffset(150, y + 6), nil)
+		track.BackgroundColor3 = Color3.fromRGB(220, 224, 235)
+		track.BackgroundTransparency = 0
+		UIHelpers.corner(track, UDim.new(1, 0))
+		track.Parent = panel
+		local fill = UIHelpers.frame("Fill", UDim2.fromScale(0, 1), UDim2.new(), nil)
+		fill.BackgroundColor3 = Colors.Mint
+		fill.BackgroundTransparency = 0
+		UIHelpers.corner(fill, UDim.new(1, 0))
+		fill.Parent = track
+		local value = UIHelpers.label("Value", "", 18, Theme.Fonts.Title)
+		value.Position = UDim2.fromOffset(410, y)
+		value.Size = UDim2.fromOffset(130, 26)
+		value.TextXAlignment = Enum.TextXAlignment.Left
+		value.TextColor3 = Colors.Ink
+		value.Parent = panel
+		rows[name] = { fill = fill, value = value }
+	end
+	return { backdrop = backdrop, preview = preview, title = title, blurb = blurb, rows = rows }
+end
+
+local function showGunDetails(displayName: string, blurb: string, stats: WeaponConfig.WeaponStats)
+	local ui = details or buildDetails()
+	details = ui
+	ui.title.Text = displayName
+	ui.blurb.Text = blurb
+	for _, child in ui.preview:GetChildren() do
+		if child:IsA("ViewportFrame") then
+			child:Destroy()
+		end
+	end
+	ItemPreview.weapon(ui.preview, stats)
+
+	local damage = stats.Damage * stats.Pellets
+	local values: { [string]: { fraction: number, text: string } } = {
+		Damage = { fraction = damage / 100, text = if stats.Pellets > 1 then `{stats.Damage} x{stats.Pellets}` else tostring(stats.Damage) },
+		["Fire rate"] = { fraction = stats.FireRate / 12, text = `{stats.FireRate} / s` },
+		Magazine = { fraction = stats.MagazineSize / 40, text = tostring(stats.MagazineSize) },
+		Reload = { fraction = 1 - math.clamp((stats.ReloadTime - 0.8) / 2.5, 0, 0.9), text = `{stats.ReloadTime} s` },
+		Range = { fraction = stats.MaxRange / 600, text = `{stats.MaxRange} studs` },
+	}
+	for name, row in ui.rows do
+		local info = values[name]
+		row.fill.Size = UDim2.fromScale(math.clamp(info.fraction, 0.05, 1), 1)
+		row.value.Text = info.text
+	end
+	ui.backdrop.Visible = true
+end
+
 local function buildCard(page: ScrollingFrame, item: ShopItem, order: number)
 	local card = Instance.new("Frame")
 	card.Name = item.Id
@@ -346,14 +475,31 @@ local function buildCard(page: ScrollingFrame, item: ShopItem, order: number)
 			end
 		end
 	elseif item.Category == "Weapon" then
-		-- Guns: what it's good at and its key numbers.
+		-- Guns: each gun's own 3D design. Click the picture for its details.
 		local gun = ShopConfig.getWeapon(item.Id)
 		local stats = if gun then WeaponConfig.get(gun.WeaponId) else nil
 		if gun and stats then
-			local damage = if stats.Pellets > 1 then `{stats.Damage} x{stats.Pellets}` else tostring(stats.Damage)
-			local info = UIHelpers.label("GunInfo", `{gun.Blurb}\nDamage {damage} · {stats.FireRate}/s\nMagazine {stats.MagazineSize}`, 16, Theme.Fonts.Title)
-			info.TextColor3 = Colors.Ink
-			info.Parent = previewBox
+			ItemPreview.weapon(previewBox, stats)
+			local detailsButton = Instance.new("TextButton")
+			detailsButton.Name = "Details"
+			detailsButton.Size = UDim2.fromScale(1, 1)
+			detailsButton.BackgroundTransparency = 1
+			detailsButton.Text = ""
+			detailsButton.ZIndex = 4
+			detailsButton.Parent = previewBox
+			local badge = UIHelpers.label("InfoBadge", "i", 16, Theme.Fonts.Title)
+			badge.AnchorPoint = Vector2.new(1, 0)
+			badge.Position = UDim2.new(1, -6, 0, 6)
+			badge.Size = UDim2.fromOffset(24, 24)
+			badge.BackgroundColor3 = Colors.SkyDeep
+			badge.BackgroundTransparency = 0
+			badge.TextColor3 = Colors.White
+			badge.ZIndex = 5
+			UIHelpers.corner(badge, UDim.new(1, 0))
+			badge.Parent = previewBox
+			detailsButton.Activated:Connect(function()
+				showGunDetails(item.DisplayName, gun.Blurb, stats)
+			end)
 		end
 	else
 		ItemPreview.skin(previewBox, ShopConfig.getSkin(item.Id))
