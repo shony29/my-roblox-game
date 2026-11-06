@@ -25,6 +25,7 @@
 ]]
 
 local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local MovementConfig = require(ReplicatedStorage.Shared.Config.MovementConfig)
@@ -445,6 +446,29 @@ function BlobCharacter.apply(character: Model, color: Color3)
 	hitboxWeld.Part1 = hitbox
 	hitboxWeld.Parent = hitbox
 	hitbox.Parent = model
+
+	-- A small name tag above the blob. It's sized in studs, so it shrinks
+	-- with distance like a real object (Roblox's own name tag, which stays
+	-- the same size on screen, is switched off in SlimeRig). Players don't
+	-- see their own.
+	local owner = Players:GetPlayerFromCharacter(character)
+	local nameTag = Instance.new("BillboardGui")
+	nameTag.Name = "NameTag"
+	nameTag.Size = UDim2.fromScale(5, 0.9)
+	nameTag.StudsOffset = Vector3.new(0, hitboxSize.Y / 2 + 1, 0)
+	nameTag.MaxDistance = 60
+	nameTag.LightInfluence = 0
+	nameTag.PlayerToHideFrom = owner
+	nameTag.Parent = hitbox
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Size = UDim2.fromScale(1, 1)
+	nameLabel.Font = Enum.Font.FredokaOne
+	nameLabel.TextScaled = true
+	nameLabel.TextColor3 = Color3.new(1, 1, 1)
+	nameLabel.TextStrokeTransparency = 0.3
+	nameLabel.Text = if owner then owner.DisplayName elseif humanoid.DisplayName ~= "" then humanoid.DisplayName else character.Name
+	nameLabel.Parent = nameTag
 
 	model.Parent = character
 	-- The client animator finds blobs by this tag.

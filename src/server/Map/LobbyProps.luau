@@ -128,9 +128,9 @@ function LobbyProps.queuePad(parent: Instance, center: Vector3, radius: number, 
 	local anchor = MapKit.part(parent, "PadCounter", Vector3.new(1, 1, 1), CFrame.new(center + Vector3.new(0, 8, 0)), color, { collide = false, transparency = 1, shadow = false })
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "Counter"
-	billboard.Size = UDim2.fromOffset(220, 110)
+	billboard.Size = UDim2.fromScale(7, 3.5) -- in studs, so it shrinks with distance
 	billboard.LightInfluence = 0
-	billboard.MaxDistance = 140
+	billboard.MaxDistance = 120
 	billboard.Parent = anchor
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.Name = "Title"

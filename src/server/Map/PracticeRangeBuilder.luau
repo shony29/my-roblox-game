@@ -125,7 +125,7 @@ local function buildDeck(model: Model): BasePart?
 	local exitPad = MapKit.part(model, "ExitPad", Vector3.new(7, 0.4, 7), CFrame.new(at(-27, 0.2, 14)), Color3.fromRGB(120, 255, 150), { material = Enum.Material.Neon, collide = false, shadow = false })
 	exitPad:SetAttribute("RangeExit", true)
 	local sign = Instance.new("BillboardGui")
-	sign.Size = UDim2.fromOffset(220, 60)
+	sign.Size = UDim2.fromScale(7, 1.9) -- in studs, so it shrinks with distance
 	sign.StudsOffset = Vector3.new(0, 4.5, 0)
 	sign.LightInfluence = 0
 	sign.Parent = exitPad

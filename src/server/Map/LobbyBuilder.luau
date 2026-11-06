@@ -128,8 +128,8 @@ local function buildHall(model: Model)
 			box(model, "DoorGlow", Vector3.new(0.8, DOOR_HEIGHT, 0.8), at(side * (HALL_X - 0.2), DOOR_HEIGHT / 2, z), glow, Enum.Material.Neon)
 		end
 		box(model, "DoorGlow", Vector3.new(0.8, 0.8, DOOR_HALF * 2 + 1.6), at(side * (HALL_X - 0.2), DOOR_HEIGHT + 0.4, DOOR_Z), glow, Enum.Material.Neon)
-		local signPos = at(side * (HALL_X - 0.5), DOOR_HEIGHT + 4.5, DOOR_Z)
-		Props.neonSign(model, "DoorSign", Vector3.new(18, 5, 0.5), CFrame.lookAt(signPos, signPos + Vector3.new(-side, 0, 0)), if side < 0 then "WEAPONS" else "PRACTICE RANGE", glow)
+		local signPos = at(side * (HALL_X - 0.5), DOOR_HEIGHT + 2.9, DOOR_Z)
+		Props.neonSign(model, "DoorSign", Vector3.new(16, 4, 0.5), CFrame.lookAt(signPos, signPos + Vector3.new(-side, 0, 0)), if side < 0 then "WEAPONS" else "PRACTICE RANGE", glow)
 	end
 	-- Front wall around the portal opening (opening = 2 x radius wide).
 	local gap = PORTAL_RADIUS * 1.05
@@ -173,7 +173,7 @@ local function buildSlime(model: Model)
 	-- Pipes: along the side walls (with glowing glass sections) and overhead.
 	for _, side in { -1, 1 } do
 		Props.pipe(model, at(side * 38.5, 24, -HALL_Z + 2), at(side * 38.5, 24, HALL_Z - 2), 3, GREEN)
-		Props.pipe(model, at(side * 38.5, 18, -HALL_Z + 2), at(side * 38.5, 18, HALL_Z - 2), 2, nil)
+		Props.pipe(model, at(side * 38.5, 20.5, -HALL_Z + 2), at(side * 38.5, 20.5, HALL_Z - 2), 2, nil) -- above the door signs
 	end
 	Props.pipe(model, at(-HALL_X + 1, 30, -12), at(HALL_X - 1, 30, -12), 2.5, GREEN)
 	Props.pipe(model, at(-HALL_X + 1, 31, 10), at(HALL_X - 1, 31, 10), 2, PURPLE)
@@ -222,8 +222,9 @@ local function buildShopAndDaily(model: Model)
 	-- "READY!" / "NEXT IN 5h" (each player's own client fills this in).
 	try("Daily Squishy sign", function()
 	local status = Instance.new("BillboardGui")
-	status.Size = UDim2.fromOffset(200, 50)
+	status.Size = UDim2.fromScale(6, 1.5) -- in studs, so it shrinks with distance
 	status.StudsOffset = Vector3.new(0, 7.5, 0)
+	status.MaxDistance = 80
 	status.LightInfluence = 0
 	status.Parent = base
 	local label = Instance.new("TextLabel")
@@ -289,12 +290,12 @@ local function buildWeaponsRoom(model: Model)
 				local gun = GunModel.display(stats, CFrame.lookAt(gunPos, gunPos + face.RightVector) * CFrame.Angles(0, 0, math.rad(10)), 1.8)
 				gun.Parent = model
 				-- Name and price floating above.
-				local tag = Kit.part(model, "PriceTag", Vector3.new(1, 1, 1), CFrame.new(base + Vector3.new(0, 6.5, 0)), PURPLE, { collide = false, transparency = 1, shadow = false })
+				local tag = Kit.part(model, "PriceTag", Vector3.new(1, 1, 1), CFrame.new(base + Vector3.new(0, 5.8, 0)), PURPLE, { collide = false, transparency = 1, shadow = false })
 				if tag then
 					local billboard = Instance.new("BillboardGui")
-					billboard.Size = UDim2.fromOffset(200, 64)
+					billboard.Size = UDim2.fromScale(4.2, 1.4) -- in studs: small, and smaller far away
 					billboard.LightInfluence = 0
-					billboard.MaxDistance = 70
+					billboard.MaxDistance = 45
 					billboard.Parent = tag
 					local name = Instance.new("TextLabel")
 					name.BackgroundTransparency = 1
@@ -350,8 +351,9 @@ local function buildRangeDoor(model: Model): BasePart?
 		Props.light(pad, CYAN, 14, 1.5)
 		try("range pad sign", function()
 			local billboard = Instance.new("BillboardGui")
-			billboard.Size = UDim2.fromOffset(240, 70)
+			billboard.Size = UDim2.fromScale(7, 2) -- in studs
 			billboard.StudsOffset = Vector3.new(0, 6, 0)
+			billboard.MaxDistance = 80
 			billboard.LightInfluence = 0
 			billboard.Parent = pad
 			local label = Instance.new("TextLabel")

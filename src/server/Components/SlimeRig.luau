@@ -81,6 +81,9 @@ function SlimeRig.build(): Model
 	humanoid.RequiresNeck = false
 	-- Keep the blob in one piece when eliminated (the death effect is done separately).
 	humanoid.BreakJointsOnDeath = false
+	-- No Roblox name tag (it stays the same size on screen however far away
+	-- you are). BlobCharacter adds a small name tag that shrinks with distance.
+	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	humanoid.Parent = model
 
 	return model
