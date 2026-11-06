@@ -189,14 +189,17 @@ end
 
 -- Round timer -------------------------------------------------------------
 
+-- The round timer, top centre (the team bars sit either side of it, see
+-- MatchHudController). Sci-fi look, like the rest of the game.
 local function buildTimer(parent: Instance): (number?) -> ()
-	local container = UIHelpers.frame("RoundTimer", UDim2.fromOffset(150, 52), UDim2.new(0.5, 0, 0, 14), Vector2.new(0.5, 0))
-	UIHelpers.corner(container, UDim.new(1, 0))
-	UIHelpers.stroke(container, Colors.Ink, 3)
+	local container = UIHelpers.frame("RoundTimer", UDim2.fromOffset(130, 52), UDim2.new(0.5, 0, 0, 14), Vector2.new(0.5, 0))
+	container.BackgroundColor3 = Theme.SciFi.Panel
+	container.BackgroundTransparency = 0.1
+	UIHelpers.corner(container, UDim.new(0, 12))
+	UIHelpers.stroke(container, Theme.SciFi.Edge, 1.5)
 	container.Parent = parent
 
-	local text = UIHelpers.label("Time", "0:00", 32, Theme.Fonts.Title)
-	UIHelpers.textStroke(text)
+	local text = UIHelpers.label("Time", "0:00", 24, Theme.SciFiFonts.Title)
 	text.Parent = container
 
 	local lastShown = ""
@@ -212,11 +215,11 @@ local function buildTimer(parent: Instance): (number?) -> ()
 		lastShown = shown
 		text.Text = shown
 		local warning = secondsLeft <= TIMER_WARNING_SECONDS
-		text.TextColor3 = if warning then Colors.Coral else Colors.White
+		text.TextColor3 = if warning then Theme.SciFi.Red else Theme.SciFi.Text
 		if warning and secondsLeft > 0 then
 			-- A small "pop" each second near the end of the round.
-			text.TextSize = 40
-			UIHelpers.tween(text, 0.3, { TextSize = 32 }, Enum.EasingStyle.Back)
+			text.TextSize = 30
+			UIHelpers.tween(text, 0.3, { TextSize = 24 }, Enum.EasingStyle.Back)
 		end
 	end
 end
@@ -290,7 +293,8 @@ function Hud.create(gui: ScreenGui)
 				else
 					setAmmo(nil, nil, nil)
 				end
-				setTimer(GameContract.getRoundTimeRemaining())
+				-- (The free-for-all arena shows its own timer.)
+				setTimer(if player:GetAttribute("FreeForAll") == true then nil else GameContract.getRoundTimeRemaining())
 			end
 			task.wait(UPDATE_INTERVAL)
 		end

@@ -50,6 +50,7 @@ local HALL_LENGTH, HALL_HALF_WIDTH, HALL_HEIGHT_2 = 92, 22, 26 -- the hallway
 local PORTAL_RADIUS = 8
 local PAD_RADIUS = 6.5
 local DOOR_Z, DOOR_HALF, DOOR_HEIGHT = 22, 6, 14 -- the side doorways (weapons room, practice range)
+local DAILY_Z = -11 -- the DAILY SQUISHY room's doorway (right wall)
 
 local METAL, METAL_DARK = LobbyProps.METAL, LobbyProps.METAL_DARK
 local GREEN, PURPLE, CYAN = LobbyProps.GREEN, LobbyProps.PURPLE, LobbyProps.CYAN
@@ -112,26 +113,47 @@ local function buildHall(model: Model)
 	Props.hazardLine(model, at(8.6, 0, HALL_Z - 2), at(8.6, 0, -HALL_Z + 2), 1.2)
 	box(model, "Ceiling", Vector3.new(HALL_X * 2, 2, HALL_Z * 2), at(0, HALL_HEIGHT + 1, 0), METAL_DARK)
 	box(model, "WallBack", Vector3.new(HALL_X * 2, HALL_HEIGHT, 2), at(0, HALL_HEIGHT / 2, HALL_Z + 1), METAL)
-	-- Side walls, each with a doorway: WEAPONS room on the left, PRACTICE RANGE on the right.
-	local doorFront, doorBack = DOOR_Z - DOOR_HALF, DOOR_Z + DOOR_HALF
+	-- Side walls with doorways: WEAPONS on the left; PRACTICE RANGE and
+	-- DAILY SQUISHY on the right.
+	local doors = {
+		{ side = -1, z = DOOR_Z, title = "WEAPONS", glow = PURPLE },
+		{ side = 1, z = DOOR_Z, title = "PRACTICE RANGE", glow = CYAN },
+		{ side = 1, z = DAILY_Z, title = "DAILY SQUISHY", glow = GREEN },
+	}
 	for _, side in { -1, 1 } do
 		local x = side * (HALL_X + 1)
-		local frontLength = doorFront + HALL_Z
-		local backLength = HALL_Z - doorBack
-		box(model, "WallSide", Vector3.new(2, HALL_HEIGHT, frontLength), at(x, HALL_HEIGHT / 2, -HALL_Z + frontLength / 2), METAL)
-		box(model, "WallSide", Vector3.new(2, HALL_HEIGHT, backLength), at(x, HALL_HEIGHT / 2, doorBack + backLength / 2), METAL)
-		box(model, "WallSide", Vector3.new(2, HALL_HEIGHT - DOOR_HEIGHT, DOOR_HALF * 2), at(x, DOOR_HEIGHT + (HALL_HEIGHT - DOOR_HEIGHT) / 2, DOOR_Z), METAL)
-		for _, z in { -20, 0 } do
+		local doorZs: { number } = {}
+		for _, door in doors do
+			if door.side == side then
+				table.insert(doorZs, door.z)
+			end
+		end
+		table.sort(doorZs)
+		-- Wall pieces between the doorways, and a lintel over each one.
+		local cursor = -HALL_Z
+		for _, z in doorZs do
+			local front = z - DOOR_HALF
+			if front > cursor then
+				box(model, "WallSide", Vector3.new(2, HALL_HEIGHT, front - cursor), at(x, HALL_HEIGHT / 2, (cursor + front) / 2), METAL)
+			end
+			box(model, "WallSide", Vector3.new(2, HALL_HEIGHT - DOOR_HEIGHT, DOOR_HALF * 2), at(x, DOOR_HEIGHT + (HALL_HEIGHT - DOOR_HEIGHT) / 2, z), METAL)
+			cursor = z + DOOR_HALF
+		end
+		box(model, "WallSide", Vector3.new(2, HALL_HEIGHT, HALL_Z - cursor), at(x, HALL_HEIGHT / 2, (cursor + HALL_Z) / 2), METAL)
+		-- Dark panels on the wall, clear of the doorways.
+		for _, z in (if side < 0 then { -20, 0 } else { -28, 4 }) do
 			box(model, "WallPanel", Vector3.new(0.6, 14, 12), at(side * (HALL_X - 0.2), 9, z), METAL_DARK)
 		end
-		-- Glowing door frame and a sign over the doorway.
-		local glow = if side < 0 then PURPLE else CYAN
-		for _, z in { doorFront - 0.4, doorBack + 0.4 } do
-			box(model, "DoorGlow", Vector3.new(0.8, DOOR_HEIGHT, 0.8), at(side * (HALL_X - 0.2), DOOR_HEIGHT / 2, z), glow, Enum.Material.Neon)
+	end
+	-- Glowing door frames and a sign over every doorway.
+	for _, door in doors do
+		local side, z, glow = door.side, door.z, door.glow
+		for _, edge in { z - DOOR_HALF - 0.4, z + DOOR_HALF + 0.4 } do
+			box(model, "DoorGlow", Vector3.new(0.8, DOOR_HEIGHT, 0.8), at(side * (HALL_X - 0.2), DOOR_HEIGHT / 2, edge), glow, Enum.Material.Neon)
 		end
-		box(model, "DoorGlow", Vector3.new(0.8, 0.8, DOOR_HALF * 2 + 1.6), at(side * (HALL_X - 0.2), DOOR_HEIGHT + 0.4, DOOR_Z), glow, Enum.Material.Neon)
-		local signPos = at(side * (HALL_X - 0.5), DOOR_HEIGHT + 2.9, DOOR_Z)
-		Props.neonSign(model, "DoorSign", Vector3.new(16, 4, 0.5), CFrame.lookAt(signPos, signPos + Vector3.new(-side, 0, 0)), if side < 0 then "WEAPONS" else "PRACTICE RANGE", glow)
+		box(model, "DoorGlow", Vector3.new(0.8, 0.8, DOOR_HALF * 2 + 1.6), at(side * (HALL_X - 0.2), DOOR_HEIGHT + 0.4, z), glow, Enum.Material.Neon)
+		local signPos = at(side * (HALL_X - 0.5), DOOR_HEIGHT + 2.9, z)
+		Props.neonSign(model, "DoorSign", Vector3.new(16, 4, 0.5), CFrame.lookAt(signPos, signPos + Vector3.new(-side, 0, 0)), door.title, glow)
 	end
 	-- Front wall around the portal opening (opening = 2 x radius wide).
 	local gap = PORTAL_RADIUS * 1.05
@@ -203,43 +225,60 @@ local function buildDailyMachine(model: Model)
 	-- (Where the shop counter used to be, on the left wall: one more slime tube.)
 	Props.slimeTube(model, at(-35, 0, -1), 16, 6, PURPLE)
 
-	-- DAILY SQUISHY machine (right wall): a glass dome with a squishy inside.
-	-- It sits in the gap between the big green tank and the cyan tube.
-	local dailyZ = -11
-	local base = box(model, "DailyBase", Vector3.new(9, 3, 9), at(31, 1.5, dailyZ), METAL_DARK, Enum.Material.DiamondPlate)
-	Kit.part(model, "DailyDome", Vector3.new(8, 8, 8), CFrame.new(at(31, 7, dailyZ)), Color3.fromRGB(220, 240, 255), { shape = Enum.PartType.Ball, material = Enum.Material.Glass, transparency = 0.6 })
-	local squishy = Kit.part(model, "DailySquishyToy", Vector3.new(4.5, 4.5, 4.5), CFrame.new(at(31, 5.4, dailyZ)), Color3.fromRGB(120, 230, 160), { shape = Enum.PartType.Ball, collide = false })
+	-- The DAILY SQUISHY room, through the doorway on the right wall (like
+	-- the practice range room next to it).
+	local cx, cz, halfX, halfZ, height = 51, DAILY_Z, 9, 8, 16
+	box(model, "DailyRoomFloor", Vector3.new(halfX * 2, 2, halfZ * 2), at(cx, -1, cz), METAL_DARK, Enum.Material.DiamondPlate)
+	box(model, "DailyRoomCeiling", Vector3.new(halfX * 2, 2, halfZ * 2), at(cx, height + 1, cz), METAL_DARK)
+	box(model, "DailyRoomWall", Vector3.new(2, height, halfZ * 2 + 2), at(cx + halfX + 1, height / 2, cz), METAL)
+	for _, side in { -1, 1 } do
+		box(model, "DailyRoomWall", Vector3.new(halfX * 2 + 2, height, 2), at(cx, height / 2, cz + side * (halfZ + 1)), METAL)
+		-- Shelves of squishies along the side walls.
+		box(model, "DailyShelf", Vector3.new(12, 0.5, 2), at(cx, 7, cz + side * (halfZ - 0.6)), METAL_DARK, Enum.Material.DiamondPlate)
+		for i = 0, 4 do
+			local colors = { Color3.fromRGB(255, 150, 200), Color3.fromRGB(255, 220, 90), Color3.fromRGB(120, 220, 255), Color3.fromRGB(150, 235, 160), Color3.fromRGB(200, 160, 255) }
+			Kit.part(model, "ShelfSquishy", Vector3.one * 1.6, CFrame.new(at(cx - 4.8 + i * 2.4, 8.05, cz + side * (halfZ - 0.6))), colors[i + 1], { shape = Enum.PartType.Ball, collide = false })
+		end
+	end
+	local lamp = box(model, "DailyRoomLamp", Vector3.new(8, 0.4, 1.2), at(cx, height - 0.3, cz), Color3.fromRGB(220, 255, 220), Enum.Material.Neon)
+	Props.light(lamp, GREEN, 26, 1.2)
+	local signPos = at(cx + halfX + 0.1, 12.5, cz)
+	Props.neonSign(model, "DailySign", Vector3.new(14, 3.5, 0.4), CFrame.lookAt(signPos, signPos + Vector3.new(-1, 0, 0)), "DAILY SQUISHY", GREEN)
+
+	-- The machine: a glass dome with a squishy inside, in the middle of the room.
+	local base = box(model, "DailyBase", Vector3.new(8, 3, 8), at(cx + 1, 1.5, cz), METAL_DARK, Enum.Material.DiamondPlate)
+	Kit.cylinder(model, "DailyBaseGlow", at(cx + 1, 3, cz), 0.3, 8.6, GREEN, { material = Enum.Material.Neon, collide = false, shadow = false })
+	Kit.part(model, "DailyDome", Vector3.new(7.5, 7.5, 7.5), CFrame.new(at(cx + 1, 6.6, cz)), Color3.fromRGB(220, 240, 255), { shape = Enum.PartType.Ball, material = Enum.Material.Glass, transparency = 0.6 })
+	local squishy = Kit.part(model, "DailySquishyToy", Vector3.new(4.2, 4.2, 4.2), CFrame.new(at(cx + 1, 5.2, cz)), Color3.fromRGB(120, 230, 160), { shape = Enum.PartType.Ball, collide = false })
 	Props.light(squishy, GREEN, 12, 1.2)
-	local dailySign = at(37, 15, dailyZ)
-	Props.neonSign(model, "DailySign", Vector3.new(12, 5, 0.5), CFrame.lookAt(dailySign, dailySign + Vector3.new(-1, 0, 0)), "DAILY SQUISHY", GREEN)
 	try("Daily Squishy prompt", function()
 		prompt(base, "DailySquishy", "Open", "Daily Squishy")
 	end)
 	-- "READY!" / "NEXT IN 5h" (each player's own client fills this in).
 	try("Daily Squishy sign", function()
-	local status = Instance.new("BillboardGui")
-	status.Size = UDim2.fromScale(6, 1.5) -- in studs, so it shrinks with distance
-	status.StudsOffset = Vector3.new(0, 7.5, 0)
-	status.MaxDistance = 80
-	status.LightInfluence = 0
-	status.Parent = base
-	local label = Instance.new("TextLabel")
-	label.Name = "DailyStatus"
-	label.BackgroundTransparency = 1
-	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.LuckiestGuy
-	label.TextScaled = true
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextStrokeTransparency = 0.2
-	label.Text = "READY!"
-	label.Parent = status
+		local status = Instance.new("BillboardGui")
+		status.Size = UDim2.fromScale(6, 1.5) -- in studs, so it shrinks with distance
+		status.StudsOffset = Vector3.new(0, 7.5, 0)
+		status.MaxDistance = 80
+		status.LightInfluence = 0
+		status.Parent = base
+		local label = Instance.new("TextLabel")
+		label.Name = "DailyStatus"
+		label.BackgroundTransparency = 1
+		label.Size = UDim2.fromScale(1, 1)
+		label.Font = Enum.Font.LuckiestGuy
+		label.TextScaled = true
+		label.TextColor3 = Color3.new(1, 1, 1)
+		label.TextStrokeTransparency = 0.2
+		label.Text = "READY!"
+		label.Parent = status
 	end)
 
 	-- How-to-play board on the front wall, in the clear space between the
 	-- purple tube and the portal (so no tube hides it).
 	local board = at(-17, 12, -HALL_Z + 0.2)
 	Props.neonSign(model, "HowToPlay", Vector3.new(12, 9, 0.4), CFrame.lookAt(board, board + Vector3.new(0, 0, 1)),
-		"HOW TO PLAY\nPress PLAY, or stand on a pad\nin the hallway to queue\nLeft door: WEAPONS\nRight door: PRACTICE RANGE", Color3.fromRGB(200, 255, 180))
+		"HOW TO PLAY\nPress PLAY, or stand on a pad\nin the hallway to queue\nLeft door: WEAPONS\nRight doors: PRACTICE RANGE\nand DAILY SQUISHY", Color3.fromRGB(200, 255, 180))
 end
 
 -- WEAPONS room behind the left doorway: every gun on a display table with

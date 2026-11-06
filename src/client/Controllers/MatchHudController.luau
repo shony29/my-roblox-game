@@ -2,8 +2,10 @@
 --[[
 	MatchHudController: shows the match state that the server shares.
 
-	  * Score panel (top centre, under the round timer): BLUE 2 – 1 PINK,
-	    with your team marked, and the round number.
+	  * Team bar (top, either side of the round timer): your team's avatars
+	    on the left, the other team's on the right, each with its score.
+	    Eliminated players fade out and turn grey. Bots show as "BOT".
+	    Under the timer: the round number.
 	  * Status line: "Waiting for an opponent..." while queued.
 	  * Big centre text: MATCH FOUND, the 3-2-1 countdown, GO!, who won the
 	    round, and VICTORY / DEFEAT / DRAW at the end.
@@ -70,9 +72,147 @@ function MatchHudController.start()
 	gui.DisplayOrder = 2
 	gui.Parent = player:WaitForChild("PlayerGui")
 
-	local scoreLine = label(gui, "Score", UDim2.fromOffset(420, 30), UDim2.new(0.5, 0, 0, 70), 26)
-	local roundLine = label(gui, "Round", UDim2.fromOffset(420, 20), UDim2.new(0.5, 0, 0, 100), 17)
-	roundLine.TextColor3 = GOLD
+	local scoreLine = label(gui, "Score", UDim2.fromOffset(420, 30), UDim2.new(0.5, 0, 0, 92), 22)
+	local roundLine = label(gui, "Round", UDim2.fromOffset(420, 20), UDim2.new(0.5, 0, 0, 70), 13)
+	roundLine.Font = Enum.Font.Michroma
+	roundLine.TextColor3 = Color3.fromRGB(190, 200, 225)
+
+	-- Team bar: a box of avatar pictures on each side of the timer --------
+	local SCI_PANEL = Color3.fromRGB(16, 20, 32)
+	local AVATAR = 44
+	local function teamBox(name: string, anchorX: number, offsetX: number, color: Color3): (Frame, TextLabel)
+		local box = Instance.new("Frame")
+		box.Name = name
+		box.AnchorPoint = Vector2.new(anchorX, 0)
+		box.Position = UDim2.new(0.5, offsetX, 0, 14)
+		box.Size = UDim2.fromOffset(AVATAR + 16, 52)
+		box.AutomaticSize = Enum.AutomaticSize.X
+		box.BackgroundColor3 = SCI_PANEL
+		box.BackgroundTransparency = 0.1
+		box.Visible = false
+		box.Parent = gui
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 12)
+		corner.Parent = box
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = color
+		stroke.Thickness = 2
+		stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		stroke.Parent = box
+		local padding = Instance.new("UIPadding")
+		padding.PaddingLeft = UDim.new(0, 8)
+		padding.PaddingRight = UDim.new(0, 8)
+		padding.Parent = box
+		local layout = Instance.new("UIListLayout")
+		layout.FillDirection = Enum.FillDirection.Horizontal
+		layout.HorizontalAlignment = if anchorX > 0.5 then Enum.HorizontalAlignment.Right else Enum.HorizontalAlignment.Left
+		layout.VerticalAlignment = Enum.VerticalAlignment.Center
+		layout.SortOrder = Enum.SortOrder.LayoutOrder
+		layout.Padding = UDim.new(0, 6)
+		layout.Parent = box
+		-- The team's score, in big numbers on the outer side of the box.
+		local score = Instance.new("TextLabel")
+		score.Name = "TeamScore"
+		score.LayoutOrder = if anchorX > 0.5 then 0 else 999
+		score.Size = UDim2.fromOffset(34, 44)
+		score.BackgroundTransparency = 1
+		score.Font = Enum.Font.Michroma
+		score.TextSize = 28
+		score.TextColor3 = WHITE
+		score.TextStrokeTransparency = 0.5
+		score.Text = "0"
+		score.Parent = box
+		return box, score
+	end
+	local myBox, myScore = teamBox("MyTeam", 1, -76, Color3.fromRGB(90, 200, 255))
+	local theirBox, theirScore = teamBox("TheirTeam", 0, 76, Color3.fromRGB(255, 90, 110))
+	-- Your team's score sits on the far left of its box, theirs on the far right.
+	myScore.LayoutOrder = -1
+	theirScore.LayoutOrder = 999
+
+	type Member = { key: string, userId: number?, name: string, character: Model? }
+	local shown: { [Frame]: string } = {}
+	local function avatarImage(parent: Frame, member: Member, order: number): ImageLabel
+		local picture = Instance.new("ImageLabel")
+		picture.Name = "Avatar"
+		picture.LayoutOrder = order
+		picture.Size = UDim2.fromOffset(AVATAR, AVATAR)
+		picture.BackgroundColor3 = Color3.fromRGB(40, 46, 66)
+		picture.BackgroundTransparency = 0
+		picture.Image = if member.userId then `rbxthumb://type=AvatarHeadShot&id={member.userId}&w=150&h=150` else ""
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 10)
+		corner.Parent = picture
+		if not member.userId then
+			local bot = Instance.new("TextLabel")
+			bot.BackgroundTransparency = 1
+			bot.Size = UDim2.fromScale(1, 1)
+			bot.Font = Enum.Font.Michroma
+			bot.TextSize = 12
+			bot.TextColor3 = Color3.fromRGB(200, 210, 235)
+			bot.Text = "BOT"
+			bot.Parent = picture
+		end
+		picture.Parent = parent
+		return picture
+	end
+	-- Everyone on `team` (players and bots), in a steady order.
+	local function membersOf(team: TeamId): { Member }
+		local list: { Member } = {}
+		for _, other in Players:GetPlayers() do
+			if MatchState.toTeam(other:GetAttribute(PATTR.Team)) == team and other:GetAttribute("FreeForAll") ~= true then
+				table.insert(list, { key = tostring(other.UserId), userId = other.UserId, name = other.DisplayName, character = other.Character })
+			end
+		end
+		for _, model in workspace:GetChildren() do
+			if model:IsA("Model") and MatchState.toTeam(model:GetAttribute("BotTeam")) == team then
+				table.insert(list, { key = model.Name, userId = nil, name = model.Name, character = model })
+			end
+		end
+		table.sort(list, function(a: Member, b: Member): boolean
+			return a.key < b.key
+		end)
+		return list
+	end
+	local function isAlive(member: Member): boolean
+		local character = member.character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		return humanoid ~= nil and humanoid.Health > 0
+	end
+	local function refreshBox(box: Frame, members: { Member })
+		-- Rebuild the pictures only when the team changes.
+		local keys = {}
+		for _, member in members do
+			table.insert(keys, member.key)
+		end
+		local signature = table.concat(keys, ",")
+		if shown[box] ~= signature then
+			shown[box] = signature
+			for _, child in box:GetChildren() do
+				if child:IsA("ImageLabel") then
+					child:Destroy()
+				end
+			end
+			for index, member in members do
+				local picture = avatarImage(box, member, index)
+				picture:SetAttribute("MemberKey", member.key)
+			end
+		end
+		-- Eliminated players fade out and turn grey.
+		local byKey: { [string]: Member } = {}
+		for _, member in members do
+			byKey[member.key] = member
+		end
+		for _, child in box:GetChildren() do
+			if child:IsA("ImageLabel") then
+				local member = byKey[child:GetAttribute("MemberKey") :: string]
+				local alive = member ~= nil and isAlive(member)
+				child.ImageTransparency = if alive then 0 else 0.6
+				child.ImageColor3 = if alive then WHITE else Color3.fromRGB(120, 120, 130)
+				child.BackgroundTransparency = if alive then 0 else 0.6
+			end
+		end
+	end
 	local status = label(gui, "Status", UDim2.fromOffset(600, 30), UDim2.new(0.5, 0, 0, 130), 22)
 	local big = label(gui, "Big", UDim2.fromOffset(900, 90), UDim2.fromScale(0.5, 0.26), 72)
 	local subtitle = label(gui, "Subtitle", UDim2.fromOffset(900, 34), UDim2.new(0.5, 0, 0.26, 92), 26)
@@ -166,16 +306,22 @@ function MatchHudController.start()
 				else ""
 			scoreLine.Text = `FREE FOR ALL  ·  YOU {if typeof(mine) == "number" then mine else 0}{leaderText}`
 			roundLine.Text = `First to {getNumber(ATTR.EliminationsToWin)} eliminations`
-		elseif inMatch then
-			local blue, pink = MatchState.teamInfo("A"), MatchState.teamInfo("B")
-			local you = if team == "A" then " (you)" else ""
-			local youB = if team == "B" then " (you)" else ""
-			scoreLine.Text = `<font color="{hex(blue.Color)}">{string.upper(blue.Name)}{you}</font>  {getNumber(ATTR.ScoreA)} – {getNumber(ATTR.ScoreB)}  <font color="{hex(pink.Color)}">{string.upper(pink.Name)}{youB}</font>`
-			roundLine.Text = `Round {getNumber(ATTR.Round)} · first to {getNumber(ATTR.RoundsToWin)}`
+		elseif inMatch and team then
+			-- Avatars instead of team names: yours on the left, theirs on the right.
+			local enemy: TeamId = if team == "A" then "B" else "A"
+			scoreLine.Text = ""
+			roundLine.Text = `ROUND {getNumber(ATTR.Round)} · FIRST TO {getNumber(ATTR.RoundsToWin)}`
+			myScore.Text = tostring(getNumber(if team == "A" then ATTR.ScoreA else ATTR.ScoreB))
+			theirScore.Text = tostring(getNumber(if team == "A" then ATTR.ScoreB else ATTR.ScoreA))
+			refreshBox(myBox, membersOf(team))
+			refreshBox(theirBox, membersOf(enemy))
 		else
 			scoreLine.Text = ""
 			roundLine.Text = ""
 		end
+		local showBars = inMatch and team ~= nil and not isFreeForAll()
+		myBox.Visible = showBars
+		theirBox.Visible = showBars
 
 		-- Status line (queue status is shown on the lobby's Play panel instead).
 		status.Text = ""

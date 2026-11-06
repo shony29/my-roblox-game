@@ -159,7 +159,8 @@ shop look jagged. A game can't change this setting, so turn it up yourself:
 1. Press **Play** (F5) at the top of Studio.
 2. The main menu appears. Click **PLAY**: you appear in the **slime bunker** lobby.
 3. Look around: slime tubes, the shop (press **B**, or **SHOP** on the left) and the
-   **DAILY SQUISHY** machine (right, press **E**, then tap the squishy until it bursts).
+   **DAILY SQUISHY** room (the green doorway on the right; press **E** at the machine, then
+   tap the squishy until it bursts).
    Prizes can be items (sometimes one you already own) or **gun upgrades**
    (red → orange → yellow → green → blue → purple; upgrades change your gun's colour,
    not its damage).
@@ -200,7 +201,9 @@ platforms with ramps, a big piece in the middle) and **grow with the number of p
 smallest for 1v1, bigger for 2v2 and 4v4, biggest for Free For All (which also gets
 spawn pads all around).
 
-In matches: hits show **damage numbers** (yellow for headshots, red for the final hit),
+In matches: the top shows **your team's avatars** on the left and the other team's on
+the right (with each team's score) either side of the timer; eliminated players fade
+and turn grey. Hits show **damage numbers** (yellow for headshots, red for the final hit),
 and your eliminations show **ELIMINATED <name>** at the bottom of the screen.
 
 ### The shop
