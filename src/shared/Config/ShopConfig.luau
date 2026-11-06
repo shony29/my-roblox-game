@@ -215,7 +215,7 @@ ShopConfig.Hats = {
 	{ Id = "Squishy_JellyCubeBlue", DisplayName = "Blue Jelly Cube", Price = 80, Shape = "JellyCube", MainColor = rgb(70, 190, 245), AccentColor = rgb(255, 255, 255) },
 	{ Id = "Squishy_JellyCubePink", DisplayName = "Pink Jelly Cube", Price = 80, Shape = "JellyCube", MainColor = rgb(255, 110, 190), AccentColor = rgb(255, 255, 255) },
 	{ Id = "Squishy_Donut", DisplayName = "Donut Squishy", Price = 70, Shape = "Donut", MainColor = rgb(255, 150, 200), AccentColor = rgb(215, 160, 100) },
-	{ Id = "Squishy_Cake", DisplayName = "Cake Slice", Price = 90, Shape = "CakeSlice", MainColor = rgb(255, 252, 245), AccentColor = rgb(255, 230, 190) },
+	{ Id = "Squishy_Cake", DisplayName = "Layer Cake", Price = 90, Shape = "CakeSlice", MainColor = rgb(255, 252, 245), AccentColor = rgb(255, 230, 190) },
 	{ Id = "Squishy_IceCream", DisplayName = "Ice Cream Cone", Price = 90, Shape = "IceCream", MainColor = rgb(150, 235, 200), AccentColor = rgb(220, 165, 95) },
 	{ Id = "Squishy_Popcorn", DisplayName = "Popcorn Bucket", Price = 100, Shape = "Popcorn", MainColor = rgb(230, 50, 60), AccentColor = rgb(255, 255, 255) },
 } :: { HatItem }

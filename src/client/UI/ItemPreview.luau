@@ -2,12 +2,14 @@
 --[[
 	ItemPreview
 	===========
-	The little pictures on each shop card:
-	  * Colors: a flat round blob face in that color.
-	  * Hats:   a tiny 3D blob wearing the hat (in a ViewportFrame).
-	  * Skins:  a tiny 3D gun painted with the skin.
-	Hats and skins use the exact same building code as the real game
-	(Shared/Shop/HatBuilder and WeaponSkins), so what you see is what you get.
+	The little 3D pictures on each shop card:
+	  * Colors:     the real jelly slime, painted in that colour.
+	  * Squishies:  the slime (in your colour) wearing the squishy.
+	  * Skins:      a gun painted with the skin.
+	The slime comes from Shared/Cosmetics/BlobLook (the same shape as the
+	real character) and the squishies and skins use the exact same
+	building code as the game (HatBuilder and WeaponSkins), so what you
+	see is what you get.
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -16,67 +18,13 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local ShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("ShopConfig"))
 local HatBuilder = require(Shared:WaitForChild("Cosmetics"):WaitForChild("HatBuilder"))
 local WeaponSkins = require(Shared:WaitForChild("Cosmetics"):WaitForChild("WeaponSkins"))
+local BlobLook = require(Shared:WaitForChild("Cosmetics"):WaitForChild("BlobLook"))
 local WeaponConfig = require(Shared:WaitForChild("Config"):WaitForChild("WeaponConfig"))
 local MovementConfig = require(Shared:WaitForChild("Config"):WaitForChild("MovementConfig"))
 
-local INK = Color3.fromRGB(35, 40, 60)
 local TRIM_COLOR = Color3.fromRGB(45, 45, 55) -- matches Server/Weapons/GunModel
 
 local ItemPreview = {}
-
-local function round(parent: GuiObject)
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(1, 0)
-	corner.Parent = parent
-end
-
--- A flat blob face: a colored circle with two googly eyes.
-function ItemPreview.color(parent: GuiObject, item: ShopConfig.ColorItem)
-	local blob = Instance.new("Frame")
-	blob.Name = "Swatch"
-	blob.AnchorPoint = Vector2.new(0.5, 0.5)
-	blob.Position = UDim2.fromScale(0.5, 0.55)
-	blob.Size = UDim2.fromOffset(84, 74)
-	blob.BackgroundColor3 = item.Color
-	blob.BorderSizePixel = 0
-	round(blob)
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = INK
-	stroke.Thickness = 3
-	stroke.Parent = blob
-	if item.Material == Enum.Material.Neon or item.Reflectance > 0 then
-		-- A soft shine so glowing and shiny colors stand out.
-		local gradient = Instance.new("UIGradient")
-		gradient.Rotation = -45
-		gradient.Color = ColorSequence.new(Color3.new(1, 1, 1), item.Color)
-		gradient.Transparency = NumberSequence.new(0, 0)
-		gradient.Offset = Vector2.new(-0.4, -0.4)
-		gradient.Parent = blob
-	end
-	blob.Parent = parent
-
-	for _, side in { -1, 1 } do
-		local eye = Instance.new("Frame")
-		eye.Name = "Eye"
-		eye.AnchorPoint = Vector2.new(0.5, 0.5)
-		eye.Position = UDim2.new(0.5, side * 16, 0.4, 0)
-		eye.Size = UDim2.fromOffset(22, 22)
-		eye.BackgroundColor3 = Color3.new(1, 1, 1)
-		eye.BorderSizePixel = 0
-		round(eye)
-		eye.Parent = blob
-
-		local pupil = Instance.new("Frame")
-		pupil.Name = "Pupil"
-		pupil.AnchorPoint = Vector2.new(0.5, 0.5)
-		pupil.Position = UDim2.fromScale(0.5, 0.6)
-		pupil.Size = UDim2.fromOffset(11, 11)
-		pupil.BackgroundColor3 = INK
-		pupil.BorderSizePixel = 0
-		round(pupil)
-		pupil.Parent = eye
-	end
-end
 
 local function makeViewport(parent: GuiObject, cameraCFrame: CFrame, fieldOfView: number): ViewportFrame
 	local viewport = Instance.new("ViewportFrame")
@@ -108,28 +56,25 @@ local function previewPart(name: string, size: Vector3, color: Color3, cframe: C
 	return part
 end
 
+-- The real jelly slime in this colour (shine, glow and all).
+function ItemPreview.color(parent: GuiObject, item: ShopConfig.ColorItem)
+	local viewport = makeViewport(parent, CFrame.lookAt(Vector3.new(2.4, 3.4, -8.2), Vector3.new(0, 1.9, 0)), 40)
+	local blob = BlobLook.build(item.Color, item.Material, item.Reflectance)
+	blob.Parent = viewport
+end
+
 --[[
-	A small blob wearing `hat`. Returns a function that recolors the blob,
-	so the preview can match the player's equipped color.
+	The slime wearing `hat`. Returns a function that recolours the slime,
+	so the picture can match the player's equipped colour.
 ]]
 function ItemPreview.hat(parent: GuiObject, hat: ShopConfig.HatItem, blobColor: Color3): (Color3) -> ()
-	local viewport = makeViewport(parent, CFrame.lookAt(Vector3.new(3, 3.2, -8.6), Vector3.new(0, 1.2, 0)), 40)
+	local viewport = makeViewport(parent, CFrame.lookAt(Vector3.new(2.6, 5.6, -9.2), Vector3.new(0, 4, 0)), 40)
+	local blob = BlobLook.build(blobColor)
+	blob.Parent = viewport
 
-	local bodySize = MovementConfig.BlobBodySize
-	local body = previewPart("Body", bodySize, blobColor, CFrame.new(), viewport)
-	local mesh = Instance.new("SpecialMesh")
-	mesh.MeshType = Enum.MeshType.Sphere
-	mesh.Parent = body
-
-	for _, side in { -1, 1 } do
-		local eye =
-			previewPart("Eye", Vector3.one * 1.1, Color3.new(1, 1, 1), CFrame.new(side * 0.75, 0.45, -1.75), viewport)
-		eye.Shape = Enum.PartType.Ball
-		local pupil = previewPart("Pupil", Vector3.one * 0.55, INK, CFrame.new(side * 0.75, 0.4, -2.1), viewport)
-		pupil.Shape = Enum.PartType.Ball
-	end
-
-	local model = HatBuilder.build(hat, CFrame.new(), bodySize)
+	-- Placed exactly like the real game: on top of the slime's hitbox.
+	local hitbox = MovementConfig.BlobHitboxSize
+	local model = HatBuilder.build(hat, CFrame.new(0, hitbox.Y / 2, 0), hitbox)
 	if model then
 		for _, part in model:GetDescendants() do
 			if part:IsA("BasePart") then
@@ -140,7 +85,7 @@ function ItemPreview.hat(parent: GuiObject, hat: ShopConfig.HatItem, blobColor: 
 	end
 
 	return function(color: Color3)
-		body.Color = color
+		BlobLook.recolor(blob, color)
 	end
 end
 
