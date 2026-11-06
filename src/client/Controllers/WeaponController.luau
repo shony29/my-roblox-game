@@ -31,6 +31,7 @@ local Hud = require(ClientFolder:WaitForChild("UI"):WaitForChild("WeaponHud"))
 local ViewmodelController = require(script.Parent:WaitForChild("ViewmodelController"))
 local CameraController = require(script.Parent:WaitForChild("CameraController"))
 local ShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("ShopConfig"))
+local Net = require(Shared:WaitForChild("Net"):WaitForChild("Net"))
 
 -- Your loadout: the guns you own, in WeaponConfig.Order. The server checks
 -- this too; this list is only for the keys, mouse wheel and slot bar.
@@ -84,6 +85,8 @@ local lastFireTime = 0
 local equipTime = 0
 local triggerHeld = false
 local lastDryFireAt = 0
+local lastHitPosition: Vector3? = nil -- where our last local shot hit someone (damage numbers)
+local lastHitAt = 0
 
 for id, stats in WeaponConfig.Weapons do
 	ammo[id] = stats.MagazineSize
@@ -238,6 +241,12 @@ local function tryFire()
 			local pelletDirection = WeaponMath.applySpread(direction, stats.Spread, rng)
 			local result = workspace:Raycast(origin, pelletDirection * stats.MaxRange, params)
 			local endPoint = if result then result.Position else origin + pelletDirection * stats.MaxRange
+			if result then
+				local model = result.Instance:FindFirstAncestorOfClass("Model")
+				if model and model:FindFirstChildOfClass("Humanoid") then
+					lastHitPosition, lastHitAt = result.Position, os.clock()
+				end
+			end
 			local splash = stats.Splash
 			if splash then
 				-- Launcher: a glowing glob flies, then splashes where it lands.
@@ -286,9 +295,87 @@ local function onState(weaponIdRaw: unknown, ammoRaw: unknown, reloadingRaw: unk
 end
 
 -- Server says: your shot hit someone.
-local function onHitConfirm(_damage: unknown, killedRaw: unknown, headshotRaw: unknown)
+-- A damage number that pops up where you hit someone, rises and fades.
+-- (Sized in studs like the game's other floating text.)
+local function damageNumber(position: Vector3, amount: number, headshot: boolean, killed: boolean)
+	local holder = Instance.new("Attachment")
+	holder.Position = position -- Terrain sits at the world origin
+	holder.Parent = workspace.Terrain
+	local billboard = Instance.new("BillboardGui")
+	billboard.Size = UDim2.fromScale(3.2, 1.6)
+	billboard.StudsOffset = Vector3.new(math.random(-6, 6) / 10, 1, 0)
+	billboard.AlwaysOnTop = true
+	billboard.LightInfluence = 0
+	billboard.MaxDistance = 250
+	billboard.Parent = holder
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = Enum.Font.LuckiestGuy
+	label.TextScaled = true
+	label.TextColor3 = if killed then Color3.fromRGB(255, 70, 90)
+		elseif headshot then Color3.fromRGB(255, 215, 70)
+		else Color3.fromRGB(255, 255, 255)
+	label.TextStrokeTransparency = 0.2
+	label.Text = tostring(amount)
+	label.Parent = billboard
+	local tweenService = game:GetService("TweenService")
+	tweenService:Create(billboard, TweenInfo.new(0.7, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { StudsOffset = billboard.StudsOffset + Vector3.new(0, 2.2, 0) }):Play()
+	task.delay(0.35, function()
+		tweenService:Create(label, TweenInfo.new(0.35), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+	end)
+	task.delay(0.75, function()
+		holder:Destroy()
+	end)
+end
+
+-- "ELIMINATED <name>" at the bottom of the screen when you knock someone out.
+local eliminatedLabel: TextLabel? = nil
+local eliminatedToken = 0
+local function showEliminated(victimName: string)
+	local label = eliminatedLabel
+	if not label then
+		local gui = Instance.new("ScreenGui")
+		gui.Name = "EliminatedBanner"
+		gui.ResetOnSpawn = false
+		gui.IgnoreGuiInset = true
+		gui.DisplayOrder = 6
+		gui.Parent = localPlayer:WaitForChild("PlayerGui")
+		local newLabel = Instance.new("TextLabel")
+		newLabel.Name = "Eliminated"
+		newLabel.AnchorPoint = Vector2.new(0.5, 1)
+		newLabel.Position = UDim2.new(0.5, 0, 1, -170)
+		newLabel.Size = UDim2.fromOffset(520, 40)
+		newLabel.BackgroundTransparency = 1
+		newLabel.Font = Enum.Font.GothamBold
+		newLabel.TextSize = 26
+		newLabel.RichText = true
+		newLabel.TextColor3 = Color3.fromRGB(235, 240, 255)
+		newLabel.TextStrokeTransparency = 0.4
+		newLabel.Parent = gui
+		eliminatedLabel = newLabel
+		label = newLabel
+	end
+	local shown = label :: TextLabel
+	shown.Text = `ELIMINATED <font color="#FF5A6E">{victimName}</font>`
+	shown.TextTransparency = 0
+	shown.TextStrokeTransparency = 0.4
+	eliminatedToken += 1
+	local myToken = eliminatedToken
+	task.delay(1.6, function()
+		if eliminatedToken == myToken then
+			game:GetService("TweenService"):Create(shown, TweenInfo.new(0.3), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+		end
+	end)
+end
+
+local function onHitConfirm(damageRaw: unknown, killedRaw: unknown, headshotRaw: unknown)
 	local killed = killedRaw == true
 	local headshot = headshotRaw == true
+	local hitPosition = lastHitPosition
+	if typeof(damageRaw) == "number" and damageRaw > 0 and hitPosition and os.clock() - lastHitAt < 0.8 then
+		damageNumber(hitPosition, math.round(damageRaw), headshot, killed)
+	end
 	Hud.showHitmarker(UserInputService:GetMouseLocation(), killed, headshot)
 	local pitch = if killed then 1.35 elseif headshot then 1.15 else 1
 	Effects.playSound(WeaponConfig.HitSoundId, if killed then 0.9 else 0.7, pitch)
@@ -355,6 +442,12 @@ local WeaponController = {}
 function WeaponController.start()
 	remotes.State.OnClientEvent:Connect(onState)
 	remotes.HitConfirm.OnClientEvent:Connect(onHitConfirm)
+	-- Your eliminations get a big "ELIMINATED <name>" (the kill feed tells everyone).
+	Net.event("KillFeed").OnClientEvent:Connect(function(killerName: unknown, victimName: unknown)
+		if killerName == localPlayer.DisplayName and typeof(victimName) == "string" then
+			showEliminated(string.sub(victimName, 1, 24))
+		end
+	end)
 	remotes.ShotFx.OnClientEvent:Connect(onShotFx)
 
 	UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)

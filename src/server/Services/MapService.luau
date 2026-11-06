@@ -15,20 +15,26 @@ local SpawnService = require(script.Parent.SpawnService)
 local AmmoService = require(script.Parent.AmmoService)
 
 type Built = { model: Model, spawnPoints: { BasePart }, ammoSpots: { Vector3 }? }
-type Builder = { build: () -> Built }
+-- Builders get the size (1 = a 1v1), the theme and whether it's free for all;
+-- builders that don't need them just ignore them.
+type Builder = { build: (scale: number?, theme: string?, freeForAll: boolean?) -> Built }
 
 local MapService = {}
 
 local loadedId: string? = nil
+local loadedKey: string? = nil -- the map plus its size, so a different size rebuilds it
 local loadedModel: Model? = nil
 
 function MapService.currentId(): string?
 	return loadedId
 end
 
--- Builds the map (if it isn't already loaded). Returns true on success.
-function MapService.load(mapId: string): boolean
-	if loadedId == mapId and loadedModel and loadedModel.Parent then
+-- Builds the map (if it isn't already loaded at this size). `scale` makes
+-- themed arenas bigger for more players (Config/MapConfig.scaleFor), and
+-- free for all adds spawn pads all around. Returns true on success.
+function MapService.load(mapId: string, scale: number?, freeForAll: boolean?): boolean
+	local key = `{mapId}|{scale or 1}|{freeForAll == true}`
+	if loadedKey == key and loadedModel and loadedModel.Parent then
 		return true
 	end
 	local info = MapConfig.get(mapId)
@@ -38,7 +44,7 @@ function MapService.load(mapId: string): boolean
 		return false
 	end
 	local builder = (require :: any)(builderModule) :: Builder
-	local ok, result = pcall(builder.build)
+	local ok, result = pcall(builder.build, scale or 1, info.Theme, freeForAll == true)
 	if not ok then
 		warn(`[MapService] Building {mapId} failed: {result}`)
 		return false
@@ -48,6 +54,7 @@ function MapService.load(mapId: string): boolean
 		loadedModel:Destroy()
 	end
 	loadedId = mapId
+	loadedKey = key
 	loadedModel = built.model
 	SpawnService.init(built.spawnPoints)
 	AmmoService.setSpots(built.ammoSpots or {}) -- slime ammo balls

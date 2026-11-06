@@ -610,12 +610,17 @@ local function runMatch(match: Match, players: { Player })
 		mapId = VoteService.run(stateFolder, match.participants, options, MapConfig.VoteTime)
 	end
 	stateFolder:SetAttribute(ATTR.MapId, mapId)
-	if mapId ~= MapService.currentId() then
-		setState("Loading")
-		if not MapService.load(mapId) then
-			MapService.load(MapConfig.Default) -- fall back to a map we know works
-			stateFolder:SetAttribute(ATTR.MapId, MapConfig.Default)
-		end
+	-- Themed arenas are sized for the number of players (1v1 small ... free for all big).
+	local playerCount = #players
+	if match.withBots then
+		playerCount = match.mode.TeamSize * match.mode.TeamCount -- bots fill the places
+	end
+	local scale = MapConfig.scaleFor(playerCount)
+	local freeForAll = match.mode.FreeForAll == true
+	setState("Loading")
+	if not MapService.load(mapId, scale, freeForAll) then
+		MapService.load(MapConfig.Default) -- fall back to a map we know works
+		stateFolder:SetAttribute(ATTR.MapId, MapConfig.Default)
 	end
 
 	local ffaWinner: Player? = nil

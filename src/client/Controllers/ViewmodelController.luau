@@ -126,6 +126,25 @@ local function buildGun(): Model?
 		hand.CastShadow = false
 		hand.CFrame = grip.CFrame * CFrame.new(0, -0.05, 0.05)
 		hand.Parent = gun
+		-- A jelly arm reaching back to the bottom-right corner of the screen,
+		-- so it looks like your slime is really holding the gun.
+		local armCenter = hand.Position + Vector3.new(0.35, -0.65, 1.5)
+		local arm = Instance.new("Part")
+		arm.Name = "SlimeArm"
+		arm.Size = Vector3.new(0.8, 0.8, 3.4)
+		arm.CFrame = CFrame.lookAt(armCenter, armCenter + Vector3.new(0.3, -0.45, 1))
+		arm.Color = blobColor()
+		arm.Material = Enum.Material.SmoothPlastic
+		arm.Transparency = 0.1
+		arm.Anchored = true
+		arm.CanCollide = false
+		arm.CanQuery = false
+		arm.CanTouch = false
+		arm.CastShadow = false
+		local mesh = Instance.new("SpecialMesh")
+		mesh.MeshType = Enum.MeshType.Sphere
+		mesh.Parent = arm
+		arm.Parent = gun
 	end
 	return gun
 end
@@ -159,7 +178,8 @@ local function refresh()
 	if body and body:IsA("BasePart") then
 		rear = 0
 		for _, part in gun:GetDescendants() do
-			if part:IsA("BasePart") then
+			-- (The arm reaches toward the camera on purpose, so it doesn't count.)
+			if part:IsA("BasePart") and part.Name ~= "SlimeArm" then
 				rear = math.max(rear, body.CFrame:PointToObjectSpace(part.Position).Z + part.Size.Magnitude / 2)
 			end
 		end

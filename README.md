@@ -189,6 +189,19 @@ shop look jagged. A game can't change this setting, so turn it up yourself:
    Squishy being ready). A small number on a button means something new.
 10. Above every player's head: their **level** and **win streak** (matches won in a row).
 
+### The maps
+
+Players vote between three maps before each match. Besides **Jelly Arena** and
+**Mossy Keep** there are eight themed arenas: **Astro Station**, **Chef's Kitchen**,
+**Cozy Fireplace**, **Ant Farm**, **Coral Reef**, **Ice Castle**, **Candy Land** and
+**Bounce House**. They all share one fair, mirrored layout (three lanes, raised
+platforms with ramps, a big piece in the middle) and **grow with the number of players**:
+smallest for 1v1, bigger for 2v2 and 4v4, biggest for Free For All (which also gets
+spawn pads all around).
+
+In matches: hits show **damage numbers** (yellow for headshots, red for the final hit),
+and your eliminations show **ELIMINATED <name>** at the bottom of the screen.
+
 ### The shop
 
 - Every tab has items of all five rarities, in order: **Common, Uncommon, Rare, Epic,
