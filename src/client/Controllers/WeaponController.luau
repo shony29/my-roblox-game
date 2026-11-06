@@ -26,6 +26,7 @@ local WeaponRemotes = require(Shared:WaitForChild("Net"):WaitForChild("WeaponRem
 local HitGroups = require(Shared:WaitForChild("Combat"):WaitForChild("HitGroups"))
 local ClientFolder = script.Parent.Parent
 local Effects = require(ClientFolder:WaitForChild("Effects"):WaitForChild("WeaponEffects"))
+local ToppingEffects = require(ClientFolder:WaitForChild("Effects"):WaitForChild("ToppingEffects"))
 local Hud = require(ClientFolder:WaitForChild("UI"):WaitForChild("WeaponHud"))
 local ViewmodelController = require(script.Parent:WaitForChild("ViewmodelController"))
 local CameraController = require(script.Parent:WaitForChild("CameraController"))
@@ -100,6 +101,23 @@ local function getAliveCharacter(): (Model?, BasePart?)
 		return nil, nil
 	end
 	return character, head :: BasePart
+end
+
+-- A shooter's topping and slime colour, for the topping bits that fly out
+-- of their gun (Effects/ToppingEffects.shot).
+local function toppingOf(shooter: Player): (string?, Color3)
+	local topping = shooter:GetAttribute("EquippedTopping")
+	local color = shooter:GetAttribute("BlobColor")
+	return if typeof(topping) == "string" then topping else nil,
+		if typeof(color) == "Color3" then color else Color3.fromRGB(120, 230, 160)
+end
+
+-- How many topping bits fly with each bullet (fewer for shotguns and on Low graphics).
+local function toppingBits(pellets: number): number
+	if localPlayer:GetAttribute("GraphicsQuality") == "Low" then
+		return 1
+	end
+	return if pellets > 1 then 1 else 3
 end
 
 -- Where the gun's tip is. Falls back to the head if the gun isn't there yet.
@@ -203,12 +221,18 @@ local function tryFire()
 	ViewmodelController.kick(stats.RecoilKick)
 
 	-- Show the shot right away (our best guess; the server has the final say).
-	-- In first person, tracers start at the tip of the gun you can see.
-	local muzzle = ViewmodelController.getMuzzlePosition() or getMuzzlePosition(character, origin)
-	Effects.muzzleFlash(muzzle, stats.TracerColor)
+	-- The flash and tracers start at the tip of the gun you can see, never
+	-- at your face (in first person your real gun sits right at the camera).
+	local camera = workspace.CurrentCamera
+	local firstPerson = camera ~= nil and (camera.CFrame.Position - camera.Focus.Position).Magnitude < 1
+	local muzzle = ViewmodelController.getMuzzlePosition()
+		or (if firstPerson and camera then (camera.CFrame * CFrame.new(1.1, -0.9, -3.2)).Position else nil)
+		or getMuzzlePosition(character, origin)
+	Effects.muzzleFlash(muzzle, stats.TracerColor, if firstPerson then 0.55 else 1)
 	Effects.playSound(stats.FireSoundId, 0.6, 1)
 
 	local params = HitGroups.weaponRayParams({ character, Effects.folder })
+	local myTopping, mySlimeColor = toppingOf(localPlayer)
 	local function drawRound()
 		for _ = 1, stats.Pellets do
 			local pelletDirection = WeaponMath.applySpread(direction, stats.Spread, rng)
@@ -224,6 +248,8 @@ local function tryFire()
 					Effects.impact(endPoint)
 				end
 			end
+			-- Your topping flies out of the gun with the shot.
+			ToppingEffects.shot(muzzle, endPoint, myTopping, mySlimeColor, toppingBits(stats.Pellets))
 		end
 	end
 	drawRound()
@@ -283,11 +309,17 @@ local function onShotFx(shooterRaw: unknown, weaponIdRaw: unknown, originRaw: un
 	local origin = originRaw :: Vector3
 	local shooter = shooterRaw :: Instance
 	local start = origin
+	local topping: string?, slimeColor = nil, Color3.fromRGB(120, 230, 160)
 	if shooter:IsA("Player") then
 		local shooterCharacter = shooter.Character
 		if shooterCharacter then
 			start = getMuzzlePosition(shooterCharacter, origin)
 		end
+		topping, slimeColor = toppingOf(shooter)
+	end
+	local endCount = 0
+	for _ in endPointsRaw :: { any } do
+		endCount += 1
 	end
 
 	Effects.muzzleFlash(start, stats.TracerColor)
@@ -300,6 +332,8 @@ local function onShotFx(shooterRaw: unknown, weaponIdRaw: unknown, originRaw: un
 			else
 				Effects.tracer(start, point, stats.TracerColor, stats.TracerWidth)
 			end
+			-- Their topping flies out of their gun too.
+			ToppingEffects.shot(start, point, topping, slimeColor, if endCount > 1 then 1 else 2)
 		end
 	end
 end

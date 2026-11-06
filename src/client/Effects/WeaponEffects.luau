@@ -46,20 +46,22 @@ local Effects = {}
 
 Effects.folder = fxFolder
 
--- A quick bright pop at the gun's tip.
-function Effects.muzzleFlash(position: Vector3, color: Color3)
-	local flash = makeFxPart(Vector3.new(0.7, 0.7, 0.7), color)
+-- A quick bright pop at the gun's tip. `scale` makes it smaller for your
+-- own gun in first person (it's close to the camera).
+function Effects.muzzleFlash(position: Vector3, color: Color3, scale: number?)
+	local size = scale or 1
+	local flash = makeFxPart(Vector3.one * 0.7 * size, color:Lerp(Color3.new(1, 1, 1), 0.35))
 	flash.Shape = Enum.PartType.Ball
 	flash.Position = position
 
 	local light = Instance.new("PointLight")
 	light.Color = color
-	light.Brightness = 4
-	light.Range = 10
+	light.Brightness = 4 * size
+	light.Range = 10 * size
 	light.Parent = flash
 
 	flash.Parent = fxFolder
-	fadeAndDestroy(flash, FLASH_TIME, Vector3.new(1.2, 1.2, 1.2))
+	fadeAndDestroy(flash, FLASH_TIME, Vector3.one * 1.2 * size)
 end
 
 -- A thin glowing line from the gun to where the bullet landed, which fades fast.

@@ -7,14 +7,18 @@
 	show a copy of it in front of the camera, held by a little slime hand.
 
 	How it works:
-	  * We watch your character for the server's gun model ("EquippedGun").
-	    Whenever it changes (new weapon, new shop skin), we copy it.
-	  * The copy lives inside the camera, so only you see it, and it is
-	    purely visual: shots are decided by WeaponController and the server.
+	  * While the server gives you a gun (an "EquippedGun" on your
+	    character), we BUILD our own copy here with the same shared code
+	    (Cosmetics/GunBuilder, WeaponSkins and GunUpgrade), from your
+	    EquippedWeapon, EquippedSkin and GunLevels. Building it ourselves
+	    means it is always complete: copying the server's model could
+	    catch it while its pieces were still arriving (a lone big block).
+	  * It lives inside the camera, so only you see it, and it is purely
+	    visual: shots are decided by WeaponController and the server.
 	  * Every frame we place it at a fixed spot in front of the camera,
 	    with a gentle sway when you turn and a small bob when you move.
-	  * The copy keeps the "Muzzle" attachment, so your tracers start at
-	    the tip of the gun you see.
+	  * It has a "Muzzle" attachment, so your muzzle flash and tracers
+	    start at the tip of the gun you see (never at your face).
 ]]
 
 local Players = game:GetService("Players")
@@ -23,8 +27,14 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
-local MovementConfig =
-	require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("MovementConfig"))
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local MovementConfig = require(Shared:WaitForChild("Config"):WaitForChild("MovementConfig"))
+local WeaponConfig = require(Shared:WaitForChild("Config"):WaitForChild("WeaponConfig"))
+local ShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("ShopConfig"))
+local UpgradeConfig = require(Shared:WaitForChild("Config"):WaitForChild("UpgradeConfig"))
+local GunBuilder = require(Shared:WaitForChild("Cosmetics"):WaitForChild("GunBuilder"))
+local WeaponSkins = require(Shared:WaitForChild("Cosmetics"):WaitForChild("WeaponSkins"))
+local GunUpgrade = require(Shared:WaitForChild("Cosmetics"):WaitForChild("GunUpgrade"))
 
 local GUN_NAME = "EquippedGun" -- made by server/Components/GunModel
 local VIEWMODEL_NAME = "Viewmodel"
@@ -72,34 +82,35 @@ end
 -- Moves the gun forward so its back end (the stock) sits at HOLD_OFFSET
 -- (long guns like the sniper then never poke into the camera).
 local holdShift = CFrame.new()
-local gunChanged: RBXScriptConnection? = nil
+local holding = false -- true while the server gives you a gun (matches, practice range)
+local builtKey = "" -- what the current copy shows (weapon, skin, level)
 
--- Copies the server's gun into the camera, plus a slime hand on the grip.
-local function rebuild(gun: Instance)
-	destroyViewmodel()
-	if gunChanged then
-		gunChanged:Disconnect()
-		gunChanged = nil
+-- Builds the gun you're holding, exactly like the server's, plus a slime hand.
+local function buildGun(): Model?
+	local weaponId = player:GetAttribute("EquippedWeapon")
+	local stats = if typeof(weaponId) == "string" then WeaponConfig.get(weaponId) else nil
+	if not stats then
+		return nil
 	end
-	if not gun:IsA("Model") then
-		return
-	end
-	local copy = gun:Clone()
-	copy.Name = VIEWMODEL_NAME
-	for _, descendant in copy:GetDescendants() do
-		if descendant:IsA("WeldConstraint") or descendant:IsA("Weld") then
-			descendant:Destroy() -- the copy is moved by hand, not welded to the blob
-		elseif descendant:IsA("BasePart") then
-			descendant.Anchored = true
-			descendant.CanCollide = false
-			descendant.CanQuery = false
-			descendant.CanTouch = false
-			descendant.CastShadow = false
+	local gun = GunBuilder.build(stats, CFrame.new(), { anchored = true })
+	local skinId = player:GetAttribute("EquippedSkin")
+	WeaponSkins.apply(gun, ShopConfig.getSkin(if typeof(skinId) == "string" then skinId else nil))
+	GunUpgrade.apply(gun, UpgradeConfig.parse(player:GetAttribute("GunLevels"))[stats.Id] or 0)
+	gun.Name = VIEWMODEL_NAME
+	for _, part in gun:GetDescendants() do
+		if part:IsA("WeldConstraint") or part:IsA("Weld") then
+			part:Destroy() -- moved by hand every frame, not welded to anything
+		elseif part:IsA("BasePart") then
+			part.Anchored = true
+			part.CanCollide = false
+			part.CanQuery = false
+			part.CanTouch = false
+			part.CastShadow = false
 		end
 	end
 
 	-- A soft jelly "hand" gripping the gun, in your blob's colour.
-	local grip = copy:FindFirstChild("Grip")
+	local grip = gun:FindFirstChild("Grip")
 	if grip and grip:IsA("BasePart") then
 		local hand = Instance.new("Part")
 		hand.Name = "SlimeHand"
@@ -114,20 +125,40 @@ local function rebuild(gun: Instance)
 		hand.CanTouch = false
 		hand.CastShadow = false
 		hand.CFrame = grip.CFrame * CFrame.new(0, -0.05, 0.05)
-		hand.Parent = copy
+		hand.Parent = gun
 	end
+	return gun
+end
+
+-- Makes (or removes) the copy so it matches what you hold right now.
+local function refresh()
+	if not holding then
+		builtKey = ""
+		destroyViewmodel()
+		return
+	end
+	local key = `{player:GetAttribute("EquippedWeapon")}|{player:GetAttribute("EquippedSkin")}|{player:GetAttribute("GunLevels")}`
+	if key == builtKey and viewmodel then
+		return
+	end
+	local gun = buildGun()
+	if not gun then
+		return
+	end
+	destroyViewmodel()
+	builtKey = key
 
 	-- Bigger in first person, so the gun and its skin are clear to see.
 	pcall(function()
-		copy:ScaleTo(VIEWMODEL_SCALE)
+		gun:ScaleTo(VIEWMODEL_SCALE)
 	end)
 	-- How far the gun reaches back from its main block (stocks included),
 	-- so the whole gun stays in front of the camera.
-	local body = copy.PrimaryPart or copy:FindFirstChild("Body")
+	local body = gun.PrimaryPart or gun:FindFirstChild("Body")
 	local rear = 1
 	if body and body:IsA("BasePart") then
 		rear = 0
-		for _, part in copy:GetDescendants() do
+		for _, part in gun:GetDescendants() do
 			if part:IsA("BasePart") then
 				rear = math.max(rear, body.CFrame:PointToObjectSpace(part.Position).Z + part.Size.Magnitude / 2)
 			end
@@ -135,39 +166,25 @@ local function rebuild(gun: Instance)
 	end
 	holdShift = CFrame.new(0, 0, -rear + 0.5)
 
-	copy.Parent = Workspace.CurrentCamera
-	viewmodel = copy
+	gun.Parent = Workspace.CurrentCamera
+	viewmodel = gun
 	equipStartedAt = os.clock() -- play the "raise into view" animation
-
-	-- A new skin or upgrade colour on the gun you're holding: copy it again.
-	gunChanged = gun.AttributeChanged:Connect(function()
-		task.defer(function()
-			if gun.Parent and gun.Parent == player.Character then
-				rebuild(gun)
-			end
-		end)
-	end)
 end
 
 local function watchCharacter(character: Model)
-	destroyViewmodel()
-	local existing = character:FindFirstChild(GUN_NAME)
-	if existing then
-		rebuild(existing)
-	end
+	holding = character:FindFirstChild(GUN_NAME) ~= nil
+	builtKey = ""
+	refresh()
 	character.ChildAdded:Connect(function(child: Instance)
 		if child.Name == GUN_NAME then
-			-- Wait a frame so all of the gun's parts have arrived.
-			task.defer(function()
-				if child.Parent == character then
-					rebuild(child)
-				end
-			end)
+			holding = true
+			refresh()
 		end
 	end)
 	character.ChildRemoved:Connect(function(child: Instance)
 		if child.Name == GUN_NAME and character:FindFirstChild(GUN_NAME) == nil then
-			destroyViewmodel()
+			holding = false
+			refresh()
 		end
 	end)
 end
@@ -249,7 +266,14 @@ function ViewmodelController.start()
 	started = true
 
 	player.CharacterAdded:Connect(watchCharacter)
-	player.CharacterRemoving:Connect(destroyViewmodel)
+	player.CharacterRemoving:Connect(function()
+		holding = false
+		refresh()
+	end)
+	-- A new gun, skin or upgrade colour: build the copy again.
+	for _, attribute in { "EquippedWeapon", "EquippedSkin", "GunLevels" } do
+		player:GetAttributeChangedSignal(attribute):Connect(refresh)
+	end
 	if player.Character then
 		task.spawn(watchCharacter, player.Character)
 	end

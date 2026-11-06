@@ -139,6 +139,17 @@ local function onBlobRemoved(instance: Instance)
 	end
 end
 
+-- Hides (or shows again) every visible piece of a blob, on this screen only.
+local function setBlobHidden(blob: Blob, hidden: boolean)
+	for _, descendant in blob.model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.LocalTransparencyModifier = if hidden then 1 else 0
+		elseif descendant:IsA("SurfaceGui") or descendant:IsA("BillboardGui") then
+			descendant.Enabled = not hidden
+		end
+	end
+end
+
 local function watchHealth(blob: Blob)
 	local character = blob.model.Parent
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
@@ -151,6 +162,11 @@ local function watchHealth(blob: Blob)
 			blob.hurtUntil = os.clock() + HURT_TIME
 			blob.squashVelocity -= 2.2 -- a quick squish, the springs make it ripple
 		end
+		if health > 0 and blob.diedAt then
+			-- Back for another round in the same body: show it again.
+			blob.diedAt = nil
+			setBlobHidden(blob, false)
+		end
 		lastHealth = health
 	end))
 	table.insert(blob.connections, humanoid.Died:Connect(function()
@@ -158,11 +174,13 @@ local function watchHealth(blob: Blob)
 		local root = blob.root
 		local dome = blob.model:FindFirstChild("Dome")
 		if root then
-			local position = root.Position
+			local position = root.Position + Vector3.new(0, 1, 0)
 			local color = if dome and dome:IsA("BasePart") then dome.Color else Color3.new(1, 1, 1)
-			-- The server tags the eliminated slime with the eliminator's topping
-			-- (kill effect); give that a moment to arrive, then burst.
-			task.delay(0.1, function()
+			-- POP: the slime vanishes at once and explodes into the eliminator's
+			-- topping. (The server tags it with "BurstTopping"; it arrives with
+			-- the elimination, so a tiny wait is enough.)
+			setBlobHidden(blob, true)
+			task.delay(0.03, function()
 				local topping = if character then character:GetAttribute("BurstTopping") else nil
 				ToppingEffects.play(position, if typeof(topping) == "string" then topping else nil, color, burstCount < 28)
 			end)
