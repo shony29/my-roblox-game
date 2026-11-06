@@ -496,6 +496,36 @@ function PlayerDataService.grantPurchase(player: Player, itemId: string, purchas
 	return "Granted"
 end
 
+--[[
+	Grants a Robux coin pack or bundle: the items (ones they already own are
+	skipped) and the coins, once per purchase id. Returns "NotLoaded",
+	"AlreadyGranted" or "Granted".
+]]
+function PlayerDataService.grantProduct(player: Player, purchaseId: string, itemIds: { string }, coins: number): string
+	local profile = profiles[player]
+	if profile == nil then
+		return "NotLoaded"
+	end
+	if table.find(profile.data.receipts, purchaseId) then
+		return "AlreadyGranted"
+	end
+	for _, itemId in itemIds do
+		if not table.find(profile.data.ownedItems, itemId) and #profile.data.ownedItems < Schema.MAX_OWNED_ITEMS then
+			table.insert(profile.data.ownedItems, itemId)
+		end
+	end
+	if coins > 0 then
+		profile.data.coins = math.min(profile.data.coins + math.floor(coins), Schema.MAX_STAT_VALUE)
+	end
+	table.insert(profile.data.receipts, purchaseId)
+	while #profile.data.receipts > 100 do
+		table.remove(profile.data.receipts, 1)
+	end
+	profile.dirty = true
+	publishAttributes(profile)
+	return "Granted"
+end
+
 -- A gun's upgrade level (0 = not upgraded).
 function PlayerDataService.getGunLevel(player: Player, weaponId: string): number
 	local profile = profiles[player]

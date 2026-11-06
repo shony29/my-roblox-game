@@ -4,7 +4,7 @@
 	The match system (Phase 5) reads these, so a mode is just data.
 ]]
 
-export type ModeId = "Duel" | "TeamDuel" | "TeamCombat"
+export type ModeId = "Duel" | "TeamDuel" | "TeamCombat" | "FreeForAll"
 
 export type Mode = {
 	Id: ModeId,
@@ -16,6 +16,13 @@ export type Mode = {
 	CountdownTime: number, -- seconds of "3, 2, 1" before each round
 	RoundEndTime: number, -- seconds to show who won the round
 	RespawnInRound: boolean, -- false = eliminated players wait for the next round
+	-- Free for all only (everyone for themselves, see MatchService):
+	FreeForAll: boolean?,
+	MinPlayers: number?, -- the match can start with this many
+	MaxPlayers: number?, -- and takes at most this many
+	FillTime: number?, -- once MinPlayers are waiting, seconds others get to join
+	EliminationsToWin: number?, -- first to this many eliminations wins
+	RespawnDelay: number?, -- seconds before you're back after being eliminated
 }
 
 local Modes: { [ModeId]: Mode } = {
@@ -52,11 +59,30 @@ local Modes: { [ModeId]: Mode } = {
 		RoundEndTime = 4,
 		RespawnInRound = false,
 	},
+	-- Everyone for themselves: 3 to 25 players, quick respawns, one long
+	-- round. First to 20 eliminations (or the most when time runs out) wins.
+	FreeForAll = {
+		Id = "FreeForAll",
+		DisplayName = "Free For All",
+		TeamSize = 25,
+		TeamCount = 1,
+		RoundsToWin = 1,
+		RoundTime = 300,
+		CountdownTime = 3,
+		RoundEndTime = 3,
+		RespawnInRound = true,
+		FreeForAll = true,
+		MinPlayers = 3,
+		MaxPlayers = 25,
+		FillTime = 15,
+		EliminationsToWin = 20,
+		RespawnDelay = 2.5,
+	},
 }
 
 local ModeConfig = {
 	Modes = Modes,
-	Order = { "Duel", "TeamDuel", "TeamCombat" } :: { ModeId },
+	Order = { "Duel", "TeamDuel", "TeamCombat", "FreeForAll" } :: { ModeId },
 	Default = "Duel" :: ModeId,
 }
 

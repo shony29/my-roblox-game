@@ -59,8 +59,12 @@ local function refresh()
 			highlight.Adornee = blob -- the visible slime, not the hidden body
 			highlight.Parent = blob
 		end
-		highlight.OutlineColor = MatchState.teamInfo(team).Color
-		highlight.DepthMode = if team == myTeam
+		-- Free for all: everyone is an enemy (red, and never seen through walls).
+		local freeForAll = ReplicatedStorage:FindFirstChild(MatchState.FOLDER_NAME) ~= nil
+			and (ReplicatedStorage :: any)[MatchState.FOLDER_NAME]:GetAttribute(MatchState.Attr.Mode) == "FreeForAll"
+		local ally = team == myTeam and not freeForAll
+		highlight.OutlineColor = if freeForAll then MatchState.teamInfo("B").Color else MatchState.teamInfo(team).Color
+		highlight.DepthMode = if ally
 			then Enum.HighlightDepthMode.AlwaysOnTop
 			else Enum.HighlightDepthMode.Occluded
 	end

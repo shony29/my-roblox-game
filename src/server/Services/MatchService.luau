@@ -16,6 +16,12 @@
 	Safety: only one match runs at a time; firing and damage are only allowed
 	during InMatch, by alive participants, against the other team
 	(Components/CombatRules). If a whole team leaves, the other team wins.
+
+	FREE FOR ALL (ModeConfig.FreeForAll): everyone for themselves. All
+	players share team "A" for the screens, but anyone can hurt anyone else,
+	spawns are anywhere away from other players, and eliminated players come
+	back after a short wait. One long round: first to EliminationsToWin (or
+	the most eliminations when time runs out) wins.
 ]]
 
 local Players = game:GetService("Players")
@@ -148,6 +154,9 @@ local function canDamage(attacker: Player, victim: Player?, victimModel: Model?)
 			return bot == nil or bot.team ~= attackerInfo.team
 		end
 		local victimInfo = match.participants[victim]
+		if match.mode.FreeForAll then
+			return victimInfo ~= nil and victim ~= attacker -- everyone for themselves
+		end
 		return victimInfo ~= nil and victimInfo.team ~= attackerInfo.team
 	end
 	-- Not in a match: nobody can be hurt.
@@ -178,6 +187,26 @@ local function getKiller(humanoid: Humanoid): Player?
 	return nil
 end
 
+-- Free for all: the player with the most eliminations (fewer deaths wins a tie).
+local function ffaLeader(match: Match): Participant?
+	local best: Participant? = nil
+	for _, participant in match.participants do
+		if best == nil
+			or participant.eliminations > best.eliminations
+			or (participant.eliminations == best.eliminations and participant.deaths < best.deaths)
+		then
+			best = participant
+		end
+	end
+	return best
+end
+
+local function publishLeader(match: Match)
+	local leader = ffaLeader(match)
+	stateFolder:SetAttribute(ATTR.LeaderName, if leader and leader.eliminations > 0 then leader.player.DisplayName else "")
+	stateFolder:SetAttribute(ATTR.LeaderScore, if leader then leader.eliminations else 0)
+end
+
 local function watchCharacter(match: Match, participant: Participant, character: Model)
 	local found = character:WaitForChild("Humanoid", 10)
 	if not found or not found:IsA("Humanoid") then
@@ -195,10 +224,25 @@ local function watchCharacter(match: Match, participant: Participant, character:
 		local killer = getKiller(humanoid)
 		local killerInfo = if killer then match.participants[killer] else nil
 		local credited: Player? = nil
-		if killerInfo and killerInfo.team ~= participant.team then
+		local isEnemy = if match.mode.FreeForAll
+			then killer ~= nil and killer ~= participant.player
+			else killerInfo ~= nil and killerInfo.team ~= participant.team
+		if killerInfo and isEnemy then
 			killerInfo.eliminations += 1
 			killerInfo.player:SetAttribute(PATTR.Eliminations, killerInfo.eliminations)
 			credited = killerInfo.player
+		end
+		if match.mode.FreeForAll then
+			publishLeader(match)
+			-- Back in the fight after a short wait, somewhere away from everyone.
+			task.delay(match.mode.RespawnDelay or 2.5, function()
+				if current == match and match.participants[participant.player] == participant and match.state == "InMatch" then
+					local newCharacter = SpawnService.spawn(participant.player, nil)
+					if newCharacter and match.participants[participant.player] == participant then
+						participant.alive = true
+					end
+				end
+			end)
 		end
 		-- Kill feed, scoreboard numbers, saved eliminations and coins.
 		local botName = humanoid:GetAttribute("LastHitBy")
@@ -341,7 +385,7 @@ local function spawnAll(match: Match)
 		participant.alive = false
 		task.spawn(function()
 			LobbyService.useMatchCamera(player) -- first person from the moment they reach the arena
-			local character = SpawnService.spawn(player, participant.team)
+			local character = SpawnService.spawn(player, if match.mode.FreeForAll then nil else participant.team)
 			if character and match.participants[player] == participant then
 				participant.alive = true
 				local root = character:FindFirstChild("HumanoidRootPart")
@@ -456,12 +500,45 @@ local function playRound(match: Match)
 	waitFor(match, mode.RoundEndTime)
 end
 
+-- Free for all: one long round with respawns.
+local function playFreeForAll(match: Match)
+	local mode = match.mode
+	match.round = 1
+	stateFolder:SetAttribute(ATTR.Round, 1)
+	stateFolder:SetAttribute(ATTR.RoundWinner, "")
+	stateFolder:SetAttribute(ATTR.EliminationsToWin, mode.EliminationsToWin or 20)
+	publishLeader(match)
+
+	spawnAll(match)
+	setState("Countdown", mode.CountdownTime)
+	waitFor(match, mode.CountdownTime)
+	unfreezeAll(match)
+	if match.forfeitWinner then
+		return
+	end
+
+	setState("InMatch", mode.RoundTime)
+	GameContract.setRoundTimeRemaining(mode.RoundTime)
+	local deadline = os.clock() + mode.RoundTime
+	local target = mode.EliminationsToWin or 20
+	while os.clock() < deadline and not match.forfeitWinner do
+		local leader = ffaLeader(match)
+		if leader and leader.eliminations >= target then
+			break
+		end
+		task.wait(POLL)
+	end
+	GameContract.setRoundTimeRemaining(nil)
+	setState("RoundEnd", mode.RoundEndTime)
+	waitFor(match, mode.RoundEndTime)
+end
+
 ---------------------------------------------------------------------------
 -- Matches
 ---------------------------------------------------------------------------
 
 -- Sends each participant the results screen data.
-local function sendResults(match: Match, winner: TeamId?)
+local function sendResults(match: Match, winner: TeamId?, ffaWinner: Player?)
 	local rows = {}
 	local mvp: Participant? = nil
 	for player, participant in match.participants do
@@ -474,8 +551,10 @@ local function sendResults(match: Match, winner: TeamId?)
 			coins = if match.withBots
 				then 0
 				else participant.eliminations * Schema.COINS_PER_ELIMINATION
-					+ (if winner ~= nil and participant.team == winner then QuestConfig.WIN_COINS else 0),
-			xp = if match.withBots then 0 else Progression.matchXp(participant.eliminations, winner ~= nil and participant.team == winner),
+					+ (if (ffaWinner ~= nil and player == ffaWinner) or (winner ~= nil and participant.team == winner) then QuestConfig.WIN_COINS else 0),
+			xp = if match.withBots
+				then 0
+				else Progression.matchXp(participant.eliminations, (ffaWinner ~= nil and player == ffaWinner) or (winner ~= nil and participant.team == winner)),
 		})
 		if mvp == nil
 			or participant.eliminations > mvp.eliminations
@@ -491,6 +570,9 @@ local function sendResults(match: Match, winner: TeamId?)
 		scoreB = match.score.B or 0,
 		mvp = if mvp then mvp.player.DisplayName else "",
 		players = rows,
+		ffa = match.mode.FreeForAll == true,
+		ffaWinner = if ffaWinner then ffaWinner.DisplayName else "",
+		ffaWinnerId = if ffaWinner then ffaWinner.UserId else 0,
 	}
 	local remote = Net.event("MatchResults")
 	for player in match.participants do
@@ -500,8 +582,10 @@ end
 
 local function runMatch(match: Match, players: { Player })
 	local teamA, teamB = TeamBalancer.split(players)
-	if match.withBots then
-		teamA, teamB = players, {} -- practice: humans together, bots fill the rest
+	if match.withBots or match.mode.FreeForAll then
+		-- Practice: humans together, bots fill the rest. Free for all: everyone
+		-- shares team "A" for the screens (anyone can still hurt anyone).
+		teamA, teamB = players, {}
 	end
 	for _, player in teamA do
 		addParticipant(match, player, "A")
@@ -534,17 +618,25 @@ local function runMatch(match: Match, players: { Player })
 		end
 	end
 
-	while not isOver(match) do
-		playRound(match)
+	local ffaWinner: Player? = nil
+	if match.mode.FreeForAll then
+		playFreeForAll(match)
+		local leader = ffaLeader(match)
+		ffaWinner = if leader and leader.eliminations > 0 then leader.player else nil
+	else
+		while not isOver(match) do
+			playRound(match)
+		end
 	end
 
 	-- Results (all numbers come from the server, so they can be trusted).
 	local scoreA, scoreB = match.score.A or 0, match.score.B or 0
-	local winner: TeamId? = match.forfeitWinner
-		or (if scoreA > scoreB then "A" elseif scoreB > scoreA then "B" else nil)
+	local winner: TeamId? = if match.mode.FreeForAll
+		then nil
+		else match.forfeitWinner or (if scoreA > scoreB then "A" elseif scoreB > scoreA then "B" else nil)
 	stateFolder:SetAttribute(ATTR.MatchWinner, winner or "")
 	for player, participant in match.participants do
-		local won = winner ~= nil and participant.team == winner
+		local won = if match.mode.FreeForAll then player == ffaWinner else winner ~= nil and participant.team == winner
 		if not match.withBots then -- practice against bots gives no rewards
 			if won then
 				PlayerDataService.recordWin(player)
@@ -558,7 +650,7 @@ local function runMatch(match: Match, players: { Player })
 		end
 	end
 	BotService.removeAll()
-	sendResults(match, winner)
+	sendResults(match, winner, ffaWinner)
 
 	-- Rematch: if everyone still here presses REMATCH, the same players play again.
 	local rematchVotes: { [Player]: boolean } = {}
@@ -665,7 +757,15 @@ local function onPlayerRemoving(player: Player)
 		removeParticipant(match, player)
 		-- A team with nobody left forfeits (in practice: no humans left at all).
 		local humansLeft = next(match.participants) ~= nil
-		if match.withBots and not humansLeft then
+		if match.mode.FreeForAll then
+			local remaining = 0
+			for _ in match.participants do
+				remaining += 1
+			end
+			if remaining < 2 then
+				match.forfeitWinner = "A" -- not enough players left: end the match
+			end
+		elseif match.withBots and not humansLeft then
 			match.forfeitWinner = "B"
 		elseif not match.forfeitWinner then
 			if teamCount(match, "A", false) == 0 then

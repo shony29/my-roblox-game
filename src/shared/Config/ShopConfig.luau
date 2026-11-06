@@ -350,7 +350,8 @@ ShopConfig.Toppings = {
 -- To put them on sale: publish the game, create one Developer Product per
 -- item on the Creator Dashboard (Monetization -> Developer Products), then
 -- paste each product's id below, e.g. ["Theme_Christmas_Topping"] = 1234567890.
--- Items without an id show "Not on sale yet".
+-- Items without an id show "Not on sale yet". The ROBUX tab's coin packs and
+-- bundles (Config/RobuxShopConfig) put their ids here too, e.g. ["Coins_Jar"] = 123.
 ShopConfig.ROBUX_ONLY = 1e9 -- coin price of Robux items: they can never be bought with coins
 ShopConfig.RobuxPrices = { Color = 49, Hat = 99, Skin = 79, Topping = 129 }
 ShopConfig.ProductIds = {} :: { [string]: number }

@@ -13,6 +13,8 @@
 	Practice pads (vs bots) start as soon as one player stands on them;
 	bots fill the empty places (BotService). Until bots exist those pads
 	just show "SOON".
+	The FREE FOR ALL pad (end of the hallway) needs at least MinPlayers (3);
+	then everyone else gets FillTime seconds to hop on, up to MaxPlayers (25).
 
 	Players who leave the game are removed straight away. The interface
 	(join/leave/tryStart) stays small so it can move to reserved servers
@@ -43,6 +45,7 @@ local PAD_HEIGHT_TOLERANCE = 6
 local QueueService = {}
 
 local queues: { [Pad]: { Player } } = {}
+local fillUntil: { [Pad]: number } = {} -- free for all: when the joining time ends
 local started = false
 
 -- Set by BotService when bots are available (practice pads need them).
@@ -54,7 +57,11 @@ local function needed(pad: Pad): number
 		return 0
 	end
 	-- Practice: you can start alone; your team is you (and friends) plus bots.
-	return if pad.bots then 1 else mode.TeamSize * mode.TeamCount
+	if pad.bots then
+		return 1
+	end
+	-- Free for all: enough players to start (more can join until it begins).
+	return mode.MinPlayers or mode.TeamSize * mode.TeamCount
 end
 
 -- The queue's player pictures on the pad's screen (Roblox avatar headshots).
@@ -104,8 +111,10 @@ local function updateAvatars(pad: Pad)
 end
 
 local function updateCounter(pad: Pad)
+	local deadline = fillUntil[pad]
 	local text = if pad.bots and not QueueService.botsAvailable
 		then "SOON"
+		elseif deadline then `{#queues[pad]} · {math.max(0, math.ceil(deadline - os.clock()))}s`
 		else `{#queues[pad]}/{needed(pad)}`
 	pad.counter.Text = text
 	if pad.screenCount then
@@ -182,9 +191,31 @@ function QueueService.tryStart()
 			end
 		end
 		local mode = ModeConfig.get(pad.mode)
+		if mode and mode.FreeForAll and not pad.bots then
+			-- Free for all: wait FillTime once there are enough, so others can join.
+			if #queue < needed(pad) then
+				if fillUntil[pad] then
+					fillUntil[pad] = nil
+					updateCounter(pad)
+				end
+				continue
+			end
+			if not fillUntil[pad] then
+				fillUntil[pad] = os.clock() + (mode.FillTime or 15)
+			end
+			if os.clock() < (fillUntil[pad] :: number) and #queue < (mode.MaxPlayers or 25) then
+				updateCounter(pad)
+				continue
+			end
+			fillUntil[pad] = nil
+		end
 		if mode and #queue >= needed(pad) and #queue > 0 then
-			-- Real pads take exactly a full match; practice pads take up to one team.
-			local count = if pad.bots then math.min(#queue, mode.TeamSize) else needed(pad)
+			-- Real pads take exactly a full match; practice pads take up to one
+			-- team; free for all takes everyone waiting (up to MaxPlayers).
+			local count = if pad.bots
+				then math.min(#queue, mode.TeamSize)
+				elseif mode.FreeForAll then math.min(#queue, mode.MaxPlayers or 25)
+				else needed(pad)
 			local players: { Player } = {}
 			for _ = 1, count do
 				local player = table.remove(queue, 1) :: Player
@@ -224,6 +255,10 @@ local function checkPads()
 				QueueService.leave(player)
 			end
 		end
+	end
+	-- A free-for-all joining countdown is running: keep it ticking.
+	if next(fillUntil) ~= nil then
+		QueueService.tryStart()
 	end
 end
 

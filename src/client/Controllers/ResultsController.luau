@@ -46,7 +46,7 @@ local function readRows(raw: unknown): { Row }
 	end
 	for _, item in raw :: { any } do
 		local team = MatchState.toTeam(if typeof(item) == "table" then item.team else nil)
-		if typeof(item) == "table" and typeof(item.name) == "string" and team and #rows < MAX_ROWS then
+		if typeof(item) == "table" and typeof(item.name) == "string" and team and #rows < 64 then
 			table.insert(rows, {
 				name = string.sub(item.name, 1, 24),
 				team = team,
@@ -61,6 +61,10 @@ local function readRows(raw: unknown): { Row }
 	table.sort(rows, function(a: Row, b: Row): boolean
 		return a.eliminations > b.eliminations
 	end)
+	-- Only the top players fit on screen (free for all can have 25).
+	while #rows > MAX_ROWS do
+		table.remove(rows)
+	end
 	return rows
 end
 
@@ -177,7 +181,21 @@ function ResultsController.start()
 		end
 		local myTeam = MatchState.toTeam(player:GetAttribute(MatchState.PlayerAttr.Team))
 		local winner = MatchState.toTeam(results.winner)
-		if winner == nil then
+		local freeForAll = results.ffa == true
+		local ffaWinner = if typeof(results.ffaWinner) == "string" then string.sub(results.ffaWinner, 1, 24) else ""
+		if freeForAll then
+			-- Everyone for themselves: one winner.
+			if results.ffaWinnerId == player.UserId then
+				title.Text = "VICTORY!"
+				title.TextColor3 = Colors.Yolk
+			elseif ffaWinner == "" then
+				title.Text = "DRAW"
+				title.TextColor3 = Colors.White
+			else
+				title.Text = "DEFEAT"
+				title.TextColor3 = MatchState.teamInfo("B").Color
+			end
+		elseif winner == nil then
 			title.Text = "DRAW"
 			title.TextColor3 = Colors.White
 		elseif winner == myTeam then
@@ -188,7 +206,9 @@ function ResultsController.start()
 			title.TextColor3 = MatchState.teamInfo(winner).Color
 		end
 		local mode = if typeof(results.mode) == "string" then results.mode else ""
-		subtitle.Text = `{mode} · {MatchState.teamInfo("A").Name} {num(results.scoreA)} – {num(results.scoreB)} {MatchState.teamInfo("B").Name}`
+		subtitle.Text = if freeForAll
+			then `{mode} · {if ffaWinner ~= "" then ffaWinner .. " wins!" else "Nobody scored"}`
+			else `{mode} · {MatchState.teamInfo("A").Name} {num(results.scoreA)} – {num(results.scoreB)} {MatchState.teamInfo("B").Name}`
 		local mvp = if typeof(results.mvp) == "string" then string.sub(results.mvp, 1, 24) else ""
 		mvpLabel.Text = if mvp ~= "" then `MVP: {mvp}` else ""
 

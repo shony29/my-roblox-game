@@ -59,6 +59,10 @@ MatchState.Attr = table.freeze({
 	VoteOptions = "VoteOptions", -- comma-separated map Ids during MapVoting
 	RematchVotes = "RematchVotes", -- players who pressed REMATCH
 	RematchNeeded = "RematchNeeded", -- players needed for a rematch
+	-- Free for all only:
+	LeaderName = "LeaderName", -- who has the most eliminations
+	LeaderScore = "LeaderScore", -- how many they have
+	EliminationsToWin = "EliminationsToWin", -- first to this many wins
 	-- Also "Queue<ModeId>" = how many players are waiting for that mode, e.g. QueueDuel,
 	-- and "Votes<MapId>" = votes for that map during MapVoting, e.g. VotesJellyArena.
 })

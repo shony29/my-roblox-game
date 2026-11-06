@@ -84,6 +84,11 @@ function MatchHudController.start()
 		return MatchState.toTeam(player:GetAttribute(PATTR.Team))
 	end
 
+	-- Free for all: everyone for themselves (see ModeConfig.FreeForAll).
+	local function isFreeForAll(): boolean
+		return stateFolder:GetAttribute(ATTR.Mode) == "FreeForAll"
+	end
+
 	local function getNumber(attribute: string): number
 		local value = stateFolder:GetAttribute(attribute)
 		return if typeof(value) == "number" then value else 0
@@ -117,7 +122,12 @@ function MatchHudController.start()
 			return
 		end
 		local teamInfo = MatchState.teamInfo(team)
-		if state == "MatchFound" then
+		if state == "MatchFound" and isFreeForAll() then
+			pop("MATCH FOUND!", GOLD, "Free for all: everyone for themselves!")
+		elseif state == "RoundEnd" and isFreeForAll() then
+			local leader = stateFolder:GetAttribute(ATTR.LeaderName)
+			pop("MATCH OVER!", GOLD, if typeof(leader) == "string" and leader ~= "" then `{leader} wins!` else "Nobody scored")
+		elseif state == "MatchFound" then
 			pop("MATCH FOUND!", GOLD, `You're on the <font color="{hex(teamInfo.Color)}">{teamInfo.Name}</font> team`)
 		elseif state == "InMatch" then
 			pop("GO!", WHITE)
@@ -148,7 +158,15 @@ function MatchHudController.start()
 		local state = lastState
 
 		-- Score panel (only while you're in a match).
-		if inMatch then
+		if inMatch and isFreeForAll() then
+			local mine = player:GetAttribute(PATTR.Eliminations)
+			local leader = stateFolder:GetAttribute(ATTR.LeaderName)
+			local leaderText = if typeof(leader) == "string" and leader ~= ""
+				then `  ·  LEADER <font color="{hex(GOLD)}">{leader} {getNumber(ATTR.LeaderScore)}</font>`
+				else ""
+			scoreLine.Text = `FREE FOR ALL  ·  YOU {if typeof(mine) == "number" then mine else 0}{leaderText}`
+			roundLine.Text = `First to {getNumber(ATTR.EliminationsToWin)} eliminations`
+		elseif inMatch then
 			local blue, pink = MatchState.teamInfo("A"), MatchState.teamInfo("B")
 			local you = if team == "A" then " (you)" else ""
 			local youB = if team == "B" then " (you)" else ""

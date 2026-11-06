@@ -32,6 +32,7 @@ local Theme = require(UIFolder:WaitForChild("Theme"))
 local UIHelpers = require(UIFolder:WaitForChild("UIHelpers"))
 local ResponsiveScale = require(UIFolder:WaitForChild("ResponsiveScale"))
 local ItemPreview = require(UIFolder:WaitForChild("ItemPreview"))
+local RobuxShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("RobuxShopConfig"))
 
 type Category = ShopConfig.Category
 type ShopItem = ShopConfig.ShopItem
@@ -54,12 +55,14 @@ local CONFIRM_SECONDS = 3 -- how long "Tap again to buy" waits for the second ta
 local PANEL_SIZE = Vector2.new(880, 540)
 local GREY = Theme.SciFi.Grey
 
-local TABS: { { category: Category, title: string } } = {
+-- "Robux" is the ROBUX tab: coin packs and bundles (Config/RobuxShopConfig).
+local TABS: { { category: string, title: string } } = {
 	{ category = "Color", title = "Colors" },
 	{ category = "Hat", title = "Squishies" },
 	{ category = "Skin", title = "Skins" },
 	{ category = "Weapon", title = "Guns" },
 	{ category = "Topping", title = "Toppings" },
+	{ category = "Robux", title = "Robux" },
 }
 
 local ShopController = {}
@@ -77,8 +80,9 @@ local panelScale: UIScale
 local overlay: TextButton
 local toast: TextLabel
 local cards: { Card } = {}
-local tabButtons: { [Category]: TextButton } = {}
-local pages: { [Category]: ScrollingFrame } = {}
+local tabButtons: { [string]: TextButton } = {}
+local pages: { [string]: ScrollingFrame } = {}
+local refreshRobuxCards: () -> () = function() end
 local hatColorSetters: { (Color3) -> () } = {}
 local skinPreviews: { { box: Frame, skin: ShopConfig.SkinItem } } = {}
 
@@ -230,9 +234,10 @@ local function refreshCards()
 		button.AutoButtonColor = false
 		button.Active = not busy
 	end
+	refreshRobuxCards()
 end
 
-local function selectTab(category: Category)
+local function selectTab(category: string)
 	for _, tab in TABS do
 		local active = tab.category == category
 		tabButtons[tab.category].BackgroundColor3 = if active then Sci.Cyan else Sci.PanelLight
@@ -779,6 +784,265 @@ local function itemsIn(category: Category): { ShopItem }
 	return ShopConfig.sortByRarity(list)
 end
 
+-- The ROBUX tab ----------------------------------------------------------------
+-- Coin packs and bundles, bought through Roblox's own purchase window. The
+-- server (RobuxService) adds the coins and items once Roblox confirms.
+
+-- A little pile of drawn coins (more coins for bigger packs).
+local function drawCoins(parent: GuiObject, count: number)
+	for i = 1, count do
+		local column = (i - 1) % 3
+		local row = (i - 1) // 3
+		local coin = UIHelpers.frame("Coin", UDim2.fromOffset(34, 34), UDim2.new(0.5, (column - 1) * 24 + row * 10, 0.62, -row * 16), Vector2.new(0.5, 0.5))
+		coin.BackgroundColor3 = Sci.Yellow
+		coin.BackgroundTransparency = 0
+		coin.ZIndex = 2 + row
+		UIHelpers.corner(coin, UDim.new(1, 0))
+		UIHelpers.stroke(coin, Color3.fromRGB(200, 140, 30), 2)
+		local inner = UIHelpers.frame("Inner", UDim2.fromScale(0.56, 0.56), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+		inner.BackgroundColor3 = Color3.fromRGB(255, 236, 150)
+		inner.BackgroundTransparency = 0
+		inner.ZIndex = coin.ZIndex
+		UIHelpers.corner(inner, UDim.new(1, 0))
+		inner.Parent = coin
+		coin.Parent = parent
+	end
+end
+
+local function promptProduct(id: string, displayName: string)
+	local productId = RobuxShopConfig.productId(id)
+	if productId <= 0 then
+		showToast(displayName .. " isn't on sale yet.", false)
+		return
+	end
+	MarketplaceService:PromptProductPurchase(player, productId)
+end
+
+local function sectionTitle(parent: Instance, text: string, order: number)
+	local title = UIHelpers.label("Section", text, 16, SCI_FONT)
+	title.LayoutOrder = order
+	title.Size = UDim2.new(1, -12, 0, 30)
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextColor3 = Sci.Purple
+	title.Parent = parent
+end
+
+local function robuxButton(parent: GuiObject, text: string): TextButton
+	local button = makeButton("Buy", text, UDim2.new(1, -20, 0, 36), Sci.Purple)
+	button.AnchorPoint = Vector2.new(0.5, 1)
+	button.Position = UDim2.new(0.5, 0, 1, -9)
+	button.TextSize = 15
+	button.TextColor3 = Sci.Void
+	button.Parent = parent
+	return button
+end
+
+local function buildRobuxPage(parent: Instance): ScrollingFrame
+	local page = Instance.new("ScrollingFrame")
+	page.Name = "RobuxPage"
+	page.Position = UDim2.fromOffset(20, 140)
+	page.Size = UDim2.new(1, -40, 1, -196)
+	page.BackgroundTransparency = 1
+	page.BorderSizePixel = 0
+	page.ScrollBarThickness = 10
+	page.ScrollBarImageColor3 = Sci.Purple
+	page.ScrollingDirection = Enum.ScrollingDirection.Y
+	page.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	page.CanvasSize = UDim2.new()
+	page.Visible = false
+	page.Parent = parent
+	local padding = Instance.new("UIPadding")
+	padding.PaddingTop = UDim.new(0, 6)
+	padding.PaddingBottom = UDim.new(0, 6)
+	padding.PaddingLeft = UDim.new(0, 6)
+	padding.Parent = page
+	local layout = Instance.new("UIListLayout")
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 10)
+	layout.Parent = page
+
+	-- Coin packs.
+	sectionTitle(page, "COIN PACKS", 1)
+	local packRow = UIHelpers.frame("CoinPacks", UDim2.new(1, -12, 0, 206), UDim2.new(), nil)
+	packRow.BackgroundTransparency = 1
+	packRow.LayoutOrder = 2
+	packRow.Parent = page
+	local packLayout = Instance.new("UIListLayout")
+	packLayout.FillDirection = Enum.FillDirection.Horizontal
+	packLayout.Padding = UDim.new(0, 14)
+	packLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	packLayout.Parent = packRow
+	for index, pack in RobuxShopConfig.CoinPacks do
+		local card = UIHelpers.frame(pack.Id, UDim2.fromOffset(150, 206), UDim2.new(), nil)
+		card.LayoutOrder = index
+		card.BackgroundColor3 = Sci.PanelLight
+		card.BackgroundTransparency = 0
+		UIHelpers.corner(card, UDim.new(0, 14))
+		UIHelpers.stroke(card, Sci.Yellow, 2)
+		card.Parent = packRow
+		local picture = UIHelpers.frame("Picture", UDim2.new(1, -20, 0, 96), UDim2.fromOffset(10, 10), nil)
+		picture.BackgroundColor3 = Sci.Inset
+		picture.BackgroundTransparency = 0
+		UIHelpers.corner(picture, UDim.new(0, 10))
+		picture.Parent = card
+		drawCoins(picture, index + 2)
+		if pack.Badge then
+			local badge = UIHelpers.label("Badge", pack.Badge, 10, SCI_FONT)
+			badge.Position = UDim2.fromOffset(6, 6)
+			badge.Size = UDim2.fromOffset(104, 18)
+			badge.BackgroundColor3 = Sci.Green
+			badge.BackgroundTransparency = 0
+			badge.TextColor3 = Sci.Void
+			badge.ZIndex = 6
+			UIHelpers.corner(badge, UDim.new(0, 6))
+			badge.Parent = picture
+		end
+		local amount = UIHelpers.label("Amount", `{pack.Coins} COINS`, 15, SCI_FONT)
+		amount.Position = UDim2.fromOffset(8, 112)
+		amount.Size = UDim2.new(1, -16, 0, 22)
+		amount.TextColor3 = Sci.Yellow
+		amount.Parent = card
+		local name = UIHelpers.label("PackName", pack.DisplayName, 14, BODY_FONT)
+		name.Position = UDim2.fromOffset(8, 136)
+		name.Size = UDim2.new(1, -16, 0, 18)
+		name.TextColor3 = Sci.Dim
+		name.Parent = card
+		local button = robuxButton(card, if RobuxShopConfig.productId(pack.Id) > 0 then `R$ {pack.Robux}` else "SOON")
+		if RobuxShopConfig.productId(pack.Id) <= 0 then
+			button.BackgroundColor3 = GREY
+			button.TextColor3 = Sci.Dim
+		end
+		button.Activated:Connect(function()
+			promptProduct(pack.Id, pack.DisplayName)
+		end)
+	end
+
+	-- Bundles (always this month's themed items).
+	sectionTitle(page, "BUNDLES", 3)
+	local bundleRow = UIHelpers.frame("Bundles", UDim2.new(1, -12, 0, 206), UDim2.new(), nil)
+	bundleRow.BackgroundTransparency = 1
+	bundleRow.LayoutOrder = 4
+	bundleRow.Parent = page
+	local bundleLayout = Instance.new("UIListLayout")
+	bundleLayout.FillDirection = Enum.FillDirection.Horizontal
+	bundleLayout.Padding = UDim.new(0, 14)
+	bundleLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	bundleLayout.Parent = bundleRow
+
+	local month = ShopConfig.currentMonth()
+	local theme = RobuxShopConfig.themeFor(month)
+	local bundleStatus: { { bundle: RobuxShopConfig.Bundle, status: TextLabel } } = {}
+	for index, bundle in RobuxShopConfig.Bundles do
+		local itemIds, coins, worth = RobuxShopConfig.bundleContents(bundle, month)
+		local card = UIHelpers.frame(bundle.Id, UDim2.fromOffset(400, 206), UDim2.new(), nil)
+		card.LayoutOrder = index
+		card.BackgroundColor3 = Sci.PanelLight
+		card.BackgroundTransparency = 0
+		UIHelpers.corner(card, UDim.new(0, 14))
+		UIHelpers.stroke(card, ShopConfig.Rarities[#ShopConfig.Rarities].Color, 2.5)
+		card.Parent = bundleRow
+
+		-- Little pictures of what's inside.
+		local strip = UIHelpers.frame("Contents", UDim2.new(1, -20, 0, 92), UDim2.fromOffset(10, 10), nil)
+		strip.BackgroundColor3 = Sci.Inset
+		strip.BackgroundTransparency = 0
+		UIHelpers.corner(strip, UDim.new(0, 10))
+		strip.Parent = card
+		local stripLayout = Instance.new("UIListLayout")
+		stripLayout.FillDirection = Enum.FillDirection.Horizontal
+		stripLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		stripLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+		stripLayout.Padding = UDim.new(0, 6)
+		stripLayout.Parent = strip
+		local blobColor = ShopConfig.getColor(equippedId("Color")).Color
+		for order, itemId in itemIds do
+			local box = UIHelpers.frame("Item", UDim2.fromOffset(84, 84), UDim2.new(), nil)
+			box.LayoutOrder = order
+			box.BackgroundTransparency = 1
+			box.Parent = strip
+			local item = ShopConfig.getItem(itemId)
+			if item and item.Category == "Color" then
+				ItemPreview.color(box, ShopConfig.getColor(itemId))
+			elseif item and item.Category == "Hat" then
+				ItemPreview.hat(box, ShopConfig.getHat(itemId), blobColor)
+			elseif item and item.Category == "Skin" then
+				ItemPreview.skin(box, ShopConfig.getSkin(itemId), equippedWeapon())
+			elseif item and item.Category == "Topping" then
+				ItemPreview.topping(box, ShopConfig.getTopping(itemId))
+			end
+		end
+		if coins > 0 then
+			local coinBox = UIHelpers.frame("Coins", UDim2.fromOffset(110, 84), UDim2.new(), nil)
+			coinBox.LayoutOrder = 0
+			coinBox.BackgroundTransparency = 1
+			coinBox.Parent = strip
+			drawCoins(coinBox, 5)
+			local coinText = UIHelpers.label("Amount", `{coins} COINS`, 11, SCI_FONT)
+			coinText.Position = UDim2.fromOffset(0, 0)
+			coinText.Size = UDim2.new(1, 0, 0, 16)
+			coinText.TextColor3 = Sci.Yellow
+			coinText.ZIndex = 8
+			coinText.Parent = coinBox
+		end
+
+		local saving = if worth > 0 then math.floor((1 - bundle.Robux / worth) * 100 + 0.5) else 0
+		local title = UIHelpers.label("BundleName", string.upper(bundle.DisplayName), 15, SCI_FONT)
+		title.Position = UDim2.fromOffset(12, 108)
+		title.Size = UDim2.new(0.62, 0, 0, 22)
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.TextColor3 = Sci.Text
+		title.Parent = card
+		local save = UIHelpers.label("Save", `SAVE {saving}%`, 12, SCI_FONT)
+		save.AnchorPoint = Vector2.new(1, 0)
+		save.Position = UDim2.new(1, -12, 0, 108)
+		save.Size = UDim2.fromOffset(110, 22)
+		save.BackgroundColor3 = Sci.Green
+		save.BackgroundTransparency = 0
+		save.TextColor3 = Sci.Void
+		UIHelpers.corner(save, UDim.new(0, 6))
+		save.Parent = card
+		local status = UIHelpers.label("Status", "", 14, BODY_FONT)
+		status.Position = UDim2.fromOffset(12, 134)
+		status.Size = UDim2.new(1, -24, 0, 18)
+		status.TextXAlignment = Enum.TextXAlignment.Left
+		status.RichText = true
+		status.TextColor3 = Sci.Dim
+		status.Text = if theme then `{theme.Name} · was <s>R$ {worth}</s>` else "Back next month!"
+		status.Parent = card
+		table.insert(bundleStatus, { bundle = bundle, status = status })
+
+		local onSale = RobuxShopConfig.productId(bundle.Id) > 0 and theme ~= nil
+		local button = robuxButton(card, if onSale then `R$ {bundle.Robux}` else "SOON")
+		if not onSale then
+			button.BackgroundColor3 = GREY
+			button.TextColor3 = Sci.Dim
+		end
+		button.Activated:Connect(function()
+			promptProduct(bundle.Id, bundle.DisplayName)
+		end)
+	end
+
+	-- Shows how many of a bundle's items you already own.
+	refreshRobuxCards = function()
+		local owned = ownedIds()
+		for _, entry in bundleStatus do
+			local itemIds, _, worth = RobuxShopConfig.bundleContents(entry.bundle, month)
+			local have = 0
+			for _, itemId in itemIds do
+				if owned[itemId] then
+					have += 1
+				end
+			end
+			local text = if theme then `{theme.Name} · was <s>R$ {worth}</s>` else "Back next month!"
+			if have > 0 then
+				text ..= `  ·  you own {have} of {#itemIds}`
+			end
+			entry.status.Text = text
+		end
+	end
+	return page
+end
+
 local function buildCoinPill(parent: Instance)
 	local pill = UIHelpers.frame("Coins", UDim2.fromOffset(190, 50), UDim2.new(1, -86, 0, 14), Vector2.new(1, 0))
 	pill.BackgroundColor3 = Sci.Inset
@@ -921,7 +1185,9 @@ local function buildMenu()
 			selectTab(tab.category)
 		end)
 		tabButtons[tab.category] = button
-		pages[tab.category] = buildPage(panel, tab.category, itemsIn(tab.category))
+		pages[tab.category] = if tab.category == "Robux"
+			then buildRobuxPage(panel)
+			else buildPage(panel, tab.category :: Category, itemsIn(tab.category :: Category))
 	end
 
 	toast = UIHelpers.label("Message", "", 20, BODY_FONT)

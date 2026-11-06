@@ -443,7 +443,6 @@ local function buildHallway(model: Model): { Pad }
 			Props.hazardLine(model, Vector3.new(ORIGIN.X + side * 4.5, ORIGIN.Y, startZ - 2), Vector3.new(ORIGIN.X + side * 4.5, ORIGIN.Y, endZ + 2), 1)
 		end
 		box(model, "HallwayEnd", Vector3.new(HALL_HALF_WIDTH * 2, HALL_HEIGHT_2, 2), Vector3.new(ORIGIN.X, ORIGIN.Y + HALL_HEIGHT_2 / 2, endZ - 1), METAL)
-		box(model, "Shutter", Vector3.new(16, 14, 0.6), Vector3.new(ORIGIN.X, ORIGIN.Y + 7, endZ + 0.4), Color3.fromRGB(70, 72, 80), Enum.Material.Metal)
 		-- Angled light strips along the ceiling.
 		for i = 0, 10 do
 			local z = startZ - 6 - i * 8
@@ -491,6 +490,32 @@ local function buildHallway(model: Model): { Pad }
 			end
 		end
 	end
+
+	-- FREE FOR ALL at the end of the hallway: one big pad for 3 to 25 players.
+	try("free for all pad", function()
+		local ffaColor = Color3.fromRGB(255, 80, 120)
+		local ffaRadius = 10
+		local center = Vector3.new(ORIGIN.X, ORIGIN.Y, endZ + 13)
+		local pad, counter = Props.queuePad(padsFolder, center, ffaRadius, ffaColor, "FREE FOR ALL")
+		local screenPos = Vector3.new(ORIGIN.X, ORIGIN.Y + 8.5, endZ + 0.3)
+		local screenCount: TextLabel?, avatars: Frame? = nil, nil
+		try("queue screen FREE FOR ALL", function()
+			screenCount, avatars = queueScreen(model, CFrame.lookAt(screenPos, screenPos + Vector3.new(0, 0, 1)), "FREE FOR ALL", ffaColor)
+		end)
+		local signPos = Vector3.new(ORIGIN.X, ORIGIN.Y + 19, endZ + 0.4)
+		Props.neonSign(model, "FreeForAllSign", Vector3.new(18, 4, 0.4), CFrame.lookAt(signPos, signPos + Vector3.new(0, 0, 1)), "3 - 25 PLAYERS", ffaColor)
+		if pad and counter then
+			table.insert(pads, {
+				part = pad,
+				mode = "FreeForAll",
+				bots = false,
+				radius = ffaRadius,
+				counter = counter,
+				screenCount = screenCount,
+				avatars = avatars,
+			})
+		end
+	end)
 	return pads
 end
 
