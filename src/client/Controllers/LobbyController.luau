@@ -35,30 +35,51 @@ local ResponsiveScale = require(UIFolder:WaitForChild("ResponsiveScale"))
 local ShopController = require(script.Parent:WaitForChild("ShopController"))
 local TasksController = require(script.Parent:WaitForChild("TasksController"))
 
-local Colors = Theme.Colors
 local PATTR = MatchState.PlayerAttr
 local WEAPONS_PROMPT = "WeaponsCounter" -- the counter in the weapons room
 local REFRESH_INTERVAL = 0.25
-local PLAY_GREEN = Color3.fromRGB(110, 220, 70)
+local Sci = Theme.SciFi -- the bunker's sci-fi look (same as the menu and shop)
+local SCI_FONT = Theme.SciFiFonts.Title
+local BODY_FONT = Theme.SciFiFonts.Body
 
 local LobbyController = {}
 local started = false
 
--- A chunky rounded button with a dark outline.
-local function chunkyButton(name: string, text: string, size: UDim2, color: Color3, textSize: number): TextButton
+--[[
+	A sci-fi button: dark glass with a neon edge and neon text in `accent`.
+	`filled` makes it a solid neon button with dark text instead (PLAY).
+	Returns the button and its glowing edge.
+]]
+local function sciButton(name: string, text: string, size: UDim2, accent: Color3, textSize: number, filled: boolean): (TextButton, UIStroke)
 	local button = Instance.new("TextButton")
 	button.Name = name
 	button.Size = size
-	button.BackgroundColor3 = color
-	button.AutoButtonColor = true
-	button.Font = Theme.Fonts.Title
+	button.BackgroundColor3 = if filled then accent else Sci.Panel
+	button.BackgroundTransparency = if filled then 0 else 0.12
+	button.AutoButtonColor = false
+	button.Font = SCI_FONT
 	button.TextSize = textSize
-	button.TextColor3 = Color3.new(1, 1, 1)
+	button.TextColor3 = if filled then Sci.Void else accent
 	button.Text = text
-	UIHelpers.corner(button, UDim.new(0, 14))
-	UIHelpers.stroke(button, Colors.Ink, 3)
-	UIHelpers.textStroke(button, 2)
-	return button
+	UIHelpers.corner(button, UDim.new(0, 10))
+	local edge = UIHelpers.stroke(button, if filled then accent:Lerp(Color3.new(1, 1, 1), 0.4) else accent, 2)
+	edge.Transparency = 0.1
+	-- Light up a little on hover.
+	local scale = Instance.new("UIScale")
+	scale.Parent = button
+	button.MouseEnter:Connect(function()
+		UIHelpers.tween(scale, 0.12, { Scale = 1.05 }, Enum.EasingStyle.Back)
+		if not filled then
+			UIHelpers.tween(button, 0.12, { BackgroundColor3 = Sci.PanelLight })
+		end
+	end)
+	button.MouseLeave:Connect(function()
+		UIHelpers.tween(scale, 0.12, { Scale = 1 })
+		if not filled then
+			UIHelpers.tween(button, 0.12, { BackgroundColor3 = Sci.Panel })
+		end
+	end)
+	return button, edge
 end
 
 function LobbyController.start()
@@ -75,17 +96,17 @@ function LobbyController.start()
 
 	-- Top: coins, then the level bar ------------------------------------
 	local coinPill = UIHelpers.frame("Coins", UDim2.fromOffset(210, 46), UDim2.new(0.5, 0, 0, 10), Vector2.new(0.5, 0))
-	coinPill.BackgroundColor3 = Colors.Ink
-	coinPill.BackgroundTransparency = 0.15
-	UIHelpers.corner(coinPill, UDim.new(1, 0))
+	coinPill.BackgroundColor3 = Sci.Inset
+	coinPill.BackgroundTransparency = 0.1
+	UIHelpers.corner(coinPill, UDim.new(0, 12))
+	UIHelpers.stroke(coinPill, Sci.Yellow, 2).Transparency = 0.2
 	coinPill.Parent = gui
-	local coinText = UIHelpers.label("Value", "🪙 0", 26, Theme.Fonts.Title)
+	local coinText = UIHelpers.label("Value", "🪙 0", 22, SCI_FONT)
 	coinText.Size = UDim2.new(1, -54, 1, 0)
 	coinText.Position = UDim2.fromOffset(8, 0)
-	coinText.TextColor3 = Colors.Yolk
-	UIHelpers.textStroke(coinText, 2)
+	coinText.TextColor3 = Sci.Yellow
 	coinText.Parent = coinPill
-	local addCoins = chunkyButton("Add", "+", UDim2.fromOffset(38, 38), PLAY_GREEN, 26)
+	local addCoins = sciButton("Add", "+", UDim2.fromOffset(36, 36), Sci.Green, 22, false)
 	addCoins.AnchorPoint = Vector2.new(1, 0.5)
 	addCoins.Position = UDim2.new(1, -4, 0.5, 0)
 	addCoins.Parent = coinPill
@@ -98,25 +119,37 @@ function LobbyController.start()
 	player:GetAttributeChangedSignal(GameContract.PlayerAttributes.Coins):Connect(updateCoins)
 	updateCoins()
 
-	local levelBar = UIHelpers.frame("LevelBar", UDim2.fromOffset(380, 28), UDim2.new(0.5, 0, 0, 64), Vector2.new(0.5, 0))
-	UIHelpers.corner(levelBar, UDim.new(1, 0))
-	UIHelpers.stroke(levelBar, Colors.Ink, 3)
+	local levelBar = UIHelpers.frame("LevelBar", UDim2.fromOffset(380, 26), UDim2.new(0.5, 0, 0, 64), Vector2.new(0.5, 0))
+	levelBar.BackgroundColor3 = Sci.Inset
+	levelBar.BackgroundTransparency = 0.1
+	UIHelpers.corner(levelBar, UDim.new(0, 8))
+	UIHelpers.stroke(levelBar, Sci.Edge, 1.5)
 	levelBar.Parent = gui
 	local fill = UIHelpers.frame("Fill", UDim2.fromScale(0, 1), UDim2.new(), nil)
-	fill.BackgroundColor3 = Colors.Sky
-	fill.BackgroundTransparency = 0
-	UIHelpers.corner(fill, UDim.new(1, 0))
+	fill.BackgroundColor3 = Sci.Cyan
+	fill.BackgroundTransparency = 0.15
+	UIHelpers.corner(fill, UDim.new(0, 8))
 	fill.Parent = levelBar
-	local levelText = UIHelpers.label("Text", "", 17, Theme.Fonts.Title)
-	UIHelpers.textStroke(levelText)
+	local levelText = UIHelpers.label("Text", "", 13, SCI_FONT)
+	levelText.TextColor3 = Sci.Text
+	UIHelpers.textStroke(levelText, 1.5)
 	levelText.Parent = levelBar
 
 	-- Bottom: speech bubble, PLAY, and the button bar --------------------
 	local bar = UIHelpers.frame("ButtonBar", UDim2.fromOffset(452, 66), UDim2.new(0.5, 0, 1, -12), Vector2.new(0.5, 1))
-	bar.BackgroundColor3 = Colors.Ink
+	bar.BackgroundColor3 = Sci.Void
 	bar.BackgroundTransparency = 0.3
-	UIHelpers.corner(bar, UDim.new(0, 18))
+	UIHelpers.corner(bar, UDim.new(0, 14))
 	bar.Parent = gui
+	-- A thin neon line along the top of the bar.
+	local barLine = Instance.new("Frame")
+	barLine.Name = "NeonLine"
+	barLine.AnchorPoint = Vector2.new(0.5, 0)
+	barLine.Position = UDim2.fromScale(0.5, 0)
+	barLine.Size = UDim2.new(1, -28, 0, 2)
+	barLine.BackgroundColor3 = Sci.Cyan
+	barLine.BorderSizePixel = 0
+	barLine.Parent = bar
 	local barLayout = Instance.new("UIListLayout")
 	barLayout.FillDirection = Enum.FillDirection.Horizontal
 	barLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
@@ -124,12 +157,12 @@ function LobbyController.start()
 	barLayout.Padding = UDim.new(0, 10)
 	barLayout.Parent = bar
 	local barButtons = {
-		{ name = "Weapons", text = "🔫 WEAPONS", color = Color3.fromRGB(150, 90, 230) },
-		{ name = "Tasks", text = "📋 TASKS", color = Colors.SkyDeep },
-		{ name = "Shop", text = "🛒 SHOP", color = Colors.YolkDark },
+		{ name = "Weapons", text = "🔫 WEAPONS", color = Sci.Purple },
+		{ name = "Tasks", text = "📋 TASKS", color = Sci.Cyan },
+		{ name = "Shop", text = "🛒 SHOP", color = Sci.Yellow },
 	}
 	for order, info in barButtons do
-		local button = chunkyButton(info.name, info.text, UDim2.fromOffset(136, 52), info.color, 20)
+		local button = sciButton(info.name, info.text, UDim2.fromOffset(136, 50), info.color, 14, false)
 		button.LayoutOrder = order
 		button.Parent = bar
 		button.Activated:Connect(function()
@@ -143,25 +176,31 @@ function LobbyController.start()
 		end)
 	end
 
-	local play = chunkyButton("Play", "PLAY", UDim2.fromOffset(250, 70), PLAY_GREEN, 40)
+	local play, playGlow = sciButton("Play", "PLAY", UDim2.fromOffset(250, 66), Sci.Green, 32, true)
 	play.AnchorPoint = Vector2.new(0.5, 1)
 	play.Position = UDim2.new(0.5, 0, 1, -88)
 	play.Parent = gui
-	local shine = Instance.new("UIGradient")
-	shine.Rotation = 90
-	shine.Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(190, 190, 190))
-	shine.Parent = play
+	playGlow.Thickness = 3
+	task.spawn(function()
+		while play.Parent do
+			UIHelpers.tween(playGlow, 0.9, { Transparency = 0.65 }, Enum.EasingStyle.Sine)
+			task.wait(0.9)
+			UIHelpers.tween(playGlow, 0.9, { Transparency = 0.05 }, Enum.EasingStyle.Sine)
+			task.wait(0.9)
+		end
+	end)
 	play.Activated:Connect(function()
 		Net.event("QuickPlay"):FireServer()
 	end)
 
 	local bubble = UIHelpers.frame("Bubble", UDim2.fromOffset(470, 44), UDim2.new(0.5, 0, 1, -170), Vector2.new(0.5, 1))
-	bubble.BackgroundColor3 = Colors.White
-	bubble.BackgroundTransparency = 0
-	UIHelpers.corner(bubble, UDim.new(0, 12))
+	bubble.BackgroundColor3 = Sci.Panel
+	bubble.BackgroundTransparency = 0.08
+	UIHelpers.corner(bubble, UDim.new(0, 10))
+	UIHelpers.stroke(bubble, Sci.Cyan, 1.5).Transparency = 0.25
 	bubble.Parent = gui
-	local bubbleText = UIHelpers.label("Text", "", 21, Theme.Fonts.Title)
-	bubbleText.TextColor3 = Colors.Ink
+	local bubbleText = UIHelpers.label("Text", "", 17, BODY_FONT)
+	bubbleText.TextColor3 = Sci.Text
 	bubbleText.Parent = bubble
 	local tail = Instance.new("Frame")
 	tail.Name = "Tail"
@@ -169,7 +208,7 @@ function LobbyController.start()
 	tail.Position = UDim2.new(0.5, 0, 1, 0)
 	tail.Size = UDim2.fromOffset(16, 16)
 	tail.Rotation = 45
-	tail.BackgroundColor3 = Colors.White
+	tail.BackgroundColor3 = Sci.Panel
 	tail.BorderSizePixel = 0
 	tail.ZIndex = 0
 	tail.Parent = bubble
