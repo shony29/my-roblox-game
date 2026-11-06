@@ -262,8 +262,9 @@ function DailyController.start()
 		prizeTop.TextColor3 = if rarityInfo then rarityInfo.Color else Colors.Sky
 		prizeName.Text = string.upper(name)
 		prizeKind.Text = if result.kind == "Coins"
-			then "You own everything, so here are coins!"
+			then "Here are some coins!"
 			elseif result.kind == "Upgrade" then `Gun upgrade! It's now {tostring(result.upgradeColor)}.`
+			elseif result.duplicate == true then "You already own this one. Better luck tomorrow!"
 			else (CATEGORY_TEXT[if typeof(result.category) == "string" then result.category else ""] or "New item!")
 		card.Visible = true
 		cardScale.Scale = 0.6

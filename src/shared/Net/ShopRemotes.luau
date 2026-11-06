@@ -1,10 +1,11 @@
 --!strict
 --[[
-	ShopRemotes: the shop's two remotes (listed in Shared/Net/Net.luau).
+	ShopRemotes: the shop's remotes (listed in Shared/Net/Net.luau).
 	The client can only ASK; the server decides.
 
-	  BuyItem    client -> server  (itemId)  returns (ok, message)
-	  EquipItem  client -> server  (itemId)  returns (ok, message)
+	  BuyItem     client -> server  (itemId)  returns (ok, message)
+	  EquipItem   client -> server  (itemId)  returns (ok, message)
+	  UpgradeGun  client -> server  (gun's itemId)  returns (ok, message)
 
 	What the player owns and wears is shared through attributes on the
 	Player (see Shared/Net/GameContract).
@@ -15,6 +16,7 @@ local Net = require(script.Parent:WaitForChild("Net"))
 export type Remotes = {
 	BuyItem: RemoteFunction,
 	EquipItem: RemoteFunction,
+	UpgradeGun: RemoteFunction,
 }
 
 local cached: Remotes? = nil
@@ -28,6 +30,7 @@ function ShopRemotes.get(): Remotes
 	local remotes: Remotes = {
 		BuyItem = Net.func("ShopBuyItem"),
 		EquipItem = Net.func("ShopEquipItem"),
+		UpgradeGun = Net.func("ShopUpgradeGun"),
 	}
 	cached = remotes
 	return remotes

@@ -7,7 +7,8 @@ with googly eyes, running around a colourful arena.
 - ⚡ **Fast movement:** dash, double jump and slide
 - ⏱️ **Rounds:** 5-minute free-for-all, first to 25 eliminations wins, then a short break
 - 🔁 **Quick respawns** at the safest spawn pad, with 2 seconds of spawn protection
-- 🪙 **Saved progress:** lifetime eliminations, wins and coins (5 coins per elimination)
+- 🪙 **Saved progress:** lifetime eliminations, wins, win streak, level, coins and settings
+  (1 coin per elimination and 10 for a win: shop items are a real goal)
 - 📋 **HUD:** health, ammo, coins, round timer, kill feed and a Tab scoreboard
 
 ---
@@ -142,8 +143,6 @@ shop look jagged. A game can't change this setting, so turn it up yourself:
 1. While playing (also in a Studio test), press **Esc** → **Settings**.
 2. Set **Graphics Mode** to **Manual**, then drag **Graphics Quality** all the way up.
 
-A yellow tip on the starting screen and in the shop reminds you while it's low.
-
 ## If something isn't working
 
 1. In Studio, open **View → Output** before you press Play.
@@ -159,10 +158,11 @@ A yellow tip on the starting screen and in the shop reminds you while it's low.
 
 1. Press **Play** (F5) at the top of Studio.
 2. The main menu appears. Click **PLAY**: you appear in the **slime bunker** lobby.
-3. Look around: slime tubes, the shop (press **B**, or the SHOP button at the bottom) and the
+3. Look around: slime tubes, the shop (press **B**, or **SHOP** on the left) and the
    **DAILY SQUISHY** machine (right, press **E**, then tap the squishy until it bursts).
-   Prizes can be items or **gun upgrades** (red → orange → yellow → green → blue → purple;
-   upgrades change your gun's colour, not its damage).
+   Prizes can be items (sometimes one you already own) or **gun upgrades**
+   (red → orange → yellow → green → blue → purple; upgrades change your gun's colour,
+   not its damage).
 4. Press the big green **PLAY** button at the bottom: you're put on a queue pad
    (alone in the server, that's **1v1 vs BOT**, so a practice match starts right away).
    Or walk through the round **portal** under the big sign into the hallway and stand on
@@ -171,15 +171,30 @@ A yellow tip on the starting screen and in the shop reminds you while it's low.
 5. **Testing alone?** The **vs BOTS** pads (right side of the hallway) start a practice
    match with bots (no coins or XP from practice). Teams have **blue** and **red** outlines.
 6. **Left door: WEAPONS room.** Every gun sits on a table with its price. Press **E** at the
-   counter to open the shop's Guns tab. Coins come from eliminations, wins, tasks and
-   simply playing (a few coins every 5 minutes).
+   counter to open the shop's Guns tab. Coins come from eliminations, wins and tasks.
 7. **Right door: PRACTICE RANGE.** Step on the glowing pad. You get your guns and endless
    ammo on a floating sky island: a long lane with a coloured stripe every 25 studs and slime
    targets, plus bullseyes floating all around. Shot targets pop and come back. Leave with the
    **BACK TO LOBBY** pad or press **L**.
-8. **TASKS** (button at the bottom, or **T**): beginner tasks (visit the range, pop 5 targets,
+8. **TASKS** (button on the left, or **T**): beginner tasks (visit the range, pop 5 targets,
    slide 3 times) and daily quests (play matches, get eliminations, win). Each one pays coins
-   the moment it's done, and a small list on the left shows your progress.
+   the moment it's done.
+9. **Top right:** three round buttons. The **gear** opens Settings (sound, mouse sensitivity,
+   field of view; saved for next time), the **calendar** shows a short list of your tasks,
+   and the **bell** lists your notifications (rewards, level ups, win streaks, the Daily
+   Squishy being ready). A small number on a button means something new.
+10. Above every player's head: their **level** and **win streak** (matches won in a row).
+
+### The shop
+
+- Every tab has items of all five rarities, in order: **Common, Uncommon, Rare, Epic,
+  Legendary**, and exactly **one Legendary** (this month's themed item; for guns, the
+  Blob Launcher).
+- Prices grow about 3x per rarity: **50, 150, 500, 1,500, 5,000** coins.
+- **Gun upgrades:** a gun you own has an **UPGRADE** button. The first upgrade costs
+  1.5x the gun's price (the free guns count as 100) and each level costs 1.6x the one before.
+- **Skins** follow each gun's own shape. Click a skin's picture to see it on every gun.
+- Charm packet toppings burst into little 3D charms.
 
 | Control | What it does |
 |---------|--------------|
@@ -194,6 +209,7 @@ A yellow tip on the starting screen and in the shop reminds you while it's low.
 | Tab (hold) | Scoreboard |
 | B | Shop |
 | T | Tasks |
+| G | Shop: Guns tab (in the lobby) |
 | L | Leave the practice range |
 
 Press **Stop** (Shift+F5) when you're done.
@@ -214,7 +230,7 @@ Things to check:
 - [ ] You can't shoot during the countdown or between rounds, and never your own teammates.
 - [ ] Shooting lowers the other player's **health bar**; the **ammo counter** (bottom right) shows magazine / spare bullets.
 - [ ] Walk over a glowing green **slime ball** on the map: your spare ammo goes up and the ball comes back 15 seconds later.
-- [ ] An elimination shows in the **kill feed** (top right) and the **scoreboard** (Tab); the shooter earns **5 coins**.
+- [ ] An elimination shows in the **kill feed** (top right) and the **scoreboard** (Tab); the shooter earns **1 coin**.
 - [ ] The eliminated player sits out; the round ends (ROUND WON / ROUND LOST) and both respawn for the next round.
 - [ ] First to 5 rounds shows the **results screen** (VICTORY / DEFEAT, MVP, stats, coins).
 - [ ] Press **REMATCH** in both windows: a new match starts with the same players. Otherwise both return to the lobby after 10 seconds.
@@ -275,7 +291,10 @@ Every tuning value lives in one file per system:
 | `src/shared/Config/WeaponConfig.luau` | Damage, fire rate, ammo, reload time, range for each gun |
 | `src/shared/Config/MovementConfig.luau` | Walk speed, jump, dash, slide, blob looks |
 | `src/shared/Config/RoundConfig.luau` | Round length, eliminations to win, break time, respawn delay, minimum players |
-| `src/shared/Data/PlayerDataSchema.luau` | Coins per elimination, what gets saved |
+| `src/shared/Data/PlayerDataSchema.luau` | Coins per elimination, what gets saved, settings ranges |
+| `src/shared/Config/ShopConfig.luau` | Shop items, rarities and prices (`PRICE`) |
+| `src/shared/Config/UpgradeConfig.luau` | Gun upgrade levels and their prices |
+| `src/shared/Config/QuestConfig.luau` | Tasks, their coin rewards and the win bonus |
 | `src/client/UI/Theme.luau` | UI colours, fonts and the game title |
 
 ## How the project is organised

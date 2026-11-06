@@ -1,6 +1,6 @@
 --!strict
 --[[
-	QuestService: beginner tasks, daily quests and coins for playing.
+	QuestService: beginner tasks and daily quests.
 
 	The game tells this service when something happens, for example
 		QuestService.progress(player, "Slide")
@@ -11,10 +11,9 @@
 	Everything is counted here on the server: a client can't claim progress.
 	Progress is saved with the rest of the player's data (PlayerDataService).
 
-	Also:
-	  * Daily quests start fresh when the day changes (midnight UTC).
-	  * Coins for playing: QuestConfig.PLAYTIME_COINS every few minutes
-	    after pressing Play (lobby, practice range or a match).
+	Also: daily quests start fresh when the day changes (midnight UTC).
+	(There are no coins just for playing: coins come from eliminations,
+	wins, tasks and quests.)
 ]]
 
 local Players = game:GetService("Players")
@@ -22,19 +21,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage.Shared
 local QuestConfig = require(Shared.Config.QuestConfig)
-local MatchState = require(Shared.Match.MatchState)
 local Net = require(Shared.Net.Net)
 local Schema = require(Shared.Data.PlayerDataSchema)
 local PlayerDataService = require(script.Parent.PlayerDataService)
 
 type Quest = QuestConfig.Quest
 
-local CHECK_INTERVAL = 60 -- seconds between play-time and new-day checks
+local CHECK_INTERVAL = 60 -- seconds between new-day checks
 
 local QuestService = {}
 
 local started = false
-local playSeconds: { [Player]: number } = {}
 
 local allQuests: { Quest } = {}
 for _, quest in QuestConfig.Beginner do
@@ -98,16 +95,6 @@ end
 
 local function checkPlayers()
 	for _, player in Players:GetPlayers() do
-		-- Coins for playing (only after pressing Play).
-		local status = player:GetAttribute(MatchState.PlayerAttr.Status)
-		if status ~= nil and status ~= "Menu" then
-			local seconds = (playSeconds[player] or 0) + CHECK_INTERVAL
-			if seconds >= QuestConfig.PLAYTIME_INTERVAL then
-				seconds -= QuestConfig.PLAYTIME_INTERVAL
-				QuestService.reward(player, QuestConfig.PLAYTIME_COINS, "Thanks for playing!")
-			end
-			playSeconds[player] = seconds
-		end
 		-- A new day: show fresh daily quests even before any progress.
 		local data = PlayerDataService.getData(player)
 		if data and data.quests.day ~= QuestConfig.today() then
@@ -121,9 +108,6 @@ function QuestService.start()
 		return
 	end
 	started = true
-	Players.PlayerRemoving:Connect(function(player: Player)
-		playSeconds[player] = nil
-	end)
 	task.spawn(function()
 		while true do
 			task.wait(CHECK_INTERVAL)

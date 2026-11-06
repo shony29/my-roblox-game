@@ -285,9 +285,6 @@ function MainMenu.create(gui: ScreenGui, onPlay: () -> (), onShop: (() -> ())?)
 		end)
 	end
 
-	-- How to get smoother graphics (only shows while graphics quality is low).
-	UIHelpers.qualityTip(background, UDim2.new(0.5, 0, 1, -14), Vector2.new(0.5, 1), 720)
-
 	local playRemote = GameContract.getRemote(GameContract.RemoteNames.PlayPressed)
 	local pressed = false
 	play.Activated:Connect(function()

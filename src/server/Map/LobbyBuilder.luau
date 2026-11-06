@@ -234,8 +234,9 @@ local function buildDailyMachine(model: Model)
 	label.Parent = status
 	end)
 
-	-- How-to-play board on the front wall.
-	local board = at(-24, 12, -HALL_Z + 0.2)
+	-- How-to-play board on the front wall, in the clear space between the
+	-- purple tube and the portal (so no tube hides it).
+	local board = at(-17, 12, -HALL_Z + 0.2)
 	Props.neonSign(model, "HowToPlay", Vector3.new(12, 9, 0.4), CFrame.lookAt(board, board + Vector3.new(0, 0, 1)),
 		"HOW TO PLAY\nPress PLAY, or stand on a pad\nin the hallway to queue\nLeft door: WEAPONS\nRight door: PRACTICE RANGE", Color3.fromRGB(200, 255, 180))
 end
@@ -309,9 +310,10 @@ local function buildWeaponsRoom(model: Model)
 					price.Size = UDim2.fromScale(1, 0.45)
 					price.Font = Enum.Font.FredokaOne
 					price.TextScaled = true
-					price.TextColor3 = if item.Price <= 0 then Color3.fromRGB(140, 255, 150) else Color3.fromRGB(255, 210, 80)
+					local rarity = ShopConfig.rarityOf(item :: any)
+					price.TextColor3 = rarity.Color
 					price.TextStrokeTransparency = 0.3
-					price.Text = if item.Price <= 0 then "FREE" else `{item.Price} coins`
+					price.Text = if item.Price <= 0 then `{string.upper(rarity.Name)} · FREE` else `{string.upper(rarity.Name)} · {item.Price} coins`
 					price.Parent = billboard
 				end
 			end)

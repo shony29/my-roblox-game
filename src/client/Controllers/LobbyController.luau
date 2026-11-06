@@ -2,9 +2,10 @@
 --[[
 	LobbyController: what you see while you're in the bunker lobby.
 
-	  * Top: your coins (the + opens the shop) and your level bar.
-	  * Bottom: a big PLAY button with a speech bubble, and a bar with
-	    WEAPONS (shop's Guns tab), TASKS (Tasks panel) and SHOP.
+	  * Top: your level bar. (Top right: settings, tasks and notifications,
+	    see CornerMenuController.)
+	  * Left: SHOP (B), TASKS (T) and WEAPONS (the shop's Guns tab).
+	  * Bottom: a big PLAY button with a speech bubble.
 	    PLAY asks the server to put you on a queue pad (QueueService picks
 	    one: practice against a bot when you're alone, otherwise the real
 	    queue closest to starting). Stepping off the pad leaves the queue.
@@ -20,6 +21,7 @@
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -32,6 +34,7 @@ local UIFolder = script.Parent.Parent:WaitForChild("UI")
 local Theme = require(UIFolder:WaitForChild("Theme"))
 local UIHelpers = require(UIFolder:WaitForChild("UIHelpers"))
 local ResponsiveScale = require(UIFolder:WaitForChild("ResponsiveScale"))
+local Icons = require(UIFolder:WaitForChild("Icons"))
 local ShopController = require(script.Parent:WaitForChild("ShopController"))
 local TasksController = require(script.Parent:WaitForChild("TasksController"))
 
@@ -82,6 +85,39 @@ local function sciButton(name: string, text: string, size: UDim2, accent: Color3
 	return button, edge
 end
 
+--[[
+	A button for the menu on the left: dark glass, a neon edge and stripe in
+	`accent`, a drawn icon, the label, and its keyboard key on the right.
+]]
+local function menuButton(name: string, text: string, key: string, accent: Color3, drawIcon: (GuiObject, Color3, Color3) -> ()): TextButton
+	local button = sciButton(name, text, UDim2.fromOffset(214, 58), accent, 17, false)
+	button.TextXAlignment = Enum.TextXAlignment.Left
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0, 64)
+	padding.Parent = button
+	-- A glowing stripe down the left edge.
+	local stripe = Instance.new("Frame")
+	stripe.Name = "Stripe"
+	stripe.AnchorPoint = Vector2.new(0, 0.5)
+	stripe.Position = UDim2.new(0, -58, 0.5, 0)
+	stripe.Size = UDim2.new(0, 4, 1, -18)
+	stripe.BackgroundColor3 = accent
+	stripe.BorderSizePixel = 0
+	UIHelpers.corner(stripe, UDim.new(1, 0))
+	stripe.Parent = button
+	drawIcon(Icons.holder(button, UDim2.fromOffset(32, 32), UDim2.new(0, -42, 0.5, 0), Vector2.new(0, 0.5)), accent, Sci.Panel)
+	-- The keyboard key, in a small dim box.
+	local keyBox = UIHelpers.label("Key", key, 12, SCI_FONT)
+	keyBox.AnchorPoint = Vector2.new(1, 0.5)
+	keyBox.Position = UDim2.new(1, -10, 0.5, 0)
+	keyBox.Size = UDim2.fromOffset(24, 24)
+	keyBox.TextColor3 = Sci.Dim
+	UIHelpers.corner(keyBox, UDim.new(0, 6))
+	UIHelpers.stroke(keyBox, Sci.Dim, 1).Transparency = 0.4
+	keyBox.Parent = button
+	return button
+end
+
 function LobbyController.start()
 	if started then
 		return
@@ -94,32 +130,8 @@ function LobbyController.start()
 	local gui = UIHelpers.screenGui("Lobby", 3, player:WaitForChild("PlayerGui"))
 	ResponsiveScale.apply(gui)
 
-	-- Top: coins, then the level bar ------------------------------------
-	local coinPill = UIHelpers.frame("Coins", UDim2.fromOffset(210, 46), UDim2.new(0.5, 0, 0, 10), Vector2.new(0.5, 0))
-	coinPill.BackgroundColor3 = Sci.Inset
-	coinPill.BackgroundTransparency = 0.1
-	UIHelpers.corner(coinPill, UDim.new(0, 12))
-	UIHelpers.stroke(coinPill, Sci.Yellow, 2).Transparency = 0.2
-	coinPill.Parent = gui
-	local coinText = UIHelpers.label("Value", "🪙 0", 22, SCI_FONT)
-	coinText.Size = UDim2.new(1, -54, 1, 0)
-	coinText.Position = UDim2.fromOffset(8, 0)
-	coinText.TextColor3 = Sci.Yellow
-	coinText.Parent = coinPill
-	local addCoins = sciButton("Add", "+", UDim2.fromOffset(36, 36), Sci.Green, 22, false)
-	addCoins.AnchorPoint = Vector2.new(1, 0.5)
-	addCoins.Position = UDim2.new(1, -4, 0.5, 0)
-	addCoins.Parent = coinPill
-	addCoins.Activated:Connect(function()
-		ShopController.open()
-	end)
-	local function updateCoins()
-		coinText.Text = `🪙 {UIHelpers.numberAttribute(player, GameContract.PlayerAttributes.Coins)}`
-	end
-	player:GetAttributeChangedSignal(GameContract.PlayerAttributes.Coins):Connect(updateCoins)
-	updateCoins()
-
-	local levelBar = UIHelpers.frame("LevelBar", UDim2.fromOffset(380, 26), UDim2.new(0.5, 0, 0, 64), Vector2.new(0.5, 0))
+	-- Top: the level bar --------------------------------------------------
+	local levelBar = UIHelpers.frame("LevelBar", UDim2.fromOffset(380, 26), UDim2.new(0.5, 0, 0, 14), Vector2.new(0.5, 0))
 	levelBar.BackgroundColor3 = Sci.Inset
 	levelBar.BackgroundTransparency = 0.1
 	UIHelpers.corner(levelBar, UDim.new(0, 8))
@@ -135,36 +147,23 @@ function LobbyController.start()
 	UIHelpers.textStroke(levelText, 1.5)
 	levelText.Parent = levelBar
 
-	-- Bottom: speech bubble, PLAY, and the button bar --------------------
-	local bar = UIHelpers.frame("ButtonBar", UDim2.fromOffset(452, 66), UDim2.new(0.5, 0, 1, -12), Vector2.new(0.5, 1))
-	bar.BackgroundColor3 = Sci.Void
-	bar.BackgroundTransparency = 0.3
-	UIHelpers.corner(bar, UDim.new(0, 14))
-	bar.Parent = gui
-	-- A thin neon line along the top of the bar.
-	local barLine = Instance.new("Frame")
-	barLine.Name = "NeonLine"
-	barLine.AnchorPoint = Vector2.new(0.5, 0)
-	barLine.Position = UDim2.fromScale(0.5, 0)
-	barLine.Size = UDim2.new(1, -28, 0, 2)
-	barLine.BackgroundColor3 = Sci.Cyan
-	barLine.BorderSizePixel = 0
-	barLine.Parent = bar
-	local barLayout = Instance.new("UIListLayout")
-	barLayout.FillDirection = Enum.FillDirection.Horizontal
-	barLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	barLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-	barLayout.Padding = UDim.new(0, 10)
-	barLayout.Parent = bar
-	local barButtons = {
-		{ name = "Weapons", text = "🔫 WEAPONS", color = Sci.Purple },
-		{ name = "Tasks", text = "📋 TASKS", color = Sci.Cyan },
-		{ name = "Shop", text = "🛒 SHOP", color = Sci.Yellow },
+	-- Left: the menu (SHOP, TASKS, WEAPONS) ---------------------------------
+	local menu = UIHelpers.frame("Menu", UDim2.fromOffset(214, 3 * 58 + 2 * 12), UDim2.new(0, 16, 0.5, 0), Vector2.new(0, 0.5))
+	menu.BackgroundTransparency = 1
+	menu.Parent = gui
+	local menuLayout = Instance.new("UIListLayout")
+	menuLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	menuLayout.Padding = UDim.new(0, 12)
+	menuLayout.Parent = menu
+	local menuButtons: { { name: string, text: string, key: string, color: Color3, icon: (GuiObject, Color3, Color3) -> () } } = {
+		{ name = "Shop", text = "SHOP", key = "B", color = Sci.Yellow, icon = Icons.shop },
+		{ name = "Tasks", text = "TASKS", key = "T", color = Sci.Cyan, icon = Icons.tasks },
+		{ name = "Weapons", text = "WEAPONS", key = "G", color = Sci.Purple, icon = Icons.weapons },
 	}
-	for order, info in barButtons do
-		local button = sciButton(info.name, info.text, UDim2.fromOffset(136, 50), info.color, 14, false)
+	for order, info in menuButtons do
+		local button = menuButton(info.name, info.text, info.key, info.color, info.icon)
 		button.LayoutOrder = order
-		button.Parent = bar
+		button.Parent = menu
 		button.Activated:Connect(function()
 			if info.name == "Weapons" then
 				ShopController.openTab("Weapon")
@@ -176,9 +175,10 @@ function LobbyController.start()
 		end)
 	end
 
+	-- Bottom: PLAY and its speech bubble -------------------------------------
 	local play, playGlow = sciButton("Play", "PLAY", UDim2.fromOffset(250, 66), Sci.Green, 32, true)
 	play.AnchorPoint = Vector2.new(0.5, 1)
-	play.Position = UDim2.new(0.5, 0, 1, -88)
+	play.Position = UDim2.new(0.5, 0, 1, -26)
 	play.Parent = gui
 	playGlow.Thickness = 3
 	task.spawn(function()
@@ -193,7 +193,7 @@ function LobbyController.start()
 		Net.event("QuickPlay"):FireServer()
 	end)
 
-	local bubble = UIHelpers.frame("Bubble", UDim2.fromOffset(470, 44), UDim2.new(0.5, 0, 1, -170), Vector2.new(0.5, 1))
+	local bubble = UIHelpers.frame("Bubble", UDim2.fromOffset(470, 44), UDim2.new(0.5, 0, 1, -108), Vector2.new(0.5, 1))
 	bubble.BackgroundColor3 = Sci.Panel
 	bubble.BackgroundTransparency = 0.08
 	UIHelpers.corner(bubble, UDim.new(0, 10))
@@ -236,6 +236,13 @@ function LobbyController.start()
 			play.Visible = true
 		end
 	end
+
+	-- G opens the shop's Guns tab while you're in the lobby.
+	UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+		if not gameProcessed and input.KeyCode == Enum.KeyCode.G and gui.Enabled then
+			ShopController.openTab("Weapon")
+		end
+	end)
 
 	-- The weapons room counter opens the shop's Guns tab.
 	ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt)

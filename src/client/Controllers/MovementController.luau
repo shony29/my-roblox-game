@@ -276,7 +276,9 @@ local function onRenderStep(dt: number)
 		else 0
 	fovBoost += (target - fovBoost) * math.min(dt * CameraConfig.FovLerpSpeed, 1)
 	if camera then
-		camera.FieldOfView = CameraConfig.FieldOfView + fovBoost
+		-- The base comes from the Settings window (SettingsController).
+		local base = Players.LocalPlayer:GetAttribute("AppliedFieldOfView")
+		camera.FieldOfView = (if typeof(base) == "number" then base else CameraConfig.FieldOfView) + fovBoost
 	end
 end
 

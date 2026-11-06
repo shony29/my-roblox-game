@@ -10,13 +10,14 @@
 	  * first a rarity is rolled, fresh every time (no streaks or pity):
 	    40% Common, 30% Uncommon, 20% Rare, 8% Epic, 2% Legendary
 	    (Config/ShopConfig.Rarities);
-	  * then a random prize of that rarity: an item they don't own yet (a
-	    colour, squishy, skin, topping or gun), or a gun upgrade for a gun
-	    they own (red -> orange -> yellow -> green -> blue -> purple; higher
-	    levels are rarer, see Config/UpgradeConfig);
-	  * if they own every item of that rarity, the nearest rarity that still
-	    has something is used; if they own everything, they get 150 coins.
-	Robux (monthly themed) items are never given away.
+	  * then a random prize of that rarity: any coin item of that rarity (a
+	    colour, squishy, skin, topping or gun), EVEN ONE THEY ALREADY OWN
+	    (a duplicate: nice to see, but it adds nothing), or a gun upgrade
+	    for a gun they own (red -> orange -> yellow -> green -> blue ->
+	    purple; higher levels are rarer, see Config/UpgradeConfig);
+	  * if a rarity has nothing at all, the nearest rarity that does is
+	    used; with nothing anywhere, they get a few coins.
+	Robux (monthly themed) items and free items are never given away.
 ]]
 
 local Players = game:GetService("Players")
@@ -33,7 +34,7 @@ type Category = ShopConfig.Category
 type Prize = { item: ShopConfig.ShopItem?, weaponId: string?, level: number? }
 
 local CATEGORIES: { Category } = { "Color", "Hat", "Skin", "Weapon", "Topping" }
-local FALLBACK_COINS = 150
+local FALLBACK_COINS = 10
 
 local DailyService = {}
 
@@ -61,11 +62,11 @@ local function prizesByRarity(player: Player): { [string]: { Prize } }
 		groups[rarity] = groups[rarity] or {}
 		table.insert(groups[rarity], prize)
 	end
-	-- Coin items they don't own yet (never Robux items, never free ones).
+	-- Every coin item, owned or not (never Robux items, never free ones).
 	for _, category in CATEGORIES do
 		for _, raw in itemsIn(category) do
 			local item = ShopConfig.getItem(raw.Id)
-			if item and item.Price > 0 and item.Robux == nil and not PlayerDataService.ownsItem(player, item.Id) then
+			if item and item.Price > 0 and item.Robux == nil then
 				add(ShopConfig.rarityOf(item).Name, { item = item })
 			end
 		end
@@ -120,8 +121,11 @@ local function claim(player: Player): { [string]: any }
 	local prize = pickPrize(player)
 	local item = prize and prize.item
 	if item then
-		PlayerDataService.purchaseItem(player, item.Id, 0) -- a free gift: adds it, costs nothing
-		PlayerDataService.saveNow(player)
+		local duplicate = PlayerDataService.ownsItem(player, item.Id)
+		if not duplicate then
+			PlayerDataService.purchaseItem(player, item.Id, 0) -- a free gift: adds it, costs nothing
+		end
+		PlayerDataService.saveNow(player) -- (the claim time is saved either way)
 		return {
 			ok = true,
 			kind = "Item",
@@ -129,6 +133,7 @@ local function claim(player: Player): { [string]: any }
 			displayName = item.DisplayName,
 			category = item.Category,
 			rarity = ShopConfig.rarityOf(item).Name,
+			duplicate = duplicate,
 		}
 	end
 	local weaponId = prize and prize.weaponId

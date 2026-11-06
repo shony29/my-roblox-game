@@ -100,7 +100,9 @@ function CameraController.start()
 		return
 	end
 	started = true
-	UserInputService.MouseDeltaSensitivity = CameraConfig.MouseSensitivity
+	-- The Settings window's saved choice wins (SettingsController keeps it up to date).
+	local saved = game:GetService("Players").LocalPlayer:GetAttribute("SettingSensitivity")
+	UserInputService.MouseDeltaSensitivity = if typeof(saved) == "number" then saved else CameraConfig.MouseSensitivity
 	RunService:BindToRenderStep("SlimeCamera", Enum.RenderPriority.Camera.Value + 1, onRenderStep)
 end
 

@@ -42,11 +42,13 @@ export type EventName =
 	| "PracticeLeave" -- client -> server: () back to the lobby
 	| "TargetPop" -- server -> all: (position, color) a practice target popped
 	| "RewardToast" -- server -> owner: (text, coins) a task or reward was earned
+	| "SettingsSave" -- client -> server: (volume, sensitivity, fieldOfView) Settings window
 
 export type FunctionName =
 	"ShopBuyItem" -- client asks: (itemId) -> (ok, message)
 	| "ShopEquipItem" -- client asks: (itemId) -> (ok, message)
 	| "DailyClaim" -- client asks: () -> result table (see DailyService)
+	| "ShopUpgradeGun" -- client asks: (weapon item Id) -> (ok, message)
 
 local EVENTS: { EventName } = {
 	"KillFeed",
@@ -67,8 +69,9 @@ local EVENTS: { EventName } = {
 	"PracticeLeave",
 	"TargetPop",
 	"RewardToast",
+	"SettingsSave",
 }
-local FUNCTIONS: { FunctionName } = { "ShopBuyItem", "ShopEquipItem", "DailyClaim" }
+local FUNCTIONS: { FunctionName } = { "ShopBuyItem", "ShopEquipItem", "DailyClaim", "ShopUpgradeGun" }
 
 local FOLDER_NAME = "Remotes"
 

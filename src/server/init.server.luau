@@ -83,7 +83,10 @@ run("RobuxService", function()
 	require(Services.RobuxService).start() -- Robux purchases (monthly themed items)
 end)
 run("QuestService", function()
-	require(Services.QuestService).start() -- beginner tasks, daily quests, coins for playing
+	require(Services.QuestService).start() -- beginner tasks and daily quests
+end)
+run("SettingsService", function()
+	require(Services.SettingsService).start() -- saves the Settings window choices
 end)
 
 -- 4. Gameplay systems.

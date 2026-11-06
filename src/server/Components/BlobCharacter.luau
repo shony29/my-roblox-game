@@ -29,6 +29,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local MovementConfig = require(ReplicatedStorage.Shared.Config.MovementConfig)
+local Progression = require(ReplicatedStorage.Shared.Data.Progression)
 local HitGroups = require(ReplicatedStorage.Shared.Combat.HitGroups)
 
 local BLOB_ATTRIBUTE = "IsBlobPart"
@@ -447,28 +448,111 @@ function BlobCharacter.apply(character: Model, color: Color3)
 	hitboxWeld.Parent = hitbox
 	hitbox.Parent = model
 
-	-- A small name tag above the blob. It's sized in studs, so it shrinks
+	-- A small name tag above the blob: the name, then the player's LEVEL and
+	-- WIN STREAK (matches won in a row). It's sized in studs, so it shrinks
 	-- with distance like a real object (Roblox's own name tag, which stays
-	-- the same size on screen, is switched off in SlimeRig). Players don't
-	-- see their own.
+	-- the same size on screen, is switched off in SlimeRig). You see your
+	-- own tag in the lobby, but not in first person (matches, practice).
 	local owner = Players:GetPlayerFromCharacter(character)
 	local nameTag = Instance.new("BillboardGui")
 	nameTag.Name = "NameTag"
-	nameTag.Size = UDim2.fromScale(5, 0.9)
-	nameTag.StudsOffset = Vector3.new(0, hitboxSize.Y / 2 + 1, 0)
+	nameTag.Size = UDim2.fromScale(5, 1.65)
+	nameTag.StudsOffset = Vector3.new(0, hitboxSize.Y / 2 + 1.35, 0)
 	nameTag.MaxDistance = 60
 	nameTag.LightInfluence = 0
 	nameTag.PlayerToHideFrom = owner
 	nameTag.Parent = hitbox
 	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "PlayerName"
 	nameLabel.BackgroundTransparency = 1
-	nameLabel.Size = UDim2.fromScale(1, 1)
-	nameLabel.Font = Enum.Font.FredokaOne
+	nameLabel.Size = UDim2.fromScale(1, 0.52)
+	nameLabel.Font = Enum.Font.GothamBold
 	nameLabel.TextScaled = true
 	nameLabel.TextColor3 = Color3.new(1, 1, 1)
 	nameLabel.TextStrokeTransparency = 0.3
 	nameLabel.Text = if owner then owner.DisplayName elseif humanoid.DisplayName ~= "" then humanoid.DisplayName else character.Name
 	nameLabel.Parent = nameTag
+
+	-- The badges under the name (sci-fi pills).
+	local badges = Instance.new("Frame")
+	badges.Name = "Badges"
+	badges.BackgroundTransparency = 1
+	badges.Position = UDim2.fromScale(0, 0.58)
+	badges.Size = UDim2.fromScale(1, 0.4)
+	badges.Parent = nameTag
+	local badgeLayout = Instance.new("UIListLayout")
+	badgeLayout.FillDirection = Enum.FillDirection.Horizontal
+	badgeLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	badgeLayout.Padding = UDim.new(0.03, 0)
+	badgeLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	badgeLayout.Parent = badges
+	local function pill(name: string, order: number, width: number, color: Color3): TextLabel
+		local label = Instance.new("TextLabel")
+		label.Name = name
+		label.LayoutOrder = order
+		label.Size = UDim2.fromScale(width, 1)
+		label.BackgroundColor3 = Color3.fromRGB(8, 10, 18)
+		label.BackgroundTransparency = 0.2
+		label.Font = Enum.Font.Michroma
+		label.TextScaled = true
+		label.TextColor3 = color
+		label.Parent = badges
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.5, 0)
+		corner.Parent = label
+		local edge = Instance.new("UIStroke")
+		edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+		edge.Color = color
+		edge.Thickness = 1.5
+		edge.Parent = label
+		local padding = Instance.new("UIPadding")
+		padding.PaddingTop = UDim.new(0.14, 0)
+		padding.PaddingBottom = UDim.new(0.14, 0)
+		padding.PaddingLeft = UDim.new(0.06, 0)
+		padding.PaddingRight = UDim.new(0.06, 0)
+		padding.Parent = label
+		return label
+	end
+	local levelPill = pill("Level", 1, 0.3, Color3.fromRGB(90, 220, 255))
+	local streakPill = pill("Streak", 2, 0.52, Color3.fromRGB(255, 170, 60))
+
+	if owner then
+		local function refreshBadges()
+			local xp = owner:GetAttribute("XP")
+			local level = Progression.levelFromXp(if typeof(xp) == "number" then xp else 0)
+			levelPill.Text = `LV {level}`
+			local streak = owner:GetAttribute("WinStreak")
+			local wins = if typeof(streak) == "number" then streak else 0
+			streakPill.Text = `{wins} WIN STREAK`
+			-- A streak glows brighter the longer it gets.
+			streakPill.TextColor3 = if wins >= 3 then Color3.fromRGB(255, 120, 60)
+				elseif wins >= 1 then Color3.fromRGB(255, 190, 70)
+				else Color3.fromRGB(150, 160, 190)
+		end
+		local function refreshOwnView()
+			-- Seen by yourself in the lobby (third person), hidden in first person.
+			local status = owner:GetAttribute("MatchStatus")
+			nameTag.PlayerToHideFrom = if status == "InMatch" or status == "Practice" then owner else nil
+		end
+		local connections = {
+			owner:GetAttributeChangedSignal("XP"):Connect(refreshBadges),
+			owner:GetAttributeChangedSignal("WinStreak"):Connect(refreshBadges),
+			owner:GetAttributeChangedSignal("MatchStatus"):Connect(refreshOwnView),
+		}
+		-- Stop listening once this character is gone (respawning destroys it).
+		nameTag.Destroying:Connect(function()
+			for _, connection in connections do
+				connection:Disconnect()
+			end
+		end)
+		refreshBadges()
+		refreshOwnView()
+	else
+		-- Practice bots.
+		levelPill.Text = "BOT"
+		levelPill.TextColor3 = Color3.fromRGB(150, 160, 190)
+		streakPill.Visible = false
+	end
 
 	model.Parent = character
 	-- The client animator finds blobs by this tag.

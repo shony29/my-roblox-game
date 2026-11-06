@@ -113,6 +113,12 @@ function Effects.projectile(from: Vector3, to: Vector3, speed: number, color: Co
 	flight:Play()
 end
 
+-- The player's "Sound" setting (0-1) from the Settings window.
+local function masterVolume(): number
+	local value = game:GetService("Players").LocalPlayer:GetAttribute("VolumeMaster")
+	return if typeof(value) == "number" then math.clamp(value, 0, 1) else 1
+end
+
 -- Plays a non-positional sound (heard the same everywhere, like a UI sound).
 function Effects.playSound(soundId: string, volume: number, pitch: number)
 	if soundId == "" then
@@ -126,7 +132,7 @@ function Effects.playSound(soundId: string, volume: number, pitch: number)
 		soundCache[soundId] = newSound
 		sound = newSound
 	end
-	sound.Volume = volume
+	sound.Volume = volume * masterVolume()
 	sound.PlaybackSpeed = pitch
 	-- Using PlayLocalSound lets the same sound overlap itself during fast hits.
 	SoundService:PlayLocalSound(sound)
@@ -143,7 +149,7 @@ function Effects.playSoundAt(soundId: string, position: Vector3, volume: number)
 	holder.Parent = workspace.Terrain
 	local sound = Instance.new("Sound")
 	sound.SoundId = soundId
-	sound.Volume = volume
+	sound.Volume = volume * masterVolume()
 	sound.RollOffMaxDistance = 300
 	sound.Parent = holder
 	sound.Ended:Once(function()

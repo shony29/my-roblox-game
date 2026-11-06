@@ -5,7 +5,7 @@
 	The little 3D pictures on each shop card:
 	  * Colors:     the real jelly slime, painted in that colour.
 	  * Squishies:  the slime (in your colour) wearing the squishy.
-	  * Skins:      the Auto Rifle painted with the skin.
+	  * Skins:      your gun painted with the skin (any gun, see ItemPreview.skin).
 	  * Guns:       each gun in its own colours (Cosmetics/GunBuilder).
 	The slime comes from Shared/Cosmetics/BlobLook (the same shape as the
 	real character) and the squishies and skins use the exact same
@@ -21,6 +21,7 @@ local HatBuilder = require(Shared:WaitForChild("Cosmetics"):WaitForChild("HatBui
 local WeaponSkins = require(Shared:WaitForChild("Cosmetics"):WaitForChild("WeaponSkins"))
 local BlobLook = require(Shared:WaitForChild("Cosmetics"):WaitForChild("BlobLook"))
 local GunBuilder = require(Shared:WaitForChild("Cosmetics"):WaitForChild("GunBuilder"))
+local CharmBuilder = require(Shared:WaitForChild("Cosmetics"):WaitForChild("CharmBuilder"))
 local WeaponConfig = require(Shared:WaitForChild("Config"):WaitForChild("WeaponConfig"))
 local MovementConfig = require(Shared:WaitForChild("Config"):WaitForChild("MovementConfig"))
 
@@ -91,9 +92,10 @@ local function showGun(parent: GuiObject, gun: Model)
 	gun.Parent = viewport
 end
 
--- The Auto Rifle painted with `skin`.
-function ItemPreview.skin(parent: GuiObject, skin: ShopConfig.SkinItem)
-	local stats = WeaponConfig.get(WeaponConfig.Order[1])
+-- A gun painted with `skin` (the Auto Rifle unless `weaponId` names another).
+-- The skin follows each gun's own shape (see Cosmetics/WeaponSkins).
+function ItemPreview.skin(parent: GuiObject, skin: ShopConfig.SkinItem, weaponId: string?)
+	local stats = WeaponConfig.get(weaponId or WeaponConfig.Order[1]) or WeaponConfig.get(WeaponConfig.Order[1])
 	if not stats then
 		return
 	end
@@ -123,7 +125,8 @@ end
 --[[
 	Toppings (kill effects): a frozen moment of the burst over a soft glow
 	in the topping's colours. Sprinkles, foam, glitter and slime pieces fly
-	out in 3D with motion streaks; charm packets burst out as a ring of charms.
+	out in 3D with motion streaks; charm packets burst into a ring of little
+	3D charms (Cosmetics/CharmBuilder) around the popped slime.
 ]]
 function ItemPreview.topping(parent: GuiObject, topping: ShopConfig.ToppingItem)
 	local colors = topping.Colors
@@ -144,33 +147,6 @@ function ItemPreview.topping(parent: GuiObject, topping: ShopConfig.ToppingItem)
 		glow.Parent = parent
 	end
 
-	if topping.Style == "Charms" then
-		local charms = topping.Charms or { "⭐" }
-		local pop = Instance.new("TextLabel")
-		pop.BackgroundTransparency = 1
-		pop.AnchorPoint = Vector2.new(0.5, 0.5)
-		pop.Position = UDim2.fromScale(0.5, 0.55)
-		pop.Size = UDim2.fromScale(0.3, 0.38)
-		pop.TextScaled = true
-		pop.TextColor3 = Color3.new(1, 1, 1)
-		pop.Text = "✦"
-		pop.Parent = parent
-		for i = 1, 8 do
-			local angle = (i / 8) * math.pi * 2 + 0.35
-			local radius = if i % 2 == 0 then 0.38 else 0.28
-			local charm = Instance.new("TextLabel")
-			charm.BackgroundTransparency = 1
-			charm.AnchorPoint = Vector2.new(0.5, 0.5)
-			charm.Position = UDim2.fromScale(0.5 + math.cos(angle) * radius * 0.77, 0.55 + math.sin(angle) * radius)
-			charm.Size = UDim2.fromScale(0.24, 0.3)
-			charm.TextScaled = true
-			charm.Rotation = random:NextNumber(-25, 25)
-			charm.Text = charms[(i % #charms) + 1]
-			charm.Parent = parent
-		end
-		return
-	end
-
 	local viewport = makeViewport(parent, CFrame.lookAt(Vector3.new(0, 0.5, -8.5), Vector3.new(0, 0.2, 0)), 38)
 	viewport.Ambient = Color3.fromRGB(215, 215, 225)
 	local burst = Instance.new("Model")
@@ -182,6 +158,20 @@ function ItemPreview.topping(parent: GuiObject, topping: ShopConfig.ToppingItem)
 	splatMesh.MeshType = Enum.MeshType.Sphere
 	splatMesh.Parent = splat
 	splat.Reflectance = 0.1
+
+	if topping.Style == "Charms" then
+		-- A ring of the packet's charms bursting out, each turned a little.
+		local charms = topping.Charms or { "Star" }
+		for i = 1, 8 do
+			local angle = (i / 8) * math.pi * 2 + 0.4
+			local position = Vector3.new(math.cos(angle) * 2.55, 0.25 + math.sin(angle) * 1.75, 0.3)
+			local charm = CharmBuilder.build(charms[(i % #charms) + 1], { scale = 1.05 })
+			charm:PivotTo(CFrame.new(position) * CFrame.Angles(0, random:NextNumber(-0.3, 0.3), random:NextNumber(-0.4, 0.4)))
+			charm.Parent = burst
+		end
+		burst.Parent = viewport
+		return
+	end
 
 	for i = 1, 26 do
 		-- Mostly sideways and up, spread across the picture.

@@ -34,24 +34,20 @@ export type QuestState = { progress: number, done: boolean }
 local QuestConfig = {}
 
 QuestConfig.Beginner = {
-	{ Id = "B_Range", Stat = "VisitRange", Text = "Visit the practice range", Goal = 1, Reward = 50, Icon = "🎯" },
-	{ Id = "B_Targets", Stat = "BreakTargets", Text = "Pop practice targets", Goal = 5, Reward = 75, Icon = "💥" },
-	{ Id = "B_Slide", Stat = "Slide", Text = "Sprint, then crouch to slide", Goal = 3, Reward = 50, Icon = "💨" },
+	{ Id = "B_Range", Stat = "VisitRange", Text = "Visit the practice range", Goal = 1, Reward = 10, Icon = "🎯" },
+	{ Id = "B_Targets", Stat = "BreakTargets", Text = "Pop practice targets", Goal = 5, Reward = 15, Icon = "💥" },
+	{ Id = "B_Slide", Stat = "Slide", Text = "Sprint, then crouch to slide", Goal = 3, Reward = 10, Icon = "💨" },
 } :: { Quest }
 
 QuestConfig.Daily = {
-	{ Id = "D_Play", Stat = "PlayMatch", Text = "Play matches", Goal = 2, Reward = 60, Icon = "🎮" },
-	{ Id = "D_Elims", Stat = "Elimination", Text = "Get eliminations", Goal = 10, Reward = 80, Icon = "⚔️" },
-	{ Id = "D_Win", Stat = "WinMatch", Text = "Win a match", Goal = 1, Reward = 100, Icon = "🏆" },
+	{ Id = "D_Play", Stat = "PlayMatch", Text = "Play matches", Goal = 2, Reward = 15, Icon = "🎮" },
+	{ Id = "D_Elims", Stat = "Elimination", Text = "Get eliminations", Goal = 10, Reward = 20, Icon = "⚔️" },
+	{ Id = "D_Win", Stat = "WinMatch", Text = "Win a match", Goal = 1, Reward = 25, Icon = "🏆" },
 } :: { Quest }
 
--- Coins just for playing: PLAYTIME_COINS every PLAYTIME_INTERVAL seconds
--- (after pressing Play: lobby, practice range or a match).
-QuestConfig.PLAYTIME_INTERVAL = 300
-QuestConfig.PLAYTIME_COINS = 10
-
 -- Extra coins for winning a real match (each elimination already gives coins).
-QuestConfig.WIN_COINS = 25
+-- Rewards are kept small on purpose, so shop items stay a real goal.
+QuestConfig.WIN_COINS = 10
 
 -- Today's number: whole days since 1 January 1970, in UTC.
 function QuestConfig.today(): number

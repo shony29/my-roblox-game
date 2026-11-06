@@ -91,49 +91,6 @@ function UIHelpers.screenGui(name: string, displayOrder: number, parent: Instanc
 end
 
 -- Turns 125 into "2:05".
--- True when Roblox's graphics quality is on Automatic or turned down, which
--- makes 3D pictures (the shop) and the world look blocky and jagged.
-function UIHelpers.graphicsAreLow(): boolean
-	local ok, level = pcall(function()
-		return UserSettings():GetService("UserGameSettings").SavedQualityLevel
-	end)
-	if not ok then
-		return false
-	end
-	if level == Enum.SavedQualitySetting.Automatic then
-		return true
-	end
-	return (tonumber(string.match(tostring(level), "%d+")) or 10) < 8
-end
-
---[[
-	A small yellow tip that tells players how to get smoother graphics. It
-	only shows while their graphics quality is low (and hides itself as soon
-	as they turn it up). The game can't change this setting for them.
-]]
-function UIHelpers.qualityTip(parent: Instance, position: UDim2, anchor: Vector2, width: number): TextLabel
-	local tip = Instance.new("TextLabel")
-	tip.Name = "QualityTip"
-	tip.AnchorPoint = anchor
-	tip.Position = position
-	tip.Size = UDim2.fromOffset(width, 36)
-	tip.BackgroundTransparency = 1
-	tip.Font = Enum.Font.GothamBold
-	tip.TextSize = 14
-	tip.TextWrapped = true
-	tip.TextColor3 = Color3.fromRGB(255, 214, 90)
-	tip.Text = "⚠ For smoother graphics: press Esc → Settings → turn Graphics Quality up"
-	tip.Parent = parent
-	local function update()
-		tip.Visible = UIHelpers.graphicsAreLow()
-	end
-	pcall(function()
-		UserSettings():GetService("UserGameSettings"):GetPropertyChangedSignal("SavedQualityLevel"):Connect(update)
-	end)
-	update()
-	return tip
-end
-
 function UIHelpers.formatTime(seconds: number): string
 	local whole = math.max(0, math.ceil(seconds))
 	return string.format("%d:%02d", whole // 60, whole % 60)

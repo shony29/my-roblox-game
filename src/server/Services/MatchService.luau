@@ -550,6 +550,8 @@ local function runMatch(match: Match, players: { Player })
 				PlayerDataService.recordWin(player)
 				QuestService.reward(player, QuestConfig.WIN_COINS, "Victory bonus!")
 				QuestService.progress(player, "WinMatch")
+			else
+				PlayerDataService.recordNoWin(player) -- the win streak starts again
 			end
 			PlayerDataService.addXp(player, Progression.matchXp(participant.eliminations, won))
 			QuestService.progress(player, "PlayMatch")

@@ -30,6 +30,7 @@ GameContract.PlayerAttributes = {
 	-- Saved, lifetime
 	LifetimeEliminations = "LifetimeEliminations",
 	Wins = "Wins",
+	WinStreak = "WinStreak", -- matches won in a row (shown above your head)
 	Coins = "Coins",
 	XP = "XP", -- total experience (saved); level comes from Data/Progression
 	DailyReadyAt = "DailyReadyAt", -- unix time when the next Daily Squishy can be opened
@@ -45,6 +46,10 @@ GameContract.PlayerAttributes = {
 	EquippedHat = "EquippedHat",
 	EquippedSkin = "EquippedSkin",
 	EquippedTopping = "EquippedTopping",
+	-- Settings window (saved): all sounds 0-1, mouse sensitivity, field of view
+	SettingVolume = "SettingVolume",
+	SettingSensitivity = "SettingSensitivity",
+	SettingFieldOfView = "SettingFieldOfView",
 }
 
 GameContract.WeaponAttributes = {

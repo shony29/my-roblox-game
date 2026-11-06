@@ -9,6 +9,8 @@
 	  2. The item Id is a short string and the item really exists.
 	  3. Buying: they don't own it yet and have enough coins.
 	     Equipping: they own it (free items are owned by everyone).
+	     Upgrading a gun: they own the gun, it isn't at the top level yet,
+	     and they have enough coins (price: Config/UpgradeConfig.cost).
 
 	Only then does it change anything: coins and owned items are updated in
 	PlayerDataService (which saves them), and Cosmetics shows the new look.
@@ -23,6 +25,7 @@ local ShopConfig = require(Shared:WaitForChild("Config"):WaitForChild("ShopConfi
 local ShopRemotes = require(Shared:WaitForChild("Net"):WaitForChild("ShopRemotes"))
 local PlayerDataService = require(script.Parent:WaitForChild("PlayerDataService"))
 local Cosmetics = require(script.Parent:WaitForChild("CosmeticsService"))
+local UpgradeConfig = require(Shared:WaitForChild("Config"):WaitForChild("UpgradeConfig"))
 
 local MAX_ID_LENGTH = 64
 
@@ -122,6 +125,37 @@ local function onEquip(player: Player, rawId: unknown): (boolean, string)
 	return ShopService.equip(player, item)
 end
 
+-- Buys the next upgrade level for a gun the player owns.
+local function onUpgrade(player: Player, rawId: unknown): (boolean, string)
+	if isTooFast(player) then
+		return false, "Slow down a little!"
+	end
+	local item = readItem(rawId)
+	local gun = if item and item.Category == "Weapon" then ShopConfig.getWeapon(item.Id) else nil
+	if item == nil or gun == nil then
+		return false, "That gun doesn't exist."
+	end
+	local data = PlayerDataService.getData(player)
+	if data == nil then
+		return false, "Your coins are still loading. Try again in a moment!"
+	end
+	if not PlayerDataService.ownsItem(player, item.Id) then
+		return false, "Get " .. item.DisplayName .. " first, then you can upgrade it."
+	end
+	local nextLevel = (data.gunLevels[gun.WeaponId] or 0) + 1
+	local result, newLevel = PlayerDataService.buyGunUpgrade(player, gun.WeaponId, UpgradeConfig.cost(item.Price, nextLevel))
+	if result == "MaxLevel" then
+		return false, item.DisplayName .. " is already fully upgraded!"
+	elseif result == "NotEnoughCoins" then
+		return false, "Not enough coins yet. Keep playing to earn more!"
+	elseif result ~= "Upgraded" then
+		return false, "Your coins are still loading. Try again in a moment!"
+	end
+	scheduleSave(player)
+	local tier = UpgradeConfig.tier(newLevel or nextLevel)
+	return true, `{item.DisplayName} is now level {newLevel or nextLevel}{if tier then " (" .. tier.Name .. ")" else ""}!`
+end
+
 local started = false
 
 function ShopService.start()
@@ -133,6 +167,7 @@ function ShopService.start()
 	local remotes = ShopRemotes.get()
 	remotes.BuyItem.OnServerInvoke = onBuy
 	remotes.EquipItem.OnServerInvoke = onEquip
+	remotes.UpgradeGun.OnServerInvoke = onUpgrade
 
 	Players.PlayerRemoving:Connect(function(player: Player)
 		lastRequestAt[player] = nil

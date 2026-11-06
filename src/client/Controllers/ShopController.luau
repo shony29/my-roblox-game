@@ -4,8 +4,8 @@
 	==============
 	The shop menu on each player's screen.
 
-	  * Open it with the SHOP button on the main menu, the SHOP button in
-	    game (top left, handy on phones), or the B key.
+	  * Open it with the SHOP button on the main menu or in the lobby
+	    (left side), or the B key.
 	  * Tabs for Colors, Hats and Skins. Each card shows the item, its price,
 	    and whether you own it or are wearing it.
 	  * Your coins are shown at the top.
@@ -76,11 +76,11 @@ local panel: Frame
 local panelScale: UIScale
 local overlay: TextButton
 local toast: TextLabel
-local hudButton: TextButton
 local cards: { Card } = {}
 local tabButtons: { [Category]: TextButton } = {}
 local pages: { [Category]: ScrollingFrame } = {}
 local hatColorSetters: { (Color3) -> () } = {}
+local skinPreviews: { { box: Frame, skin: ShopConfig.SkinItem } } = {}
 
 -- Reading what the server told us ------------------------------------------
 
@@ -182,16 +182,33 @@ local function refreshCards()
 			status.TextColor3 = Sci.Green
 			button.Text = "WEARING"
 			button.BackgroundColor3 = Sci.Green
+		elseif isOwned and isGun then
+			-- Guns you own can be upgraded; every level costs more than the last.
+			local gun = ShopConfig.getWeapon(item.Id)
+			local level = if gun then gunLevels[gun.WeaponId] or 0 else 0
+			local tier = UpgradeConfig.tier(level)
+			if level >= UpgradeConfig.MAX_LEVEL then
+				status.Text = `Max level · {if tier then tier.Name else ""}`
+				status.TextColor3 = Sci.Purple
+				button.Text = "MAXED"
+				button.BackgroundColor3 = GREY
+			else
+				local cost = UpgradeConfig.cost(item.Price, level + 1)
+				status.Text = if tier then `Lv {level} {tier.Name} · next {cost} coins` else `Upgrade: {cost} coins`
+				status.TextColor3 = Sci.Cyan
+				if confirmingId == item.Id then
+					button.Text = "CONFIRM"
+					button.BackgroundColor3 = Sci.Yellow
+				else
+					button.Text = "UPGRADE"
+					button.BackgroundColor3 = if myCoins >= cost then Sci.Green else GREY
+				end
+			end
 		elseif isOwned then
-			local gun = if isGun then ShopConfig.getWeapon(item.Id) else nil
-			local tier = if gun then UpgradeConfig.tier(gunLevels[gun.WeaponId] or 0) else nil
-			status.Text = if tier then `Loadout · Lv {tier.Level} {tier.Name}`
-				elseif isGun then "In your loadout"
-				elseif item.Price <= 0 then "Free"
-				else "Owned"
+			status.Text = if item.Price <= 0 then "Free" else "Owned"
 			status.TextColor3 = Sci.Cyan
-			button.Text = if isGun then "OWNED" else "EQUIP"
-			button.BackgroundColor3 = if isGun then Sci.Green else Sci.Cyan
+			button.Text = "EQUIP"
+			button.BackgroundColor3 = Sci.Cyan
 		elseif item.Robux then
 			local onSale = (item.ProductId or 0) > 0
 			status.Text = `R$ {item.Robux} · {MONTH_NAMES[item.Month or month]} only`
@@ -241,6 +258,26 @@ local function sendRequest(remote: RemoteFunction, item: ShopItem)
 	refreshCards()
 end
 
+-- Spending coins takes two taps, so a stray tap on a phone never spends
+-- coins. Returns true on the first tap (the button then asks to confirm).
+local function isFirstTap(item: ShopItem): boolean
+	if confirmingId == item.Id then
+		confirmingId = nil
+		return false
+	end
+	confirmingId = item.Id
+	confirmToken += 1
+	local myToken = confirmToken
+	refreshCards()
+	task.delay(CONFIRM_SECONDS, function()
+		if confirmToken == myToken then
+			confirmingId = nil
+			refreshCards()
+		end
+	end)
+	return true
+end
+
 local function onCardPressed(item: ShopItem)
 	if busy then
 		return
@@ -251,7 +288,21 @@ local function onCardPressed(item: ShopItem)
 		return
 	end
 	if item.Category == "Weapon" and (item.Price <= 0 or ownedIds()[item.Id]) then
-		showToast(item.DisplayName .. " is already in your loadout!", true)
+		-- A gun you own: buy its next upgrade level.
+		local gun = ShopConfig.getWeapon(item.Id)
+		local level = if gun then UpgradeConfig.parse(player:GetAttribute("GunLevels"))[gun.WeaponId] or 0 else 0
+		if level >= UpgradeConfig.MAX_LEVEL then
+			showToast(item.DisplayName .. " is fully upgraded!", true)
+			return
+		end
+		local missing = UpgradeConfig.cost(item.Price, level + 1) - coins()
+		if missing > 0 then
+			showToast(`You need {missing} more coins to upgrade {item.DisplayName}.`, false)
+			return
+		end
+		if not isFirstTap(item) then
+			task.spawn(sendRequest, remotes.UpgradeGun, item)
+		end
 		return
 	end
 	if item.Price <= 0 or ownedIds()[item.Id] then
@@ -274,21 +325,9 @@ local function onCardPressed(item: ShopItem)
 		return
 	end
 	-- Buying takes two taps, so a stray tap on a phone never spends coins.
-	if confirmingId ~= item.Id then
-		confirmingId = item.Id
-		confirmToken += 1
-		local myToken = confirmToken
-		refreshCards()
-		task.delay(CONFIRM_SECONDS, function()
-			if confirmToken == myToken then
-				confirmingId = nil
-				refreshCards()
-			end
-		end)
-		return
+	if not isFirstTap(item) then
+		task.spawn(sendRequest, remotes.BuyItem, item)
 	end
-	confirmingId = nil
-	task.spawn(sendRequest, remotes.BuyItem, item)
 end
 
 -- Building the menu ---------------------------------------------------------------
@@ -421,6 +460,159 @@ local function showGunDetails(displayName: string, blurb: string, stats: WeaponC
 	ui.backdrop.Visible = true
 end
 
+-- The gun you're holding (skin pictures show the skin on it).
+local function equippedWeapon(): string?
+	local value = player:GetAttribute("EquippedWeapon")
+	return if typeof(value) == "string" then value else nil
+end
+
+-- Makes a card's picture clickable, with a small "i" badge in its corner.
+local function addInfoButton(previewBox: Frame, onClick: () -> ())
+	local detailsButton = Instance.new("TextButton")
+	detailsButton.Name = "Details"
+	detailsButton.Size = UDim2.fromScale(1, 1)
+	detailsButton.BackgroundTransparency = 1
+	detailsButton.Text = ""
+	detailsButton.ZIndex = 4
+	detailsButton.Parent = previewBox
+	local badge = UIHelpers.label("InfoBadge", "i", 16, Theme.Fonts.Title)
+	badge.AnchorPoint = Vector2.new(1, 0)
+	badge.Position = UDim2.new(1, -6, 0, 6)
+	badge.Size = UDim2.fromOffset(24, 24)
+	badge.BackgroundColor3 = Sci.Cyan
+	badge.BackgroundTransparency = 0
+	badge.TextColor3 = Sci.Void
+	badge.ZIndex = 5
+	UIHelpers.corner(badge, UDim.new(1, 0))
+	badge.Parent = previewBox
+	detailsButton.Activated:Connect(onClick)
+end
+
+-- Skin on every gun --------------------------------------------------------------
+-- Clicking a skin's picture opens this window: the skin painted on every
+-- gun, so you can see how it fits each gun's own shape before buying.
+
+type SkinWindow = { backdrop: TextButton, title: TextLabel, grid: Frame }
+local skinWindow: SkinWindow? = nil
+
+local function buildSkinWindow(): SkinWindow
+	local backdrop = Instance.new("TextButton")
+	backdrop.Name = "SkinOnEveryGun"
+	backdrop.Size = UDim2.fromScale(1, 1)
+	backdrop.BackgroundColor3 = Color3.new(0, 0, 0)
+	backdrop.BackgroundTransparency = 0.4
+	backdrop.AutoButtonColor = false
+	backdrop.Text = ""
+	backdrop.ZIndex = 20
+	backdrop.Modal = true -- frees the mouse in first person
+	backdrop.Visible = false
+	backdrop.Parent = shopGui
+	backdrop.Activated:Connect(function()
+		backdrop.Visible = false
+	end)
+
+	local window = UIHelpers.frame("Panel", UDim2.fromOffset(760, 474), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
+	window.BackgroundColor3 = Sci.Panel
+	window.BackgroundTransparency = 0
+	window.Active = true -- clicks on the window don't close it
+	UIHelpers.corner(window, UDim.new(0, 18))
+	UIHelpers.stroke(window, Sci.Cyan, 2)
+	window.Parent = backdrop
+
+	local title = UIHelpers.label("Title", "", 22, SCI_FONT)
+	title.Position = UDim2.fromOffset(20, 12)
+	title.Size = UDim2.new(1, -90, 0, 34)
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextColor3 = Sci.Green
+	title.Parent = window
+	local subtitle = UIHelpers.label("Subtitle", "How this skin looks on every gun", 15, BODY_FONT)
+	subtitle.Position = UDim2.fromOffset(20, 46)
+	subtitle.Size = UDim2.new(1, -90, 0, 22)
+	subtitle.TextXAlignment = Enum.TextXAlignment.Left
+	subtitle.TextColor3 = Sci.Dim
+	subtitle.Parent = window
+
+	local close = Instance.new("TextButton")
+	close.Name = "Close"
+	close.AnchorPoint = Vector2.new(1, 0)
+	close.Position = UDim2.new(1, -14, 0, 12)
+	close.Size = UDim2.fromOffset(42, 42)
+	close.BackgroundColor3 = Sci.Red
+	close.Font = SCI_FONT
+	close.TextSize = 20
+	close.TextColor3 = Sci.Text
+	close.Text = "X"
+	UIHelpers.corner(close, UDim.new(0, 10))
+	close.Parent = window
+	close.Activated:Connect(function()
+		backdrop.Visible = false
+	end)
+
+	local grid = UIHelpers.frame("Guns", UDim2.new(1, -40, 1, -96), UDim2.fromOffset(20, 80), nil)
+	grid.BackgroundTransparency = 1
+	grid.Parent = window
+	local layout = Instance.new("UIGridLayout")
+	layout.CellSize = UDim2.fromOffset(172, 180)
+	layout.CellPadding = UDim2.fromOffset(8, 10)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Parent = grid
+	return { backdrop = backdrop, title = title, grid = grid }
+end
+
+local function showSkinOnEveryGun(displayName: string, skin: ShopConfig.SkinItem)
+	local ui = skinWindow or buildSkinWindow()
+	skinWindow = ui
+	ui.title.Text = string.upper(displayName)
+	for _, child in ui.grid:GetChildren() do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+	for index, weaponId in WeaponConfig.Order do
+		local stats = WeaponConfig.get(weaponId)
+		if stats then
+			local tile = Instance.new("Frame")
+			tile.Name = weaponId
+			tile.LayoutOrder = index
+			tile.BackgroundColor3 = Sci.Inset
+			tile.BorderSizePixel = 0
+			UIHelpers.corner(tile, UDim.new(0, 12))
+			UIHelpers.stroke(tile, Sci.Edge, 1.5)
+			tile.Parent = ui.grid
+			local picture = Instance.new("Frame")
+			picture.Name = "Picture"
+			picture.Position = UDim2.fromOffset(4, 4)
+			picture.Size = UDim2.new(1, -8, 1, -38)
+			picture.BackgroundTransparency = 1
+			picture.Parent = tile
+			ItemPreview.skin(picture, skin, weaponId)
+			local name = UIHelpers.label("GunName", stats.DisplayName, 14, BODY_FONT)
+			name.AnchorPoint = Vector2.new(0, 1)
+			name.Position = UDim2.new(0, 6, 1, -8)
+			name.Size = UDim2.new(1, -12, 0, 22)
+			name.TextColor3 = Sci.Text
+			name.TextScaled = true
+			local limit = Instance.new("UITextSizeConstraint")
+			limit.MaxTextSize = 14
+			limit.Parent = name
+			name.Parent = tile
+		end
+	end
+	ui.backdrop.Visible = true
+end
+
+-- Skin pictures follow the gun you're holding.
+local function redrawSkinPreviews()
+	for _, entry in skinPreviews do
+		for _, child in entry.box:GetChildren() do
+			if child:IsA("ViewportFrame") then
+				child:Destroy()
+			end
+		end
+		ItemPreview.skin(entry.box, entry.skin, equippedWeapon())
+	end
+end
+
 local function buildCard(page: ScrollingFrame, item: ShopItem, order: number)
 	local card = Instance.new("Frame")
 	card.Name = item.Id
@@ -447,7 +639,9 @@ local function buildCard(page: ScrollingFrame, item: ShopItem, order: number)
 
 	-- Rarity tag (COMMON / UNCOMMON / RARE / EPIC / LEGENDARY) in its colour.
 	local rarity = ShopConfig.rarityOf(item)
-	local rarityText = if item.Robux then string.upper(rarity.Name) else `{string.upper(rarity.Name)}  {rarity.Chance}%`
+	-- (The % is the Daily Squishy's chance of that rarity, so it only shows
+	-- on items the Daily Squishy can give: not free or Robux items.)
+	local rarityText = if item.Robux or item.Price <= 0 then string.upper(rarity.Name) else `{string.upper(rarity.Name)}  {rarity.Chance}%`
 	local rarityTag = UIHelpers.label("Rarity", rarityText, 11, SCI_FONT)
 	rarityTag.Size = UDim2.fromOffset(110, 18)
 	rarityTag.Position = UDim2.fromOffset(16, 12)
@@ -471,29 +665,19 @@ local function buildCard(page: ScrollingFrame, item: ShopItem, order: number)
 		local stats = if gun then WeaponConfig.get(gun.WeaponId) else nil
 		if gun and stats then
 			ItemPreview.weapon(previewBox, stats)
-			local detailsButton = Instance.new("TextButton")
-			detailsButton.Name = "Details"
-			detailsButton.Size = UDim2.fromScale(1, 1)
-			detailsButton.BackgroundTransparency = 1
-			detailsButton.Text = ""
-			detailsButton.ZIndex = 4
-			detailsButton.Parent = previewBox
-			local badge = UIHelpers.label("InfoBadge", "i", 16, Theme.Fonts.Title)
-			badge.AnchorPoint = Vector2.new(1, 0)
-			badge.Position = UDim2.new(1, -6, 0, 6)
-			badge.Size = UDim2.fromOffset(24, 24)
-			badge.BackgroundColor3 = Sci.Cyan
-			badge.BackgroundTransparency = 0
-			badge.TextColor3 = Sci.Void
-			badge.ZIndex = 5
-			UIHelpers.corner(badge, UDim.new(1, 0))
-			badge.Parent = previewBox
-			detailsButton.Activated:Connect(function()
+			addInfoButton(previewBox, function()
 				showGunDetails(item.DisplayName, gun.Blurb, stats)
 			end)
 		end
 	else
-		ItemPreview.skin(previewBox, ShopConfig.getSkin(item.Id))
+		-- Skins: shown on the gun you're holding. Click the picture to see the
+		-- skin on every gun (it fits each gun's own shape).
+		local skin = ShopConfig.getSkin(item.Id)
+		ItemPreview.skin(previewBox, skin, equippedWeapon())
+		table.insert(skinPreviews, { box = previewBox, skin = skin })
+		addInfoButton(previewBox, function()
+			showSkinOnEveryGun(item.DisplayName, skin)
+		end)
 	end
 
 	local name = UIHelpers.label("ItemName", item.DisplayName, 20, BODY_FONT)
@@ -591,7 +775,8 @@ local function itemsIn(category: Category): { ShopItem }
 			table.insert(list, item)
 		end
 	end
-	return list
+	-- Organised by rarity: Common first, Legendary last.
+	return ShopConfig.sortByRarity(list)
 end
 
 local function buildCoinPill(parent: Instance)
@@ -694,8 +879,6 @@ local function buildMenu()
 	title.Parent = header
 
 	buildCoinPill(header)
-	-- How to get smoother 3D pictures (only shows while graphics quality is low).
-	UIHelpers.qualityTip(header, UDim2.new(0, 210, 0.5, 0), Vector2.new(0, 0.5), 380)
 
 	local close = makeButton("Close", "X", UDim2.fromOffset(54, 54), Sci.Red)
 	close.AnchorPoint = Vector2.new(1, 0)
@@ -752,27 +935,6 @@ local function buildMenu()
 	refreshCards()
 end
 
--- A small SHOP button in the game HUD (phones have no B key).
-local function buildHudButton()
-	local hudGui = UIHelpers.screenGui("ShopButton", 2, player:WaitForChild("PlayerGui"))
-	ResponsiveScale.apply(hudGui)
-
-	local touchOnly = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-	hudButton =
-		makeButton("ShopButton", if touchOnly then "SHOP" else "SHOP (B)", UDim2.fromOffset(150, 44), Sci.Green)
-	hudButton.Position = UDim2.fromOffset(Theme.Margin, 68)
-	hudButton.Parent = hudGui
-	hudButton.Activated:Connect(function()
-		ShopController.open()
-	end)
-
-	local function update()
-		hudButton.Visible = player:GetAttribute(ATTR.PressedPlay) == true and not isOpen
-	end
-	player:GetAttributeChangedSignal(ATTR.PressedPlay):Connect(update)
-	update()
-end
-
 -- Public -----------------------------------------------------------------------
 
 function ShopController.open()
@@ -784,7 +946,6 @@ function ShopController.open()
 	confirmingId = nil
 	refreshCards()
 	shopGui.Enabled = true
-	hudButton.Visible = false
 	panelScale.Scale = 0.85
 	UIHelpers.tween(panelScale, 0.3, { Scale = 1 }, Enum.EasingStyle.Back)
 	overlay.BackgroundTransparency = 1
@@ -808,7 +969,6 @@ function ShopController.close()
 	isOpen = false
 	confirmingId = nil
 	shopGui.Enabled = false
-	hudButton.Visible = player:GetAttribute(ATTR.PressedPlay) == true
 end
 
 function ShopController.toggle()
@@ -826,12 +986,13 @@ function ShopController.start()
 	started = true
 
 	buildMenu()
-	buildHudButton()
 
 	-- Redraw the cards whenever the server changes coins or items.
-	for _, attribute in { ATTR.Coins, ATTR.OwnedItems, ATTR.EquippedColor, ATTR.EquippedHat, ATTR.EquippedSkin, "GunLevels" } do
+	for _, attribute in { ATTR.Coins, ATTR.OwnedItems, ATTR.EquippedColor, ATTR.EquippedHat, ATTR.EquippedSkin, ATTR.EquippedTopping, "GunLevels" } do
 		player:GetAttributeChangedSignal(attribute):Connect(refreshCards)
 	end
+	-- Skin pictures show the skin on the gun you're holding.
+	player:GetAttributeChangedSignal("EquippedWeapon"):Connect(redrawSkinPreviews)
 	-- Hat previews wear your current blob color.
 	player:GetAttributeChangedSignal(ATTR.EquippedColor):Connect(function()
 		local color = ShopConfig.getColor(equippedId("Color")).Color

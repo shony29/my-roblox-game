@@ -102,6 +102,10 @@ end)
 run("PracticeController", function()
 	require(Controllers.PracticeController).start() -- practice range: leave button, target pops
 end)
+run("CornerMenuController", function()
+	-- Top right: settings, tasks and notifications (starts those three too).
+	require(Controllers.CornerMenuController).start()
+end)
 
 ---------------------------------------------------------------------------
 -- Start-up report: version label + a message if anything failed.

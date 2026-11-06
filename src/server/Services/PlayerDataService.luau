@@ -153,6 +153,7 @@ local function publishAttributes(profile: Profile)
 	local player = profile.player
 	player:SetAttribute(ATTR.LifetimeEliminations, profile.data.eliminations)
 	player:SetAttribute(ATTR.Wins, profile.data.wins)
+	player:SetAttribute(ATTR.WinStreak, profile.data.winStreak)
 	player:SetAttribute(ATTR.Coins, profile.data.coins)
 	player:SetAttribute(ATTR.XP, profile.data.xp)
 	player:SetAttribute(ATTR.DailyReadyAt, profile.data.lastDailyAt + PlayerDataService.DAILY_COOLDOWN)
@@ -168,6 +169,10 @@ local function publishAttributes(profile: Profile)
 	player:SetAttribute("QuestDay", quests.day)
 	player:SetAttribute("QuestBeginner", QuestConfig.encode(QuestConfig.Beginner, quests.progress, quests.done))
 	player:SetAttribute("QuestDaily", QuestConfig.encode(QuestConfig.Daily, quests.progress, quests.done))
+	-- Settings window (the player's own screen applies these).
+	player:SetAttribute(ATTR.SettingVolume, profile.data.settings.volume)
+	player:SetAttribute(ATTR.SettingSensitivity, profile.data.settings.sensitivity)
+	player:SetAttribute(ATTR.SettingFieldOfView, profile.data.settings.fieldOfView)
 end
 
 -- Loading -------------------------------------------------------------------
@@ -514,6 +519,32 @@ function PlayerDataService.upgradeGun(player: Player, weaponId: string): number?
 	return level + 1
 end
 
+--[[
+	Buys the next upgrade level of a gun for `cost` coins. The checks and
+	the change happen together with no waiting in between, so two quick
+	requests can never both spend the same coins.
+	Returns "NotLoaded", "MaxLevel", "NotEnoughCoins" or "Upgraded" (and the new level).
+]]
+function PlayerDataService.buyGunUpgrade(player: Player, weaponId: string, cost: number): (string, number?)
+	local profile = profiles[player]
+	if profile == nil then
+		return "NotLoaded", nil
+	end
+	local level = profile.data.gunLevels[weaponId] or 0
+	if level >= UpgradeConfig.MAX_LEVEL then
+		return "MaxLevel", nil
+	end
+	cost = math.max(0, math.floor(cost))
+	if profile.data.coins < cost then
+		return "NotEnoughCoins", nil
+	end
+	profile.data.coins -= cost
+	profile.data.gunLevels[weaponId] = level + 1
+	profile.dirty = true
+	publishAttributes(profile)
+	return "Upgraded", level + 1
+end
+
 -- Adds experience. Only whole, positive amounts are accepted (server only).
 function PlayerDataService.addXp(player: Player, amount: number): boolean
 	local profile = profiles[player]
@@ -601,13 +632,41 @@ function PlayerDataService.announceElimination(killerName: string?, victimName: 
 	remote:FireAllClients(killerName, victimName)
 end
 
--- Call this when a player wins a round.
+-- Call this when a player wins a match (adds to their win streak too).
 function PlayerDataService.recordWin(player: Player)
 	local profile = profiles[player]
 	if profile == nil then
 		return
 	end
 	profile.data.wins = math.min(profile.data.wins + 1, Schema.MAX_STAT_VALUE)
+	profile.data.winStreak = math.min(profile.data.winStreak + 1, Schema.MAX_STAT_VALUE)
+	profile.dirty = true
+	publishAttributes(profile)
+end
+
+-- Call this when a player finishes a match without winning (a loss or a
+-- draw): their win streak starts again from 0.
+function PlayerDataService.recordNoWin(player: Player)
+	local profile = profiles[player]
+	if profile == nil or profile.data.winStreak == 0 then
+		return
+	end
+	profile.data.winStreak = 0
+	profile.dirty = true
+	publishAttributes(profile)
+end
+
+-- Saves the player's Settings window choices (each one is checked and kept
+-- inside its allowed range by Schema.cleanSetting).
+function PlayerDataService.setSettings(player: Player, volume: unknown, sensitivity: unknown, fieldOfView: unknown)
+	local profile = profiles[player]
+	if profile == nil then
+		return
+	end
+	local settings = profile.data.settings
+	settings.volume = Schema.cleanSetting("volume", volume)
+	settings.sensitivity = Schema.cleanSetting("sensitivity", sensitivity)
+	settings.fieldOfView = Schema.cleanSetting("fieldOfView", fieldOfView)
 	profile.dirty = true
 	publishAttributes(profile)
 end

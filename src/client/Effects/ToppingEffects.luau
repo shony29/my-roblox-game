@@ -9,7 +9,8 @@
 	  Sprinkles  colourful sprinkles that fly out and drop to the floor
 	  Foam       soft foam balls
 	  Glitter    tiny glittering flakes with a sparkle shimmer
-	  Charms     little charms (emoji) such as 🎄 🍪 🎅 from charm packets
+	  Charms     little 3D charms (a strawberry, a cupcake, a pumpkin...)
+	             from charm packets, built by Cosmetics/CharmBuilder
 	Every burst starts with a pop: a bright flash, a glowing ring racing
 	across the floor and a jelly splat left behind for a moment.
 	Pieces never collide or block bullets, and are cleaned up after ~2 s.
@@ -20,6 +21,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local ShopConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("ShopConfig"))
+local CharmBuilder = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Cosmetics"):WaitForChild("CharmBuilder"))
 
 local LIFETIME = 2
 local SPARKLES = "rbxasset://textures/particles/sparkles_main.dds"
@@ -55,14 +57,16 @@ local function piece(size: Vector3, color: Color3, shape: Enum.PartType, materia
 	return part
 end
 
--- Throws a piece up and out from `from`, lets it fall to the floor, then fades it.
-local function fling(part: BasePart, from: Vector3, fade: (number) -> ())
+-- Throws a piece up and out from `from`, lets it fall to the floor, then fades
+-- it. `owner` (the piece itself, or the charm model it moves) is cleaned up.
+local function fling(part: BasePart, from: Vector3, fade: (number) -> (), owner: Instance?)
+	local holder: Instance = owner or part
 	local angle = random:NextNumber(0, math.pi * 2)
 	local distance = random:NextNumber(3.5, 9)
 	local flat = Vector3.new(math.cos(angle), 0, math.sin(angle))
 	local spin = CFrame.Angles(random:NextNumber(0, 6), random:NextNumber(0, 6), random:NextNumber(0, 6))
+	holder.Parent = fxFolder() -- first, so a welded charm moves as one piece
 	part.CFrame = CFrame.new(from) * spin
-	part.Parent = fxFolder()
 	local peak = from + flat * distance * 0.55 + Vector3.new(0, random:NextNumber(3, 6.5), 0)
 	local land = from + flat * distance + Vector3.new(0, -1.8, 0) -- about floor level under a slime
 	TweenService:Create(part, TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { CFrame = CFrame.new(peak) * spin }):Play()
@@ -74,7 +78,7 @@ local function fling(part: BasePart, from: Vector3, fade: (number) -> ())
 	task.delay(LIFETIME - 0.4, function()
 		fade(0.4)
 		task.delay(0.45, function()
-			part:Destroy()
+			holder:Destroy()
 		end)
 	end)
 end
@@ -180,25 +184,25 @@ function ToppingEffects.play(position: Vector3, toppingId: string?, slimeColor: 
 			fling(part, position, fadePart(part))
 		end
 		sparkleBurst(position, color(0), math.floor(14 * scale))
-	else -- Charms
-		local charms = topping.Charms or { "⭐" }
-		for i = 1, math.floor(10 * scale) do
-			local part = piece(Vector3.new(0.2, 0.2, 0.2), Color3.new(1, 1, 1), Enum.PartType.Block)
-			part.Transparency = 1
-			local billboard = Instance.new("BillboardGui")
-			billboard.Size = UDim2.fromScale(1.8, 1.8)
-			billboard.LightInfluence = 0
-			billboard.Parent = part
-			local label = Instance.new("TextLabel")
-			label.BackgroundTransparency = 1
-			label.Size = UDim2.fromScale(1, 1)
-			label.TextScaled = true
-			label.Text = charms[(i % #charms) + 1]
-			label.Parent = billboard
-			fling(part, position, function(seconds: number)
-				TweenService:Create(label, TweenInfo.new(seconds), { TextTransparency = 1 }):Play()
-			end)
+	else -- Charms: little 3D charms tumbling out
+		local charms = topping.Charms or { "Star" }
+		for i = 1, math.floor(8 * scale) do
+			local charm = CharmBuilder.build(charms[(i % #charms) + 1], { scale = 0.85, welded = true })
+			charm:PivotTo(CFrame.new(position))
+			local root = charm.PrimaryPart
+			if root then
+				fling(root, position, function(seconds: number)
+					for _, child in charm:GetChildren() do
+						if child:IsA("BasePart") and child ~= root then
+							TweenService:Create(child, TweenInfo.new(seconds), { Transparency = 1 }):Play()
+						end
+					end
+				end, charm)
+			else
+				charm:Destroy()
+			end
 		end
+		sparkleBurst(position, color(0), math.floor(10 * scale))
 	end
 end
 

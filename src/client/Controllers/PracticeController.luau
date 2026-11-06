@@ -38,29 +38,33 @@ function PracticeController.start()
 	ResponsiveScale.apply(gui)
 	gui.Enabled = false
 
-	local banner = UIHelpers.label("Banner", "🎯 PRACTICE RANGE · pop the targets!", 26, Theme.Fonts.Title)
+	local banner = UIHelpers.label("Banner", "PRACTICE RANGE  ·  POP THE TARGETS", 16, Theme.SciFiFonts.Title)
 	banner.AnchorPoint = Vector2.new(0.5, 0)
-	banner.Position = UDim2.new(0.5, 0, 0, 12)
-	banner.Size = UDim2.fromOffset(620, 40)
-	banner.TextColor3 = Colors.White
-	UIHelpers.textStroke(banner, 2)
+	banner.Position = UDim2.new(0.5, 0, 0, 14)
+	banner.Size = UDim2.fromOffset(520, 40)
+	banner.BackgroundColor3 = Theme.SciFi.Panel
+	banner.BackgroundTransparency = 0.1
+	banner.TextColor3 = Theme.SciFi.Green
+	UIHelpers.corner(banner, UDim.new(0, 10))
+	UIHelpers.stroke(banner, Theme.SciFi.Green, 1.5).Transparency = 0.2
 	banner.Parent = gui
 
 	local leave = Instance.new("TextButton")
 	leave.Name = "Leave"
 	leave.AnchorPoint = Vector2.new(1, 0)
-	leave.Position = UDim2.new(1, -16, 0, 60)
-	leave.Size = UDim2.fromOffset(190, 50)
-	leave.BackgroundColor3 = Colors.Coral
-	leave.Font = Theme.Fonts.Title
-	leave.TextSize = 22
-	leave.TextColor3 = Colors.White
-	leave.Text = "LEAVE RANGE (L)"
+	leave.Position = UDim2.new(1, -16, 0, 78) -- under the round buttons at the top right
+	leave.Size = UDim2.fromOffset(200, 46)
+	leave.BackgroundColor3 = Theme.SciFi.Panel
+	leave.BackgroundTransparency = 0.1
+	leave.AutoButtonColor = false
+	leave.Font = Theme.SciFiFonts.Title
+	leave.TextSize = 13
+	leave.TextColor3 = Theme.SciFi.Red
+	leave.Text = "LEAVE RANGE  (L)"
 	-- (No Modal here: it would free the mouse the whole time and stop you aiming.
 	-- On a computer press L; on phones and tablets just tap it.)
-	UIHelpers.corner(leave, UDim.new(0, 12))
-	UIHelpers.stroke(leave, Colors.Ink, 3)
-	UIHelpers.textStroke(leave)
+	UIHelpers.corner(leave, UDim.new(0, 10))
+	UIHelpers.stroke(leave, Theme.SciFi.Red, 2)
 	leave.Parent = gui
 	leave.Activated:Connect(function()
 		Net.event("PracticeLeave"):FireServer()

@@ -30,10 +30,18 @@ export type QuestData = {
 	done: { [string]: boolean }, -- quest Id -> finished and paid
 }
 
+-- The player's own Settings window choices (see client SettingsController).
+export type PlayerSettings = {
+	volume: number, -- 0-1, all game sounds
+	sensitivity: number, -- mouse sensitivity multiplier
+	fieldOfView: number, -- camera field of view in degrees
+}
+
 export type PlayerData = {
 	schemaVersion: number,
 	eliminations: number, -- lifetime eliminations
 	wins: number, -- lifetime round wins
+	winStreak: number, -- matches won in a row (a loss or draw sets it back to 0)
 	coins: number, -- spendable coins
 	xp: number, -- total experience (the level is worked out from this, see Data/Progression)
 	lastDailyAt: number, -- os.time() of the last Daily Squishy claim (0 = never)
@@ -42,14 +50,23 @@ export type PlayerData = {
 	ownedItems: { string }, -- shop item Ids the player bought (free items are always owned)
 	equippedItems: EquippedItems, -- shop items the player is wearing
 	quests: QuestData, -- beginner tasks and daily quests
+	settings: PlayerSettings, -- Settings window choices
 }
 
 local Schema = {}
 
-Schema.VERSION = 7 -- 2: shop items. 3: xp. 4: lastDailyAt. 5: toppings and Robux receipts. 6: gun levels. 7: quests
+Schema.VERSION = 8 -- 2: shop items. 3: xp. 4: lastDailyAt. 5: toppings and Robux receipts. 6: gun levels. 7: quests. 8: win streak and settings
 
--- How many coins a player earns for each elimination.
-Schema.COINS_PER_ELIMINATION = 5
+-- The allowed range and default of every setting.
+Schema.SETTINGS = {
+	volume = { min = 0, max = 1, default = 1 },
+	sensitivity = { min = 0.2, max = 2.5, default = 1 },
+	fieldOfView = { min = 60, max = 90, default = 70 },
+}
+
+-- How many coins a player earns for each elimination (small on purpose:
+-- shop prices are much bigger, see Config/ShopConfig PRICE).
+Schema.COINS_PER_ELIMINATION = 1
 
 -- Safety cap so a bug can never write an absurd number into a save.
 Schema.MAX_STAT_VALUE = 1_000_000_000
@@ -63,6 +80,7 @@ function Schema.default(): PlayerData
 		schemaVersion = Schema.VERSION,
 		eliminations = 0,
 		wins = 0,
+		winStreak = 0,
 		coins = 0,
 		xp = 0,
 		lastDailyAt = 0,
@@ -76,7 +94,25 @@ function Schema.default(): PlayerData
 			Topping = ShopConfig.Defaults.Topping,
 		},
 		quests = { day = 0, progress = {}, done = {} },
+		settings = {
+			volume = Schema.SETTINGS.volume.default,
+			sensitivity = Schema.SETTINGS.sensitivity.default,
+			fieldOfView = Schema.SETTINGS.fieldOfView.default,
+		},
 	}
+end
+
+-- A setting from a save or from a client: a real number inside its range,
+-- otherwise the default. (Rounded to 2 decimals so saves stay small.)
+function Schema.cleanSetting(name: string, value: unknown): number
+	local range = (Schema.SETTINGS :: any)[name]
+	if range == nil then
+		return 0
+	end
+	if typeof(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge then
+		return range.default
+	end
+	return math.floor(math.clamp(value, range.min, range.max) * 100 + 0.5) / 100
 end
 
 -- Turns any value into a whole, non-negative, capped number.
@@ -140,6 +176,7 @@ function Schema.reconcile(raw: unknown): PlayerData
 
 	data.eliminations = cleanNumber(source.eliminations)
 	data.wins = cleanNumber(source.wins)
+	data.winStreak = cleanNumber(source.winStreak) -- older saves: no streak yet
 	data.coins = cleanNumber(source.coins)
 	data.xp = cleanNumber(source.xp) -- version 1-2 saves have no xp, so they start at 0
 	data.lastDailyAt = cleanNumber(source.lastDailyAt) -- older saves: never claimed
@@ -201,6 +238,15 @@ function Schema.reconcile(raw: unknown): PlayerData
 		end
 	end
 	data.quests = { day = cleanNumber(rawQuests.day), progress = progress, done = done }
+	-- Settings (older saves: the defaults).
+	local rawSettings: { [string]: unknown } = if typeof(source.settings) == "table"
+		then source.settings :: { [string]: unknown }
+		else {}
+	data.settings = {
+		volume = Schema.cleanSetting("volume", rawSettings.volume),
+		sensitivity = Schema.cleanSetting("sensitivity", rawSettings.sensitivity),
+		fieldOfView = Schema.cleanSetting("fieldOfView", rawSettings.fieldOfView),
+	}
 	data.schemaVersion = Schema.VERSION
 	return data
 end
@@ -210,6 +256,7 @@ function Schema.copy(data: PlayerData): PlayerData
 		schemaVersion = data.schemaVersion,
 		eliminations = data.eliminations,
 		wins = data.wins,
+		winStreak = data.winStreak,
 		coins = data.coins,
 		xp = data.xp,
 		lastDailyAt = data.lastDailyAt,
@@ -228,6 +275,7 @@ function Schema.copy(data: PlayerData): PlayerData
 			progress = table.clone(data.quests.progress),
 			done = table.clone(data.quests.done),
 		},
+		settings = table.clone(data.settings),
 	}
 end
 
