@@ -433,25 +433,28 @@ local function buildHallway(model: Model): { Pad }
 	local startZ = HALL_FRONT - 2
 	local endZ = startZ - HALL_LENGTH
 	local midZ = (startZ + endZ) / 2
-	box(model, "HallwayFloor", Vector3.new(HALL_HALF_WIDTH * 2, 2, HALL_LENGTH), Vector3.new(ORIGIN.X, ORIGIN.Y - 1, midZ), METAL_DARK, Enum.Material.DiamondPlate)
-	box(model, "HallwayCeiling", Vector3.new(HALL_HALF_WIDTH * 2, 2, HALL_LENGTH), Vector3.new(ORIGIN.X, ORIGIN.Y + HALL_HEIGHT_2 + 1, midZ), METAL_DARK)
-	for _, side in { -1, 1 } do
-		box(model, "HallwayWall", Vector3.new(2, HALL_HEIGHT_2, HALL_LENGTH), Vector3.new(ORIGIN.X + side * (HALL_HALF_WIDTH + 1), ORIGIN.Y + HALL_HEIGHT_2 / 2, midZ), METAL)
-		Props.hazardLine(model, Vector3.new(ORIGIN.X + side * 4.5, ORIGIN.Y, startZ - 2), Vector3.new(ORIGIN.X + side * 4.5, ORIGIN.Y, endZ + 2), 1)
-	end
-	box(model, "HallwayEnd", Vector3.new(HALL_HALF_WIDTH * 2, HALL_HEIGHT_2, 2), Vector3.new(ORIGIN.X, ORIGIN.Y + HALL_HEIGHT_2 / 2, endZ - 1), METAL)
-	box(model, "Shutter", Vector3.new(16, 14, 0.6), Vector3.new(ORIGIN.X, ORIGIN.Y + 7, endZ + 0.4), Color3.fromRGB(70, 72, 80), Enum.Material.CorrugatedMetal)
-	-- Angled light strips along the ceiling.
-	for i = 0, 10 do
-		local z = startZ - 6 - i * 8
+	-- The hallway itself (its own step, so a problem here never stops the pads below).
+	try("hallway walls and lights", function()
+		box(model, "HallwayFloor", Vector3.new(HALL_HALF_WIDTH * 2, 2, HALL_LENGTH), Vector3.new(ORIGIN.X, ORIGIN.Y - 1, midZ), METAL_DARK, Enum.Material.DiamondPlate)
+		box(model, "HallwayCeiling", Vector3.new(HALL_HALF_WIDTH * 2, 2, HALL_LENGTH), Vector3.new(ORIGIN.X, ORIGIN.Y + HALL_HEIGHT_2 + 1, midZ), METAL_DARK)
 		for _, side in { -1, 1 } do
-			local strip = Vector3.new(ORIGIN.X + side * 9, ORIGIN.Y + HALL_HEIGHT_2 - 0.4, z)
-			local part = Kit.part(model, "LightStrip", Vector3.new(8, 0.3, 0.6), CFrame.new(strip) * CFrame.Angles(0, math.rad(side * 25), 0), Color3.fromRGB(255, 120, 150), { material = Enum.Material.Neon, collide = false, shadow = false })
-			if i % 3 == 0 then
-				Props.light(part, Color3.fromRGB(255, 190, 210), 24, 0.6)
+			box(model, "HallwayWall", Vector3.new(2, HALL_HEIGHT_2, HALL_LENGTH), Vector3.new(ORIGIN.X + side * (HALL_HALF_WIDTH + 1), ORIGIN.Y + HALL_HEIGHT_2 / 2, midZ), METAL)
+			Props.hazardLine(model, Vector3.new(ORIGIN.X + side * 4.5, ORIGIN.Y, startZ - 2), Vector3.new(ORIGIN.X + side * 4.5, ORIGIN.Y, endZ + 2), 1)
+		end
+		box(model, "HallwayEnd", Vector3.new(HALL_HALF_WIDTH * 2, HALL_HEIGHT_2, 2), Vector3.new(ORIGIN.X, ORIGIN.Y + HALL_HEIGHT_2 / 2, endZ - 1), METAL)
+		box(model, "Shutter", Vector3.new(16, 14, 0.6), Vector3.new(ORIGIN.X, ORIGIN.Y + 7, endZ + 0.4), Color3.fromRGB(70, 72, 80), Enum.Material.Metal)
+		-- Angled light strips along the ceiling.
+		for i = 0, 10 do
+			local z = startZ - 6 - i * 8
+			for _, side in { -1, 1 } do
+				local strip = Vector3.new(ORIGIN.X + side * 9, ORIGIN.Y + HALL_HEIGHT_2 - 0.4, z)
+				local part = Kit.part(model, "LightStrip", Vector3.new(8, 0.3, 0.6), CFrame.new(strip) * CFrame.Angles(0, math.rad(side * 25), 0), Color3.fromRGB(255, 120, 150), { material = Enum.Material.Neon, collide = false, shadow = false })
+				if i % 3 == 0 then
+					Props.light(part, Color3.fromRGB(255, 190, 210), 24, 0.6)
+				end
 			end
 		end
-	end
+	end)
 
 	-- Pads: left = real players, right = practice with bots.
 	local padsFolder = Instance.new("Folder")
