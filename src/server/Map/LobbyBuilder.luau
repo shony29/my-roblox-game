@@ -209,13 +209,15 @@ local function buildShopAndDaily(model: Model)
 		prompt(counter, "ShopCounter", "Open Shop", "Guns, squishies & skins")
 	end)
 
-	-- DAILY SQUISHY machine (right): a glass dome with a squishy inside.
-	local base = box(model, "DailyBase", Vector3.new(9, 3, 9), at(31, 1.5, 0), METAL_DARK, Enum.Material.DiamondPlate)
-	Kit.part(model, "DailyDome", Vector3.new(8, 8, 8), CFrame.new(at(31, 7, 0)), Color3.fromRGB(220, 240, 255), { shape = Enum.PartType.Ball, material = Enum.Material.Glass, transparency = 0.6 })
-	local squishy = Kit.part(model, "DailySquishyToy", Vector3.new(4.5, 4.5, 4.5), CFrame.new(at(31, 5.4, 0)), Color3.fromRGB(120, 230, 160), { shape = Enum.PartType.Ball, collide = false })
+	-- DAILY SQUISHY machine (right wall): a glass dome with a squishy inside.
+	-- It sits in the gap between the big green tank and the cyan tube.
+	local dailyZ = -11
+	local base = box(model, "DailyBase", Vector3.new(9, 3, 9), at(31, 1.5, dailyZ), METAL_DARK, Enum.Material.DiamondPlate)
+	Kit.part(model, "DailyDome", Vector3.new(8, 8, 8), CFrame.new(at(31, 7, dailyZ)), Color3.fromRGB(220, 240, 255), { shape = Enum.PartType.Ball, material = Enum.Material.Glass, transparency = 0.6 })
+	local squishy = Kit.part(model, "DailySquishyToy", Vector3.new(4.5, 4.5, 4.5), CFrame.new(at(31, 5.4, dailyZ)), Color3.fromRGB(120, 230, 160), { shape = Enum.PartType.Ball, collide = false })
 	Props.light(squishy, GREEN, 12, 1.2)
-	local dailySign = at(37, 15, 0)
-	Props.neonSign(model, "DailySign", Vector3.new(14, 5, 0.5), CFrame.lookAt(dailySign, dailySign + Vector3.new(-1, 0, 0)), "DAILY SQUISHY", GREEN)
+	local dailySign = at(37, 15, dailyZ)
+	Props.neonSign(model, "DailySign", Vector3.new(12, 5, 0.5), CFrame.lookAt(dailySign, dailySign + Vector3.new(-1, 0, 0)), "DAILY SQUISHY", GREEN)
 	try("Daily Squishy prompt", function()
 		prompt(base, "DailySquishy", "Open", "Daily Squishy")
 	end)
