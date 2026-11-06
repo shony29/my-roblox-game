@@ -18,7 +18,8 @@ export type MapInfo = {
 	Description: string,
 	Builder: string,
 	Theme: string?, -- themed arenas: which look (see Map/ArenaThemes)
-	PreviewColor: Color3, -- placeholder card colour until real thumbnails exist
+	PreviewColor: Color3, -- the vote card's colour
+	Emblems: { string }, -- little 3D charms shown on the vote card (Cosmetics/CharmBuilder)
 }
 
 local Maps: { [string]: MapInfo } = {
@@ -28,6 +29,7 @@ local Maps: { [string]: MapInfo } = {
 		Description = "A compact, colourful arena with towers and a raised centre.",
 		Builder = "ArenaBuilder",
 		PreviewColor = Color3.fromRGB(134, 220, 132),
+		Emblems = { "Gem", "Star" },
 	},
 	MossyKeep = {
 		Id = "MossyKeep",
@@ -35,6 +37,7 @@ local Maps: { [string]: MapInfo } = {
 		Description = "Castle ruins in a pine forest: towers, gate arches and campfires.",
 		Builder = "MossyKeepBuilder",
 		PreviewColor = Color3.fromRGB(96, 150, 90),
+		Emblems = { "Acorn", "Leaf" },
 	},
 	AstroStation = {
 		Id = "AstroStation",
@@ -43,6 +46,7 @@ local Maps: { [string]: MapInfo } = {
 		Builder = "ThemedArenaBuilder",
 		Theme = "Space",
 		PreviewColor = Color3.fromRGB(80, 100, 160),
+		Emblems = { "Moon", "Star", "Sparkle" },
 	},
 	ChefsKitchen = {
 		Id = "ChefsKitchen",
@@ -51,6 +55,7 @@ local Maps: { [string]: MapInfo } = {
 		Builder = "ThemedArenaBuilder",
 		Theme = "Kitchen",
 		PreviewColor = Color3.fromRGB(240, 200, 150),
+		Emblems = { "Cupcake", "Egg", "Cheese" },
 	},
 	CozyFireplace = {
 		Id = "CozyFireplace",
@@ -59,6 +64,7 @@ local Maps: { [string]: MapInfo } = {
 		Builder = "ThemedArenaBuilder",
 		Theme = "Fireplace",
 		PreviewColor = Color3.fromRGB(230, 140, 70),
+		Emblems = { "Mug", "Cookie", "Book" },
 	},
 	AntFarm = {
 		Id = "AntFarm",
@@ -67,6 +73,7 @@ local Maps: { [string]: MapInfo } = {
 		Builder = "ThemedArenaBuilder",
 		Theme = "AntFarm",
 		PreviewColor = Color3.fromRGB(214, 170, 110),
+		Emblems = { "Leaf", "Cheese" },
 	},
 	CoralReef = {
 		Id = "CoralReef",
@@ -75,6 +82,7 @@ local Maps: { [string]: MapInfo } = {
 		Builder = "ThemedArenaBuilder",
 		Theme = "Reef",
 		PreviewColor = Color3.fromRGB(70, 190, 220),
+		Emblems = { "Shell", "Starfish" },
 	},
 	IceCastle = {
 		Id = "IceCastle",
@@ -83,6 +91,7 @@ local Maps: { [string]: MapInfo } = {
 		Builder = "ThemedArenaBuilder",
 		Theme = "Ice",
 		PreviewColor = Color3.fromRGB(170, 220, 255),
+		Emblems = { "Snowflake", "Snowman" },
 	},
 	CandyLand = {
 		Id = "CandyLand",
@@ -91,6 +100,7 @@ local Maps: { [string]: MapInfo } = {
 		Builder = "ThemedArenaBuilder",
 		Theme = "Candy",
 		PreviewColor = Color3.fromRGB(255, 160, 210),
+		Emblems = { "Lollipop", "CandyCane", "Candy" },
 	},
 	BounceHouse = {
 		Id = "BounceHouse",
@@ -99,6 +109,7 @@ local Maps: { [string]: MapInfo } = {
 		Builder = "ThemedArenaBuilder",
 		Theme = "Bounce",
 		PreviewColor = Color3.fromRGB(255, 210, 60),
+		Emblems = { "BeachBall", "Balloon" },
 	},
 }
 
@@ -118,7 +129,7 @@ local MapConfig = {
 	} :: { string },
 	Default = "JellyArena",
 	VoteTime = 10, -- seconds of map voting
-	MaxChoices = 3, -- map cards shown per vote
+	MaxChoices = 10, -- map cards shown per vote (10 = every map)
 }
 
 -- How big a themed arena is for this many players (1 = a 1v1 arena).

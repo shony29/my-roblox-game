@@ -52,6 +52,9 @@ end
 run("GraphicsController", function()
 	require(Controllers.GraphicsController).start()
 end)
+run("MapLightingController", function()
+	require(Controllers.MapLightingController).start() -- each map's own sky, light and haze (this screen only)
+end)
 
 -- The shop goes before the UI, because the menu's Shop button opens it.
 run("ShopController", function()

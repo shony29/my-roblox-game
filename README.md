@@ -193,13 +193,16 @@ shop look jagged. A game can't change this setting, so turn it up yourself:
 
 ### The maps
 
-Players vote between three maps before each match. Besides **Jelly Arena** and
+Players vote between all the maps before each match (each card shows little 3D charms
+of its theme and a short description). Besides **Jelly Arena** and
 **Mossy Keep** there are eight themed arenas: **Astro Station**, **Chef's Kitchen**,
 **Cozy Fireplace**, **Ant Farm**, **Coral Reef**, **Ice Castle**, **Candy Land** and
 **Bounce House**. They all share one fair, mirrored layout (three lanes, raised
 platforms with ramps, a big piece in the middle) and **grow with the number of players**:
 smallest for 1v1, bigger for 2v2 and 4v4, biggest for Free For All (which also gets
-spawn pads all around).
+spawn pads all around). Each map has its own sky and light on your screen (a starry
+night on Astro Station, blue underwater light on Coral Reef, bright sun on Bounce
+House), and some have real terrain around them: water, sand dunes, snow and rock hills.
 
 In matches: the top shows **your team's avatars** on the left and the other team's on
 the right (with each team's score) either side of the timer; eliminated players fade

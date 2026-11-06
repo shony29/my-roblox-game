@@ -44,6 +44,10 @@ function MapService.load(mapId: string, scale: number?, freeForAll: boolean?): b
 		return false
 	end
 	local builder = (require :: any)(builderModule) :: Builder
+	-- Clear any terrain (water, hills) the previous map left around the arena.
+	pcall(function()
+		workspace.Terrain:FillBlock(CFrame.new(), Vector3.new(800, 140, 800), Enum.Material.Air)
+	end)
 	local ok, result = pcall(builder.build, scale or 1, info.Theme, freeForAll == true)
 	if not ok then
 		warn(`[MapService] Building {mapId} failed: {result}`)

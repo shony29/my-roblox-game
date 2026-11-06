@@ -100,8 +100,12 @@ function Builder.build(scale: number?, themeName: string?, freeForAll: boolean?,
 		theme.tall(model, at(sign * 0.5, -0.82), faceCentre)
 		theme.low(model, at(sign * 0.16, 0.8), 90)
 		theme.low(model, at(sign * 0.16, -0.8), 90)
-		-- Little touches that don't block anything.
-		for _, spot in { { 0.72, 0.18 }, { 0.72, -0.18 }, { 0.44, 0.7 }, { 0.44, -0.7 }, { 0.1, 0.4 }, { 0.1, -0.4 } } do
+		-- Little touches that don't block anything, all over the arena.
+		for _, spot in {
+			{ 0.72, 0.18 }, { 0.72, -0.18 }, { 0.44, 0.7 }, { 0.44, -0.7 }, { 0.1, 0.4 }, { 0.1, -0.4 },
+			{ 0.9, 0.7 }, { 0.9, -0.7 }, { 0.62, 0.92 }, { 0.62, -0.92 }, { 0.28, 0.9 }, { 0.28, -0.9 },
+			{ 0.5, 0.25 }, { 0.5, -0.25 }, { 0.26, 0.12 }, { 0.26, -0.12 }, { 0.8, 0.42 }, { 0.8, -0.42 },
+		} do
 			theme.decor(model, at(sign * spot[1], spot[2]))
 		end
 	end)
@@ -149,6 +153,16 @@ function Builder.build(scale: number?, themeName: string?, freeForAll: boolean?,
 		model:PivotTo(CFrame.new(origin))
 		for index, spot in ammoSpots do
 			ammoSpots[index] = spot + origin
+		end
+	end
+	-- Natural ground around it (terrain): clear this arena's area first.
+	local centre = origin or Vector3.zero
+	Workspace.Terrain:FillBlock(CFrame.new(centre + Vector3.new(0, 0, 0)), Vector3.new(800, 140, 800), Enum.Material.Air)
+	local dressTerrain = theme.terrain
+	if dressTerrain then
+		local ok, err = pcall(dressTerrain, centre, half, FLOOR_Y)
+		if not ok then
+			warn(`[ThemedArenaBuilder] Terrain for {themeName} failed: {err}`)
 		end
 	end
 	model.Parent = Workspace

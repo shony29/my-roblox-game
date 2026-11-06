@@ -29,6 +29,9 @@ export type Theme = {
 	platform: (model: Model, pos: Vector3, dir: Vector3) -> (),
 	decor: (model: Model, pos: Vector3) -> (),
 	spawnColor: Color3,
+	-- Optional: natural ground around the arena (Roblox terrain: real water,
+	-- soft hills of sand, snow or rock). Called with the arena's final centre.
+	terrain: ((centre: Vector3, half: number, y: number) -> ())?,
 }
 
 local rgb = Color3.fromRGB
@@ -114,6 +117,16 @@ local function aroundEdge(half: number, y: number, count: number, margin: number
 		end
 		place(position, outward)
 	end
+end
+
+-- Soft terrain hills all around the outside of the arena.
+local function hillRing(centre: Vector3, half: number, y: number, material: Enum.Material, count: number, minRadius: number, maxRadius: number)
+	local terrain = workspace.Terrain
+	aroundEdge(half, y, count, 0, function(position: Vector3, outward: Vector3)
+		local radius = MapKit.random(minRadius, maxRadius)
+		local spot = centre + position + outward * (radius * 0.55 + 8) + Vector3.new(0, -radius * 0.45, 0)
+		terrain:FillBall(spot, radius, material)
+	end)
 end
 
 local function flatGround(model: Model, half: number, y: number, color: Color3, material: Enum.Material)
@@ -203,6 +216,9 @@ do
 		decor = function(model: Model, pos: Vector3)
 			column(model, "Antenna", pos, 4, 0.3, METAL, M.Metal, false)
 			ball(model, "AntennaTip", pos + Vector3.new(0, 4.2, 0), 0.6, RED, M.Neon, false)
+		end,
+		terrain = function(centre: Vector3, half: number, y: number)
+			hillRing(centre, half, y, M.Basalt, 24, 14, 26)
 		end,
 	}
 end
@@ -412,6 +428,9 @@ do
 		platform = function(model: Model, pos: Vector3, dir: Vector3)
 			platformShape(model, pos, dir, 7, DARK_SAND, SAND, M.Sand, rgb(160, 110, 70), M.WoodPlanks)
 		end,
+		terrain = function(centre: Vector3, half: number, y: number)
+			hillRing(centre, half, y, M.Sand, 22, 14, 24)
+		end,
 		decor = function(model: Model, pos: Vector3)
 			-- A little ant: three dark beads in a row.
 			for i = 0, 2 do
@@ -491,6 +510,10 @@ do
 			platformShape(model, pos, dir, 7, rgb(150, 110, 70), rgb(110, 80, 55), M.WoodPlanks, rgb(140, 100, 65), M.WoodPlanks)
 			column(model, "Mast", pos + Vector3.new(-4, 7.6, -4), 10, 1, rgb(120, 85, 55), M.Wood, false)
 		end,
+		terrain = function(centre: Vector3, half: number, y: number)
+			hillRing(centre, half, y, M.Sand, 20, 14, 22)
+			hillRing(centre, half + 14, y, M.Rock, 14, 16, 28)
+		end,
 		decor = function(model: Model, pos: Vector3)
 			column(model, "SmallCoral", pos, 2.4, 1, CORALS[variant(pos, #CORALS) + 1], M.SmoothPlastic, false)
 			local bubble = ball(model, "Bubble", pos + Vector3.new(0, 4, 0), 0.8, rgb(220, 245, 255), M.Glass, false)
@@ -560,6 +583,10 @@ do
 		platform = function(model: Model, pos: Vector3, dir: Vector3)
 			-- An ice block with a slide down to the middle.
 			platformShape(model, pos, dir, 7, rgb(230, 245, 255), ICE, M.Ice, rgb(180, 225, 255), M.Ice)
+		end,
+		terrain = function(centre: Vector3, half: number, y: number)
+			hillRing(centre, half, y, M.Snow, 24, 14, 26)
+			hillRing(centre, half + 16, y, M.Glacier, 12, 12, 20)
 		end,
 		decor = function(model: Model, pos: Vector3)
 			ball(model, "Snowball", pos + Vector3.new(0, 0.8, 0), 1.6, SNOW, M.Snow, false)
@@ -663,11 +690,10 @@ end
 
 do
 	local COLORS = { rgb(70, 200, 90), rgb(255, 210, 50), rgb(240, 70, 70), rgb(70, 140, 255) }
-	local WATER = rgb(90, 200, 255)
 	themes.Bounce = {
 		spawnColor = rgb(255, 230, 90),
 		ground = function(model: Model, half: number, y: number)
-			MapKit.part(model, "Water", Vector3.new(half * 2 + 260, 1, half * 2 + 260), CFrame.new(0, y - 2.5, 0), WATER, { material = M.Glass })
+			-- (The water around it is real terrain water, see `terrain` below.)
 			MapKit.part(model, "InflatableFloor", Vector3.new(half * 2 + 6, 2, half * 2 + 6), CFrame.new(0, y - 1, 0), COLORS[1], { material = M.SmoothPlastic })
 			-- Big coloured stripes on the floor.
 			for i = -3, 3 do
@@ -732,6 +758,14 @@ do
 					ball(model, "PuffyCorner", pos + Vector3.new(x, 7.6, z), 2.4, COLORS[3], M.SmoothPlastic, false)
 				end
 			end
+		end,
+		terrain = function(centre: Vector3, half: number, y: number)
+			local terrain = workspace.Terrain
+			terrain:FillBlock(CFrame.new(centre + Vector3.new(0, y - 4, 0)), Vector3.new(half * 2 + 240, 6, half * 2 + 240), M.Water)
+			-- Little sandy islands under the palm trees.
+			aroundEdge(half, y, 10, 18, function(position: Vector3, outward: Vector3)
+				terrain:FillBall(centre + position + Vector3.new(0, y - 7, 0), 9, M.Sand)
+			end)
 		end,
 		decor = function(model: Model, pos: Vector3)
 			local beachBall = ball(model, "BeachBall", pos + Vector3.new(0, 1.2, 0), 2.4, rgb(255, 255, 255), M.SmoothPlastic, false)
