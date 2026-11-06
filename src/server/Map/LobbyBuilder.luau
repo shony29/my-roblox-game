@@ -5,7 +5,8 @@
 	  Main hall   dark metal bunker with glowing slime tubes and tanks, pipes,
 	              hazard stripes, slime puddles and a central slime pedestal.
 	              A big neon SLIME SHOWDOWN sign above a round portal.
-	              Left: the SHOP counter. Right: the DAILY SQUISHY machine.
+	              Right: the DAILY SQUISHY machine. (The shop is a window you
+	              open with B or the SHOP button; it has no counter here.)
 	  Hallway     through the portal: light strips overhead and glowing queue
 	              pads with counters. Left: 1v1, 2v2, 4v4 (real players).
 	              Right: practice matches against bots.
@@ -197,17 +198,9 @@ local function prompt(parent: BasePart, name: string, action: string, object: st
 	p.Parent = parent
 end
 
-local function buildShopAndDaily(model: Model)
-	-- SHOP counter (left).
-	local counter = box(model, "ShopCounter", Vector3.new(5, 4, 14), at(-31, 2, 0), METAL_DARK, Enum.Material.DiamondPlate)
-	box(model, "ShopCounterTop", Vector3.new(5.6, 0.4, 14.6), at(-31, 4.2, 0), CYAN, Enum.Material.Neon)
-	box(model, "ShopMachine", Vector3.new(4, 12, 7), at(-37, 6, 0), METAL)
-	box(model, "ShopScreen", Vector3.new(0.3, 5, 5), at(-34.9, 8, 0), CYAN, Enum.Material.Neon)
-	local shopSign = at(-36, 16, 0)
-	Props.neonSign(model, "ShopSign", Vector3.new(14, 4, 0.5), CFrame.lookAt(shopSign, shopSign + Vector3.new(1, 0, 0)), "SHOP", CYAN)
-	try("shop prompt", function()
-		prompt(counter, "ShopCounter", "Open Shop", "Guns, squishies & skins")
-	end)
+local function buildDailyMachine(model: Model)
+	-- (Where the shop counter used to be, on the left wall: one more slime tube.)
+	Props.slimeTube(model, at(-35, 0, -1), 16, 6, PURPLE)
 
 	-- DAILY SQUISHY machine (right wall): a glass dome with a squishy inside.
 	-- It sits in the gap between the big green tank and the cyan tube.
@@ -514,8 +507,8 @@ function LobbyBuilder.build(): Lobby
 	try("slime decorations", function()
 		buildSlime(model)
 	end)
-	try("shop and Daily Squishy", function()
-		buildShopAndDaily(model)
+	try("Daily Squishy machine", function()
+		buildDailyMachine(model)
 	end)
 	local pads: { Pad } = {}
 	try("hallway and queue pads", function()

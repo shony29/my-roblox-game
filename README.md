@@ -100,7 +100,7 @@ project needs (it's listed in `rokit.toml`).
    player's device loads the whole world and nobody falls through a floor
    that hasn't loaded yet.
 5. Press **Play** in Studio. The bottom-left corner of the game's main menu
-   shows the version, for example **Slime Showdown v0.6.1**.
+   shows the version, for example **Slime Showdown v0.6.2**.
 
 ## Getting the newest version (every time the game is updated)
 
@@ -159,7 +159,7 @@ A yellow tip on the starting screen and in the shop reminds you while it's low.
 
 1. Press **Play** (F5) at the top of Studio.
 2. The main menu appears. Click **PLAY**: you appear in the **slime bunker** lobby.
-3. Look around: slime tubes, the **SHOP** counter (left, press **E** to open) and the
+3. Look around: slime tubes, the shop (press **B**, or the SHOP button at the bottom) and the
    **DAILY SQUISHY** machine (right, press **E**, then tap the squishy until it bursts).
    Prizes can be items or **gun upgrades** (red → orange → yellow → green → blue → purple;
    upgrades change your gun's colour, not its damage).

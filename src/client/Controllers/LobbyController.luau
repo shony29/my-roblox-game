@@ -9,8 +9,8 @@
 	    one: practice against a bot when you're alone, otherwise the real
 	    queue closest to starting). Stepping off the pad leaves the queue.
 	  * While queued, the bubble says what you're waiting for.
-	  * The SHOP counter's prompt opens the shop; the counter in the
-	    WEAPONS room opens the shop on the Guns tab.
+	  * The counter in the WEAPONS room opens the shop on the Guns tab.
+	    (The shop itself is a window: B, or the SHOP buttons.)
 	(The Daily Squishy machine is handled by DailyController.)
 
 	Queuing itself happens on the server; this script only shows what the
@@ -37,7 +37,6 @@ local TasksController = require(script.Parent:WaitForChild("TasksController"))
 
 local Colors = Theme.Colors
 local PATTR = MatchState.PlayerAttr
-local SHOP_PROMPT = "ShopCounter" -- the ProximityPrompt on the lobby's shop counter
 local WEAPONS_PROMPT = "WeaponsCounter" -- the counter in the weapons room
 local REFRESH_INTERVAL = 0.25
 local PLAY_GREEN = Color3.fromRGB(110, 220, 70)
@@ -199,11 +198,9 @@ function LobbyController.start()
 		end
 	end
 
-	-- Lobby counters: the shop, and the weapons room.
+	-- The weapons room counter opens the shop's Guns tab.
 	ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt)
-		if prompt.Name == SHOP_PROMPT then
-			ShopController.open()
-		elseif prompt.Name == WEAPONS_PROMPT then
+		if prompt.Name == WEAPONS_PROMPT then
 			ShopController.openTab("Weapon")
 		end
 	end)
