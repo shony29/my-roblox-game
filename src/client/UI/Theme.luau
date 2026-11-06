@@ -30,6 +30,28 @@ Theme.Fonts = {
 
 -- Every screen is designed at this size. ResponsiveScale shrinks or grows
 -- it to fit the real screen, so it looks the same on PC and phones.
+-- The sci-fi look of the slime bunker (main menu and shop): dark metal
+-- panels, glowing neon edges and a techy title font.
+Theme.SciFi = {
+	Void = Color3.fromRGB(8, 10, 18), -- darkest (text on neon buttons)
+	Panel = Color3.fromRGB(16, 20, 32), -- big panels
+	PanelLight = Color3.fromRGB(26, 32, 50), -- cards and tabs
+	Inset = Color3.fromRGB(11, 14, 24), -- picture wells
+	Edge = Color3.fromRGB(60, 72, 104), -- quiet borders
+	Grey = Color3.fromRGB(58, 64, 82), -- disabled buttons
+	Green = Color3.fromRGB(120, 255, 90), -- slime neon: the main action
+	Cyan = Color3.fromRGB(90, 220, 255),
+	Purple = Color3.fromRGB(190, 90, 255),
+	Yellow = Color3.fromRGB(255, 214, 90),
+	Red = Color3.fromRGB(255, 80, 100),
+	Text = Color3.fromRGB(228, 236, 255),
+	Dim = Color3.fromRGB(140, 154, 190),
+}
+Theme.SciFiFonts = {
+	Title = Enum.Font.Michroma, -- wide, futuristic: titles, tabs, buttons
+	Body = Enum.Font.GothamBold, -- clean and easy to read: names, prices
+}
+
 Theme.DesignResolution = Vector2.new(1280, 720)
 
 Theme.PanelTransparency = 0.25

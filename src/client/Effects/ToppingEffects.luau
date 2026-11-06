@@ -10,6 +10,8 @@
 	  Foam       soft foam balls
 	  Glitter    tiny glittering flakes with a sparkle shimmer
 	  Charms     little charms (emoji) such as 🎄 🍪 🎅 from charm packets
+	Every burst starts with a pop: a bright flash, a glowing ring racing
+	across the floor and a jelly splat left behind for a moment.
 	Pieces never collide or block bullets, and are cleaned up after ~2 s.
 ]]
 
@@ -107,6 +109,45 @@ local function sparkleBurst(position: Vector3, color: Color3, amount: number)
 	end)
 end
 
+-- The "pop" every burst starts with: a bright flash, a glowing ring that
+-- races across the floor, and a jelly splat left on the ground.
+local function pop(position: Vector3, color: Color3, lowQuality: boolean)
+	local bright = color:Lerp(Color3.new(1, 1, 1), 0.45)
+	local flash = piece(Vector3.one * 0.8, bright, Enum.PartType.Ball, Enum.Material.Neon)
+	flash.Transparency = 0.15
+	flash.CFrame = CFrame.new(position)
+	flash.Parent = fxFolder()
+	TweenService:Create(flash, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = Vector3.one * 5, Transparency = 1 }):Play()
+	task.delay(0.3, function()
+		flash:Destroy()
+	end)
+	if lowQuality then
+		return
+	end
+
+	local floor = position + Vector3.new(0, -1.75, 0)
+	local flat = CFrame.Angles(0, 0, math.rad(90)) -- a cylinder lying flat
+	local ring = piece(Vector3.new(0.08, 1.2, 1.2), color, Enum.PartType.Cylinder, Enum.Material.Neon)
+	ring.Transparency = 0.25
+	ring.CFrame = CFrame.new(floor + Vector3.new(0, 0.06, 0)) * flat
+	ring.Parent = fxFolder()
+	TweenService:Create(ring, TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = Vector3.new(0.08, 10, 10), Transparency = 1 }):Play()
+	task.delay(0.5, function()
+		ring:Destroy()
+	end)
+
+	local splat = piece(Vector3.new(0.1, 3.4, 3.4), color, Enum.PartType.Cylinder, Enum.Material.SmoothPlastic)
+	splat.Reflectance = 0.15
+	splat.CFrame = CFrame.new(floor + Vector3.new(0, 0.04, 0)) * flat
+	splat.Parent = fxFolder()
+	task.delay(1.6, function()
+		TweenService:Create(splat, TweenInfo.new(0.7), { Transparency = 1, Size = Vector3.new(0.1, 4.2, 4.2) }):Play()
+		task.delay(0.75, function()
+			splat:Destroy()
+		end)
+	end)
+end
+
 --[[
 	Plays the burst for `toppingId` at `position`. `slimeColor` colours the
 	default Slime Splat. `lowQuality` uses fewer pieces (Low graphics).
@@ -118,6 +159,7 @@ function ToppingEffects.play(position: Vector3, toppingId: string?, slimeColor: 
 	local function color(i: number): Color3
 		return colors[(i % #colors) + 1]
 	end
+	pop(position, if topping.Style == "Slime" then slimeColor else colors[1], lowQuality)
 
 	if topping.Style == "Slime" then
 		sparkleBurst(position, slimeColor, math.floor(28 * scale))

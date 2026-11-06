@@ -100,7 +100,7 @@ project needs (it's listed in `rokit.toml`).
    player's device loads the whole world and nobody falls through a floor
    that hasn't loaded yet.
 5. Press **Play** in Studio. The bottom-left corner of the game's main menu
-   shows the version, for example **Slime Showdown v0.5.0**.
+   shows the version, for example **Slime Showdown v0.6.0**.
 
 ## Getting the newest version (every time the game is updated)
 
@@ -132,6 +132,17 @@ keeps the copy you downloaded until you fetch the new one:
 If `git pull` says *"Your local changes would be overwritten"*, a file was
 edited on your computer. Run `git stash`, then `git pull` again.
 (`git stash pop` brings your own edit back afterwards.)
+
+## If the graphics look blocky or jagged
+
+Roblox picks a graphics quality for your computer, and on "Automatic" a
+laptop often gets a low one. That makes the world and the 3D pictures in the
+shop look jagged. A game can't change this setting, so turn it up yourself:
+
+1. While playing (also in a Studio test), press **Esc** → **Settings**.
+2. Set **Graphics Mode** to **Manual**, then drag **Graphics Quality** all the way up.
+
+A yellow tip on the starting screen and in the shop reminds you while it's low.
 
 ## If something isn't working
 

@@ -44,12 +44,15 @@ type Card = {
 
 local player = Players.LocalPlayer
 local Colors = Theme.Colors
+local Sci = Theme.SciFi -- the bunker's sci-fi look: dark panels, neon edges
+local SCI_FONT = Theme.SciFiFonts.Title
+local BODY_FONT = Theme.SciFiFonts.Body
 local ATTR = GameContract.PlayerAttributes
 
 local OPEN_KEY = Enum.KeyCode.B
 local CONFIRM_SECONDS = 3 -- how long "Tap again to buy" waits for the second tap
 local PANEL_SIZE = Vector2.new(880, 540)
-local GREY = Color3.fromRGB(175, 178, 190)
+local GREY = Theme.SciFi.Grey
 
 local TABS: { { category: Category, title: string } } = {
 	{ category = "Color", title = "Colors" },
@@ -112,15 +115,15 @@ local function makeButton(name: string, text: string, size: UDim2, color: Color3
 	local button = Instance.new("TextButton")
 	button.Name = name
 	button.Text = text
-	button.Font = Theme.Fonts.Title
-	button.TextSize = 22
-	button.TextColor3 = Colors.White
+	button.Font = SCI_FONT
+	button.TextSize = 18
+	button.TextColor3 = Sci.Void
 	button.BackgroundColor3 = color
 	button.AutoButtonColor = false
 	button.Size = size
-	UIHelpers.corner(button, UDim.new(0, 14))
-	UIHelpers.stroke(button, Colors.Ink, 3)
-	UIHelpers.textStroke(button, 2)
+	UIHelpers.corner(button, UDim.new(0, 10))
+	local edge = UIHelpers.stroke(button, Color3.new(1, 1, 1), 1.5)
+	edge.Transparency = 0.65
 
 	-- A little bounce when you hover or press.
 	local scale = Instance.new("UIScale")
@@ -142,7 +145,7 @@ local function showToast(text: string, good: boolean)
 	toastToken += 1
 	local myToken = toastToken
 	toast.Text = text
-	toast.TextColor3 = if good then Colors.Mint else Colors.Coral
+	toast.TextColor3 = if good then Sci.Green else Sci.Red
 	toast.TextTransparency = 0
 	toast.TextSize = 26
 	UIHelpers.tween(toast, 0.25, { TextSize = 22 }, Enum.EasingStyle.Back)
@@ -176,9 +179,9 @@ local function refreshCards()
 
 		if isEquipped then
 			status.Text = "Equipped"
-			status.TextColor3 = Colors.Mint
+			status.TextColor3 = Sci.Green
 			button.Text = "WEARING"
-			button.BackgroundColor3 = Colors.Mint
+			button.BackgroundColor3 = Sci.Green
 		elseif isOwned then
 			local gun = if isGun then ShopConfig.getWeapon(item.Id) else nil
 			local tier = if gun then UpgradeConfig.tier(gunLevels[gun.WeaponId] or 0) else nil
@@ -186,26 +189,27 @@ local function refreshCards()
 				elseif isGun then "In your loadout"
 				elseif item.Price <= 0 then "Free"
 				else "Owned"
-			status.TextColor3 = Colors.SkyDeep
+			status.TextColor3 = Sci.Cyan
 			button.Text = if isGun then "OWNED" else "EQUIP"
-			button.BackgroundColor3 = if isGun then Colors.Mint else Colors.SkyDeep
+			button.BackgroundColor3 = if isGun then Sci.Green else Sci.Cyan
 		elseif item.Robux then
 			local onSale = (item.ProductId or 0) > 0
 			status.Text = `R$ {item.Robux} · {MONTH_NAMES[item.Month or month]} only`
-			status.TextColor3 = Colors.SkyDeep
+			status.TextColor3 = Sci.Purple
 			button.Text = if onSale then "BUY R$" else "SOON"
-			button.BackgroundColor3 = if onSale then Colors.Sky else GREY
+			button.BackgroundColor3 = if onSale then Sci.Purple else GREY
 		else
 			status.Text = tostring(item.Price) .. " coins"
-			status.TextColor3 = Colors.YolkDark
+			status.TextColor3 = Sci.Yellow
 			if confirmingId == item.Id then
 				button.Text = "TAP TO BUY"
-				button.BackgroundColor3 = Colors.Coral
+				button.BackgroundColor3 = Sci.Yellow
 			else
 				button.Text = "BUY"
-				button.BackgroundColor3 = if myCoins >= item.Price then Colors.Yolk else GREY
+				button.BackgroundColor3 = if myCoins >= item.Price then Sci.Green else GREY
 			end
 		end
+		button.TextColor3 = if button.BackgroundColor3 == GREY then Sci.Dim else Sci.Void
 		button.AutoButtonColor = false
 		button.Active = not busy
 	end
@@ -214,7 +218,8 @@ end
 local function selectTab(category: Category)
 	for _, tab in TABS do
 		local active = tab.category == category
-		tabButtons[tab.category].BackgroundColor3 = if active then Colors.Yolk else Colors.White
+		tabButtons[tab.category].BackgroundColor3 = if active then Sci.Cyan else Sci.PanelLight
+		tabButtons[tab.category].TextColor3 = if active then Sci.Void else Sci.Dim
 		pages[tab.category].Visible = active
 	end
 end
@@ -313,18 +318,18 @@ local function buildDetails(): DetailsUi
 	end)
 
 	local panel = UIHelpers.frame("Panel", UDim2.fromOffset(560, 420), UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5))
-	panel.BackgroundColor3 = Colors.Shell
+	panel.BackgroundColor3 = Sci.Panel
 	panel.BackgroundTransparency = 0
 	panel.Active = true -- clicks on the window don't close it
-	UIHelpers.corner(panel, UDim.new(0, 20))
-	UIHelpers.stroke(panel, Colors.Ink, 4)
+	UIHelpers.corner(panel, UDim.new(0, 18))
+	UIHelpers.stroke(panel, Sci.Cyan, 2)
 	panel.Parent = backdrop
 
-	local title = UIHelpers.label("Title", "", 30, Theme.Fonts.Title)
+	local title = UIHelpers.label("Title", "", 24, SCI_FONT)
 	title.Position = UDim2.fromOffset(20, 12)
 	title.Size = UDim2.new(1, -90, 0, 40)
 	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.TextColor3 = Colors.Ink
+	title.TextColor3 = Sci.Green
 	title.Parent = panel
 
 	local close = Instance.new("TextButton")
@@ -332,13 +337,12 @@ local function buildDetails(): DetailsUi
 	close.AnchorPoint = Vector2.new(1, 0)
 	close.Position = UDim2.new(1, -14, 0, 12)
 	close.Size = UDim2.fromOffset(42, 42)
-	close.BackgroundColor3 = Colors.Coral
-	close.Font = Theme.Fonts.Title
-	close.TextSize = 24
-	close.TextColor3 = Colors.White
+	close.BackgroundColor3 = Sci.Red
+	close.Font = SCI_FONT
+	close.TextSize = 20
+	close.TextColor3 = Sci.Text
 	close.Text = "X"
 	UIHelpers.corner(close, UDim.new(0, 10))
-	UIHelpers.stroke(close, Colors.Ink, 3)
 	close.Parent = panel
 	close.Activated:Connect(function()
 		backdrop.Visible = false
@@ -348,41 +352,41 @@ local function buildDetails(): DetailsUi
 	preview.Name = "Preview"
 	preview.Position = UDim2.fromOffset(20, 62)
 	preview.Size = UDim2.new(1, -40, 0, 150)
-	preview.BackgroundColor3 = Colors.Sky:Lerp(Colors.White, 0.7)
+	preview.BackgroundColor3 = Sci.Inset
 	preview.BorderSizePixel = 0
 	UIHelpers.corner(preview, UDim.new(0, 14))
 	preview.Parent = panel
 
-	local blurb = UIHelpers.label("Blurb", "", 20, Theme.Fonts.Title)
+	local blurb = UIHelpers.label("Blurb", "", 18, BODY_FONT)
 	blurb.Position = UDim2.fromOffset(20, 218)
 	blurb.Size = UDim2.new(1, -40, 0, 28)
-	blurb.TextColor3 = Colors.SkyDeep
+	blurb.TextColor3 = Sci.Cyan
 	blurb.Parent = panel
 
 	local rows: { [string]: { fill: Frame, value: TextLabel } } = {}
 	for index, name in STAT_ROWS do
 		local y = 252 + (index - 1) * 32
-		local label = UIHelpers.label(name, name, 18, Theme.Fonts.Title)
+		local label = UIHelpers.label(name, string.upper(name), 13, SCI_FONT)
 		label.Position = UDim2.fromOffset(24, y)
 		label.Size = UDim2.fromOffset(120, 26)
 		label.TextXAlignment = Enum.TextXAlignment.Left
-		label.TextColor3 = Colors.Ink
+		label.TextColor3 = Sci.Dim
 		label.Parent = panel
 		local track = UIHelpers.frame("Track", UDim2.fromOffset(250, 14), UDim2.fromOffset(150, y + 6), nil)
-		track.BackgroundColor3 = Color3.fromRGB(220, 224, 235)
+		track.BackgroundColor3 = Sci.Inset
 		track.BackgroundTransparency = 0
 		UIHelpers.corner(track, UDim.new(1, 0))
 		track.Parent = panel
 		local fill = UIHelpers.frame("Fill", UDim2.fromScale(0, 1), UDim2.new(), nil)
-		fill.BackgroundColor3 = Colors.Mint
+		fill.BackgroundColor3 = Sci.Green
 		fill.BackgroundTransparency = 0
 		UIHelpers.corner(fill, UDim.new(1, 0))
 		fill.Parent = track
-		local value = UIHelpers.label("Value", "", 18, Theme.Fonts.Title)
+		local value = UIHelpers.label("Value", "", 16, BODY_FONT)
 		value.Position = UDim2.fromOffset(410, y)
 		value.Size = UDim2.fromOffset(130, 26)
 		value.TextXAlignment = Enum.TextXAlignment.Left
-		value.TextColor3 = Colors.Ink
+		value.TextColor3 = Sci.Text
 		value.Parent = panel
 		rows[name] = { fill = fill, value = value }
 	end
@@ -421,24 +425,30 @@ local function buildCard(page: ScrollingFrame, item: ShopItem, order: number)
 	local card = Instance.new("Frame")
 	card.Name = item.Id
 	card.LayoutOrder = order
-	card.BackgroundColor3 = Colors.White
+	card.BackgroundColor3 = Sci.PanelLight
 	card.BorderSizePixel = 0
-	UIHelpers.corner(card, UDim.new(0, 18))
-	UIHelpers.stroke(card, Colors.Ink, 3)
+	UIHelpers.corner(card, UDim.new(0, 14))
+	UIHelpers.stroke(card, ShopConfig.rarityOf(item).Color, 2.5)
 	card.Parent = page
 
 	local previewBox = Instance.new("Frame")
 	previewBox.Name = "PreviewBox"
 	previewBox.Position = UDim2.fromOffset(10, 10)
 	previewBox.Size = UDim2.new(1, -20, 0, 100)
-	previewBox.BackgroundColor3 = Colors.Sky:Lerp(Colors.White, 0.7)
+	previewBox.BackgroundColor3 = Sci.Inset
 	previewBox.BorderSizePixel = 0
-	UIHelpers.corner(previewBox, UDim.new(0, 14))
+	UIHelpers.corner(previewBox, UDim.new(0, 10))
 	previewBox.Parent = card
+	-- A soft glow in the rarity colour rising from the bottom of the picture.
+	local glowFade = Instance.new("UIGradient")
+	glowFade.Rotation = -90
+	glowFade.Color = ColorSequence.new(Sci.Inset:Lerp(ShopConfig.rarityOf(item).Color, 0.35), Sci.Inset)
+	glowFade.Parent = previewBox
 
 	-- Rarity tag (COMMON / UNCOMMON / RARE / EPIC / LEGENDARY) in its colour.
 	local rarity = ShopConfig.rarityOf(item)
-	local rarityTag = UIHelpers.label("Rarity", string.upper(rarity.Name), 13, Theme.Fonts.Title)
+	local rarityText = if item.Robux then string.upper(rarity.Name) else `{string.upper(rarity.Name)}  {rarity.Chance}%`
+	local rarityTag = UIHelpers.label("Rarity", rarityText, 11, SCI_FONT)
 	rarityTag.Size = UDim2.fromOffset(110, 18)
 	rarityTag.Position = UDim2.fromOffset(16, 12)
 	rarityTag.TextXAlignment = Enum.TextXAlignment.Left
@@ -453,27 +463,8 @@ local function buildCard(page: ScrollingFrame, item: ShopItem, order: number)
 		local blobColor = ShopConfig.getColor(equippedId("Color")).Color
 		table.insert(hatColorSetters, ItemPreview.hat(previewBox, ShopConfig.getHat(item.Id), blobColor))
 	elseif item.Category == "Topping" then
-		-- Toppings: the charms, or a sprinkle of the topping's colours.
-		local topping = ShopConfig.getTopping(item.Id)
-		if topping.Charms then
-			local charms = UIHelpers.label("Charms", table.concat(topping.Charms, " "), 26)
-			charms.TextWrapped = true
-			charms.Parent = previewBox
-		else
-			local random = Random.new(#item.Id)
-			for i = 1, 14 do
-				local color = topping.Colors[(i % #topping.Colors) + 1]
-				local size = if topping.Style == "Sprinkles" then UDim2.fromOffset(5, 16) elseif topping.Style == "Glitter" then UDim2.fromOffset(7, 7) else UDim2.fromOffset(14, 14)
-				local bit = UIHelpers.frame("Bit", size, UDim2.fromScale(random:NextNumber(0.1, 0.9), random:NextNumber(0.15, 0.85)), Vector2.new(0.5, 0.5))
-				bit.BackgroundColor3 = color
-				bit.BackgroundTransparency = 0
-				bit.Rotation = random:NextNumber(0, 180)
-				if topping.Style ~= "Glitter" then
-					UIHelpers.corner(bit, UDim.new(1, 0))
-				end
-				bit.Parent = previewBox
-			end
-		end
+		-- Toppings: a frozen moment of the burst (Effects pictures).
+		ItemPreview.topping(previewBox, ShopConfig.getTopping(item.Id))
 	elseif item.Category == "Weapon" then
 		-- Guns: each gun's own 3D design. Click the picture for its details.
 		local gun = ShopConfig.getWeapon(item.Id)
@@ -491,9 +482,9 @@ local function buildCard(page: ScrollingFrame, item: ShopItem, order: number)
 			badge.AnchorPoint = Vector2.new(1, 0)
 			badge.Position = UDim2.new(1, -6, 0, 6)
 			badge.Size = UDim2.fromOffset(24, 24)
-			badge.BackgroundColor3 = Colors.SkyDeep
+			badge.BackgroundColor3 = Sci.Cyan
 			badge.BackgroundTransparency = 0
-			badge.TextColor3 = Colors.White
+			badge.TextColor3 = Sci.Void
 			badge.ZIndex = 5
 			UIHelpers.corner(badge, UDim.new(1, 0))
 			badge.Parent = previewBox
@@ -505,25 +496,30 @@ local function buildCard(page: ScrollingFrame, item: ShopItem, order: number)
 		ItemPreview.skin(previewBox, ShopConfig.getSkin(item.Id))
 	end
 
-	local name = UIHelpers.label("ItemName", item.DisplayName, 20, Theme.Fonts.Title)
-	name.Position = UDim2.fromOffset(6, 114)
-	name.Size = UDim2.new(1, -12, 0, 24)
-	name.TextColor3 = Colors.Ink
+	local name = UIHelpers.label("ItemName", item.DisplayName, 20, BODY_FONT)
+	name.Position = UDim2.fromOffset(8, 113)
+	name.Size = UDim2.new(1, -16, 0, 22)
+	name.TextColor3 = Sci.Text
 	name.TextScaled = true
 	local sizeLimit = Instance.new("UITextSizeConstraint")
 	sizeLimit.MaxTextSize = 20
 	sizeLimit.Parent = name
 	name.Parent = card
 
-	local status = UIHelpers.label("Status", "", 17)
-	status.Position = UDim2.fromOffset(6, 138)
-	status.Size = UDim2.new(1, -12, 0, 20)
+	local status = UIHelpers.label("Status", "", 15, BODY_FONT)
+	status.Position = UDim2.fromOffset(8, 136)
+	status.Size = UDim2.new(1, -16, 0, 17)
+	-- Long lines ("R$ 79 · November only") shrink to fit inside the card.
+	status.TextScaled = true
+	local statusLimit = Instance.new("UITextSizeConstraint")
+	statusLimit.MaxTextSize = 15
+	statusLimit.Parent = status
 	status.Parent = card
 
-	local button = makeButton("Action", "BUY", UDim2.new(1, -20, 0, 40), Colors.Yolk)
+	local button = makeButton("Action", "BUY", UDim2.new(1, -20, 0, 36), Sci.Green)
 	button.AnchorPoint = Vector2.new(0.5, 1)
-	button.Position = UDim2.new(0.5, 0, 1, -10)
-	button.TextSize = 20
+	button.Position = UDim2.new(0.5, 0, 1, -9)
+	button.TextSize = 16
 	button.Parent = card
 	button.Activated:Connect(function()
 		onCardPressed(item)
@@ -540,7 +536,7 @@ local function buildPage(parent: Instance, category: Category, items: { ShopItem
 	page.BackgroundTransparency = 1
 	page.BorderSizePixel = 0
 	page.ScrollBarThickness = 10
-	page.ScrollBarImageColor3 = Colors.Ink
+	page.ScrollBarImageColor3 = Sci.Cyan
 	page.ScrollingDirection = Enum.ScrollingDirection.Y
 	page.AutomaticCanvasSize = Enum.AutomaticSize.Y
 	page.CanvasSize = UDim2.new()
@@ -600,10 +596,10 @@ end
 
 local function buildCoinPill(parent: Instance)
 	local pill = UIHelpers.frame("Coins", UDim2.fromOffset(190, 50), UDim2.new(1, -86, 0, 14), Vector2.new(1, 0))
-	pill.BackgroundColor3 = Colors.White
+	pill.BackgroundColor3 = Sci.Inset
 	pill.BackgroundTransparency = 0
 	UIHelpers.corner(pill, UDim.new(1, 0))
-	UIHelpers.stroke(pill, Colors.Ink, 3)
+	UIHelpers.stroke(pill, Sci.Yellow, 2)
 	pill.Parent = parent
 
 	local coin = Instance.new("Frame")
@@ -616,11 +612,11 @@ local function buildCoinPill(parent: Instance)
 	UIHelpers.stroke(coin, Colors.YolkDark, 3)
 	coin.Parent = pill
 
-	local value = UIHelpers.label("Value", "0", 28, Theme.Fonts.Title)
+	local value = UIHelpers.label("Value", "0", 22, SCI_FONT)
 	value.Position = UDim2.fromOffset(48, 0)
 	value.Size = UDim2.new(1, -60, 1, 0)
 	value.TextXAlignment = Enum.TextXAlignment.Left
-	value.TextColor3 = Colors.YolkDark
+	value.TextColor3 = Sci.Yellow
 	value.Parent = pill
 
 	local function update()
@@ -644,8 +640,8 @@ local function buildMenu()
 	-- Modal frees the mouse cursor (first person locks it) while the shop is open.
 	overlay.Modal = true
 	overlay.Size = UDim2.fromScale(1, 1)
-	overlay.BackgroundColor3 = Colors.Ink
-	overlay.BackgroundTransparency = 0.45
+	overlay.BackgroundColor3 = Sci.Void
+	overlay.BackgroundTransparency = 0.35
 	overlay.BorderSizePixel = 0
 	overlay.Parent = shopGui
 
@@ -654,11 +650,12 @@ local function buildMenu()
 	panel.AnchorPoint = Vector2.new(0.5, 0.5)
 	panel.Position = UDim2.new(0.5, 0, 0.5, 18)
 	panel.Size = UDim2.fromOffset(PANEL_SIZE.X, PANEL_SIZE.Y)
-	panel.BackgroundColor3 = Colors.Shell
+	panel.BackgroundColor3 = Sci.Panel
 	panel.BorderSizePixel = 0
 	panel.Active = true
-	UIHelpers.corner(panel, UDim.new(0, 26))
-	UIHelpers.stroke(panel, Colors.Ink, 4)
+	UIHelpers.corner(panel, UDim.new(0, 18))
+	local panelGlow = UIHelpers.stroke(panel, Sci.Cyan, 2)
+	panelGlow.Transparency = 0.25
 	panel.Parent = shopGui
 	panelScale = Instance.new("UIScale")
 	panelScale.Parent = panel
@@ -666,28 +663,45 @@ local function buildMenu()
 	local header = Instance.new("Frame")
 	header.Name = "Header"
 	header.Size = UDim2.new(1, 0, 0, 78)
-	header.BackgroundColor3 = Colors.Sky
+	header.BackgroundColor3 = Sci.PanelLight
 	header.BorderSizePixel = 0
-	UIHelpers.corner(header, UDim.new(0, 26))
+	UIHelpers.corner(header, UDim.new(0, 18))
 	header.Parent = panel
 	local gradient = Instance.new("UIGradient")
 	gradient.Rotation = 90
-	gradient.Color = ColorSequence.new(Colors.Sky, Colors.SkyDeep)
+	gradient.Color = ColorSequence.new(Sci.PanelLight, Sci.Panel)
 	gradient.Parent = header
+	-- A neon line under the header.
+	local line = Instance.new("Frame")
+	line.Name = "NeonLine"
+	line.AnchorPoint = Vector2.new(0.5, 1)
+	line.Position = UDim2.new(0.5, 0, 1, 0)
+	line.Size = UDim2.new(1, -36, 0, 2)
+	line.BackgroundColor3 = Sci.Cyan
+	line.BorderSizePixel = 0
+	line.Parent = header
 
-	local title = UIHelpers.label("Title", "SHOP", 48, Theme.Fonts.Title)
+	local title = UIHelpers.label("Title", "SHOP", 38, SCI_FONT)
 	title.Position = UDim2.fromOffset(28, 4)
 	title.Size = UDim2.new(0, 300, 0, 70)
 	title.TextXAlignment = Enum.TextXAlignment.Left
-	UIHelpers.textStroke(title, 3)
+	title.TextColor3 = Sci.Green
+	local titleGlow = Instance.new("UIStroke")
+	titleGlow.Color = Sci.Green
+	titleGlow.Thickness = 1.5
+	titleGlow.Transparency = 0.6
+	titleGlow.Parent = title
 	title.Parent = header
 
 	buildCoinPill(header)
+	-- How to get smoother 3D pictures (only shows while graphics quality is low).
+	UIHelpers.qualityTip(header, UDim2.new(0, 210, 0.5, 0), Vector2.new(0, 0.5), 380)
 
-	local close = makeButton("Close", "X", UDim2.fromOffset(54, 54), Colors.Coral)
+	local close = makeButton("Close", "X", UDim2.fromOffset(54, 54), Sci.Red)
 	close.AnchorPoint = Vector2.new(1, 0)
 	close.Position = UDim2.new(1, -16, 0, 12)
-	close.TextSize = 30
+	close.TextSize = 24
+	close.TextColor3 = Sci.Text
 	-- Modal frees the mouse if the camera has locked it (first person).
 	close.Modal = true
 	close.Parent = header
@@ -709,10 +723,10 @@ local function buildMenu()
 	tabLayout.Parent = tabRow
 
 	for index, tab in TABS do
-		local button = makeButton(tab.title .. "Tab", tab.title, UDim2.fromOffset(170, 46), Colors.White)
+		local button = makeButton(tab.title .. "Tab", string.upper(tab.title), UDim2.new(1 / #TABS, -10, 1, 0), Sci.PanelLight)
 		button.LayoutOrder = index
-		button.TextColor3 = Colors.Ink
-		button.TextSize = 24
+		button.TextColor3 = Sci.Dim
+		button.TextSize = 15
 		-- No text outline on the tabs, so the dark text stays crisp.
 		for _, child in button:GetChildren() do
 			if child:IsA("UIStroke") and child.ApplyStrokeMode == Enum.ApplyStrokeMode.Contextual then
@@ -727,7 +741,7 @@ local function buildMenu()
 		pages[tab.category] = buildPage(panel, tab.category, itemsIn(tab.category))
 	end
 
-	toast = UIHelpers.label("Message", "", 22, Theme.Fonts.Title)
+	toast = UIHelpers.label("Message", "", 20, BODY_FONT)
 	toast.AnchorPoint = Vector2.new(0.5, 1)
 	toast.Position = UDim2.new(0.5, 0, 1, -12)
 	toast.Size = UDim2.new(1, -40, 0, 34)
@@ -745,7 +759,7 @@ local function buildHudButton()
 
 	local touchOnly = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
 	hudButton =
-		makeButton("ShopButton", if touchOnly then "SHOP" else "SHOP (B)", UDim2.fromOffset(150, 44), Colors.Yolk)
+		makeButton("ShopButton", if touchOnly then "SHOP" else "SHOP (B)", UDim2.fromOffset(150, 44), Sci.Green)
 	hudButton.Position = UDim2.fromOffset(Theme.Margin, 68)
 	hudButton.Parent = hudGui
 	hudButton.Activated:Connect(function()
