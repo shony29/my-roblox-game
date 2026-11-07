@@ -28,7 +28,7 @@ local QuestService = require(script.Parent.QuestService)
 local PATTR = MatchState.PlayerAttr
 local CHECK_INTERVAL = 0.25
 local POP_TIME = 2.5 -- seconds before a popped target comes back
-local PAD_RADIUS = 4
+local PAD_RADIUS = 4 -- for pads that don't say (the lobby's big pad has a "PadRadius" attribute)
 local FALL_LIMIT = 60 -- studs below the deck that count as "fell off"
 local RESPAWN_DELAY = 2
 
@@ -53,7 +53,8 @@ local function standingOn(player: Player, pad: BasePart): boolean
 		return false
 	end
 	local offset = root.Position - pad.Position
-	return Vector2.new(offset.X, offset.Z).Magnitude <= PAD_RADIUS and math.abs(offset.Y) <= 6
+	local radius = pad:GetAttribute("PadRadius")
+	return Vector2.new(offset.X, offset.Z).Magnitude <= (if typeof(radius) == "number" then radius else PAD_RADIUS) and math.abs(offset.Y) <= 6
 end
 
 -- A fresh character on the deck (guns are given by WeaponService on spawn).

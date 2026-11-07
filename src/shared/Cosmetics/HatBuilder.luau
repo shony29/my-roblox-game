@@ -17,6 +17,9 @@
 	  IceCream   a waffle cone with a scoop, choc chips and a cherry
 	  Popcorn    a striped bucket heaped with popcorn
 
+	(HatBuilder.buildBall also makes the round squishy ball with a face
+	that floats in the Daily Squishy room's glass dome.)
+
 	They never collide and bullets fly straight through them, so a squishy
 	can never change your hitbox. (Internally the category is still "Hat",
 	so older saves and the EquippedHat attribute keep working.)
@@ -363,6 +366,36 @@ function HatBuilder.build(hat: HatItem, bodyCFrame: CFrame, bodySize: Vector3): 
 	elseif hat.Shape == "Popcorn" then
 		popcorn(b, hat, base)
 	end
+	return model
+end
+
+--[[
+	A round squishy ball with a cute face (the Daily Squishy room shows a
+	big one floating in its glass dome). `cframe` is the ball's middle,
+	with the face looking along its LookVector; `diameter` is how wide it
+	is. Everything is anchored and never collides. The round body part is
+	called "Body", so the lobby can tint it.
+]]
+function HatBuilder.buildBall(color: Color3, cframe: CFrame, diameter: number): Model
+	local model = Instance.new("Model")
+	model.Name = "SquishyBall"
+	local s = diameter / 4 -- designed 4 studs wide
+	local b: Builder = { origin = cframe, model = model, random = Random.new(4) }
+	-- Slightly squashed, like a soft toy sitting down.
+	local body = ellipsoid(b, "Body", Vector3.new(4, 3.7, 4) * s, color, CFrame.new())
+	body.Reflectance = 0.06
+	-- A soft shine on top (the slimes have one too).
+	local shine = ellipsoid(b, "Shine", Vector3.new(1.3, 0.55, 0.8) * s, WHITE,
+		CFrame.new(-0.8 * s, 1.15 * s, -0.95 * s) * CFrame.Angles(math.rad(-35), math.rad(-25), math.rad(18)))
+	shine.Transparency = 0.45
+	shine.CastShadow = false
+	kawaiiFace(b, CFrame.new(0, -0.05 * s, -1.98 * s), 2.1 * s, 2 * s)
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") then
+			part.Anchored = true
+		end
+	end
+	model.WorldPivot = cframe
 	return model
 end
 

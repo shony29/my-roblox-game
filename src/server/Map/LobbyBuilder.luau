@@ -5,11 +5,19 @@
 	  Main hall   dark metal bunker with glowing slime tubes and tanks, pipes,
 	              hazard stripes, slime puddles and a central slime pedestal.
 	              A big neon SLIME SHOWDOWN sign above a round portal.
-	              Right: the DAILY SQUISHY machine. (The shop is a window you
-	              open with B or the SHOP button; it has no counter here.)
+	  Side rooms  four big rooms (room for a crowd) behind glowing doorways:
+	                left:  WEAPONS (every gun on display) and the ROBUX SHOP
+	                       (a gold vault: a giant spinning coin, a round vault
+	                       door, coin packs and bundles in lit glass cases)
+	                right: PRACTICE RANGE (step on the pad) and DAILY SQUISHY
+	                       (shelves of squishies and a squishy ball in a dome)
 	  Hallway     through the portal: light strips overhead and glowing queue
 	              pads with counters. Left: 1v1, 2v2, 4v4 (real players).
-	              Right: practice matches against bots.
+	              Right: practice matches against bots. At the end: FREE FOR ALL.
+
+	Some decorations gently move on each player's screen (the spinning coin,
+	the bobbing squishy ball): the server only marks them with attributes,
+	and the client's LobbyAnimator moves them.
 
 	Returns where players appear and the pads (QueueService reads them).
 ]]
@@ -19,10 +27,13 @@ local Workspace = game:GetService("Workspace")
 
 local MapKit = require(script.Parent.MapKit)
 local LobbyProps = require(script.Parent.LobbyProps)
+local ShopProps = require(script.Parent.ShopProps)
 local GunModel = require(script.Parent.Parent.Components.GunModel)
 local WeaponConfig = require(ReplicatedStorage.Shared.Config.WeaponConfig)
 local ShopConfig = require(ReplicatedStorage.Shared.Config.ShopConfig)
+local RobuxShopConfig = require(ReplicatedStorage.Shared.Config.RobuxShopConfig)
 local HatBuilder = require(ReplicatedStorage.Shared.Cosmetics.HatBuilder)
+local CharmBuilder = require(ReplicatedStorage.Shared.Cosmetics.CharmBuilder)
 
 export type Pad = {
 	part: BasePart,
@@ -50,12 +61,26 @@ local HALL_FRONT = ORIGIN.Z - HALL_Z -- the wall with the sign and the portal
 local HALL_LENGTH, HALL_HALF_WIDTH, HALL_HEIGHT_2 = 92, 22, 26 -- the hallway
 local PORTAL_RADIUS = 8
 local PAD_RADIUS = 6.5
-local DOOR_Z, DOOR_HALF, DOOR_HEIGHT = 22, 6, 14 -- the side doorways (weapons room, practice range)
-local DAILY_Z = -11 -- the DAILY SQUISHY room's doorway (right wall) and the ROBUX SHOP's (left wall)
-local GOLD = Color3.fromRGB(255, 200, 60)
+local DOOR_Z, DOOR_HALF, DOOR_HEIGHT = 22, 8, 16 -- the back pair of side doorways (weapons room, practice range); wide enough for a crowd
+local DAILY_Z = -11 -- the front pair: the DAILY SQUISHY room's doorway (right wall) and the ROBUX SHOP's (left wall)
+local ROOM_DEPTH, ROOM_HEIGHT = 44, 24 -- every side room: how far back it goes from the hall wall, and how tall it is
+local RANGE_PAD_RADIUS = 7 -- the practice range pad (PracticeService reads its "PadRadius")
+local GOLD = ShopProps.GOLD
 
 local METAL, METAL_DARK = LobbyProps.METAL, LobbyProps.METAL_DARK
 local GREEN, PURPLE, CYAN = LobbyProps.GREEN, LobbyProps.PURPLE, LobbyProps.CYAN
+
+--[[
+	A side room. `side` is -1 for a room behind the hall's left wall (it
+	reaches toward -X) and 1 for the right wall. `cz` is the middle of its
+	width (along Z) and `halfZ` half its width.
+]]
+type Room = { name: string, side: number, cz: number, halfZ: number }
+
+local WEAPONS_ROOM: Room = { name = "Weapons", side = -1, cz = DOOR_Z - 1, halfZ = 14 } -- 44 x 28 studs
+local ROBUX_ROOM: Room = { name = "Robux", side = -1, cz = DAILY_Z, halfZ = 13 } -- 44 x 26
+local RANGE_ROOM: Room = { name = "Range", side = 1, cz = DOOR_Z, halfZ = 13 } -- 44 x 26
+local DAILY_ROOM: Room = { name = "Daily", side = 1, cz = DAILY_Z, halfZ = 13 } -- 44 x 26
 
 local LobbyBuilder = {}
 
@@ -108,6 +133,82 @@ local function box(model: Model, name: string, size: Vector3, center: Vector3, c
 	return Kit.part(model, name, size, CFrame.new(center), color, { material = material or Enum.Material.Metal })
 end
 
+-- A glowing decoration that nobody bumps into.
+local function glowPart(model: Model, name: string, size: Vector3, cframe: CFrame, color: Color3)
+	return Kit.part(model, name, size, cframe, color, { material = Enum.Material.Neon, collide = false, shadow = false })
+end
+
+local function prompt(parent: BasePart, name: string, action: string, object: string, distance: number?)
+	local p = Instance.new("ProximityPrompt")
+	p.Name = name
+	p.ActionText = action
+	p.ObjectText = object
+	p.HoldDuration = 0
+	p.MaxActivationDistance = distance or 12
+	p.RequiresLineOfSight = false
+	p.Parent = parent
+end
+
+-- Side rooms -----------------------------------------------------------------
+
+-- A point in a room: `depth` studs in from the hall wall, `y` up from the
+-- floor, and `across` from the room's middle line (along Z).
+local function inRoom(room: Room, depth: number, y: number, across: number): Vector3
+	return at(room.side * (HALL_X + 2 + depth), y, room.cz + across)
+end
+
+-- The way from a room's back wall toward its doorway.
+local function towardDoor(room: Room): Vector3
+	return Vector3.new(-room.side, 0, 0)
+end
+
+-- Floor, ceiling, back wall and side walls (the hall's wall, with the
+-- doorway in it, is the room's front).
+local function shell(model: Model, room: Room, wallColor: Color3?, floorColor: Color3?, floorMaterial: Enum.Material?)
+	local name = room.name
+	local width = room.halfZ * 2
+	box(model, name .. "Floor", Vector3.new(ROOM_DEPTH, 2, width), inRoom(room, ROOM_DEPTH / 2, -1, 0), floorColor or METAL_DARK, floorMaterial or Enum.Material.DiamondPlate)
+	box(model, name .. "Ceiling", Vector3.new(ROOM_DEPTH, 2, width), inRoom(room, ROOM_DEPTH / 2, ROOM_HEIGHT + 1, 0), METAL_DARK)
+	box(model, name .. "Wall", Vector3.new(2, ROOM_HEIGHT, width + 2), inRoom(room, ROOM_DEPTH + 1, ROOM_HEIGHT / 2, 0), wallColor or METAL)
+	for _, sign in { -1, 1 } do
+		box(model, name .. "Wall", Vector3.new(ROOM_DEPTH + 2, ROOM_HEIGHT, 2), inRoom(room, ROOM_DEPTH / 2 + 1, ROOM_HEIGHT / 2, sign * (room.halfZ + 1)), wallColor or METAL)
+	end
+end
+
+-- Glowing strips across the ceiling, each with a light.
+local function lamps(model: Model, room: Room, glow: Color3, count: number)
+	for i = 1, count do
+		local depth = ROOM_DEPTH * (i - 0.5) / count
+		local lamp = box(model, room.name .. "Lamp", Vector3.new(1.4, 0.4, 10), inRoom(room, depth, ROOM_HEIGHT - 0.3, 0), Color3.fromRGB(235, 240, 255), Enum.Material.Neon)
+		if lamp then
+			Props.light(lamp, glow, 34, 1.1)
+		end
+	end
+end
+
+-- A panel on a wall with a glowing outline. `center` is on the wall's
+-- surface and `facing` points out of the wall.
+local function wallPanel(model: Model, center: Vector3, facing: Vector3, width: number, height: number, panelColor: Color3, glow: Color3)
+	local frame = CFrame.lookAt(center, center + facing)
+	Kit.part(model, "WallPanel", Vector3.new(width, height, 0.3), frame * CFrame.new(0, 0, -0.15), panelColor, { material = Enum.Material.SmoothPlastic, collide = false })
+	for _, sign in { -1, 1 } do
+		glowPart(model, "PanelGlow", Vector3.new(width + 0.3, 0.25, 0.4), frame * CFrame.new(0, sign * height / 2, -0.2), glow)
+		glowPart(model, "PanelGlow", Vector3.new(0.25, height + 0.3, 0.4), frame * CFrame.new(sign * width / 2, 0, -0.2), glow)
+	end
+end
+
+-- A round red-and-white target on a wall (`center` on the wall's surface).
+local function wallTarget(model: Model, center: Vector3, facing: Vector3, diameter: number)
+	local colors = { Color3.fromRGB(220, 50, 60), Color3.fromRGB(245, 245, 245) }
+	for index, size in { 1, 0.78, 0.56, 0.34, 0.14 } do
+		local out = 0.1 + index * 0.05 -- each smaller ring sits a little further out
+		local cframe = CFrame.lookAt(center + facing * out, center + facing * (out + 1)) * CFrame.Angles(0, math.rad(90), 0)
+		Kit.part(model, "WallTarget", Vector3.new(0.1, diameter * size, diameter * size), cframe, colors[(index - 1) % 2 + 1], { shape = Enum.PartType.Cylinder, collide = false, shadow = false })
+	end
+end
+
+-- Main hall -------------------------------------------------------------------
+
 local function buildHall(model: Model)
 	box(model, "Floor", Vector3.new(HALL_X * 2, 2, HALL_Z * 2), at(0, -1, 0), METAL_DARK, Enum.Material.DiamondPlate)
 	box(model, "Walkway", Vector3.new(16, 0.1, HALL_Z * 2 - 4), at(0, 0.05, 0), Color3.fromRGB(92, 96, 104), Enum.Material.DiamondPlate)
@@ -115,6 +216,12 @@ local function buildHall(model: Model)
 	Props.hazardLine(model, at(8.6, 0, HALL_Z - 2), at(8.6, 0, -HALL_Z + 2), 1.2)
 	box(model, "Ceiling", Vector3.new(HALL_X * 2, 2, HALL_Z * 2), at(0, HALL_HEIGHT + 1, 0), METAL_DARK)
 	box(model, "WallBack", Vector3.new(HALL_X * 2, HALL_HEIGHT, 2), at(0, HALL_HEIGHT / 2, HALL_Z + 1), METAL)
+	-- Corner posts close the little gaps where the walls meet.
+	for _, sx in { -1, 1 } do
+		for _, sz in { -1, 1 } do
+			box(model, "CornerPost", Vector3.new(2, HALL_HEIGHT, 2), at(sx * (HALL_X + 1), HALL_HEIGHT / 2, sz * (HALL_Z + 1)), METAL)
+		end
+	end
 	-- Side walls with doorways: WEAPONS and ROBUX SHOP on the left;
 	-- PRACTICE RANGE and DAILY SQUISHY on the right.
 	local doors = {
@@ -144,8 +251,8 @@ local function buildHall(model: Model)
 		end
 		box(model, "WallSide", Vector3.new(2, HALL_HEIGHT, HALL_Z - cursor), at(x, HALL_HEIGHT / 2, (cursor + HALL_Z) / 2), METAL)
 		-- Dark panels on the wall, clear of the doorways.
-		for _, z in { -28, 4 } do
-			box(model, "WallPanel", Vector3.new(0.6, 14, 12), at(side * (HALL_X - 0.2), 9, z), METAL_DARK)
+		for _, z in { -28, 5.5 } do
+			box(model, "WallPanel", Vector3.new(0.6, 14, 10), at(side * (HALL_X - 0.2), 9, z), METAL_DARK)
 		end
 	end
 	-- Glowing door frames and a sign over every doorway.
@@ -155,8 +262,8 @@ local function buildHall(model: Model)
 			box(model, "DoorGlow", Vector3.new(0.8, DOOR_HEIGHT, 0.8), at(side * (HALL_X - 0.2), DOOR_HEIGHT / 2, edge), glow, Enum.Material.Neon)
 		end
 		box(model, "DoorGlow", Vector3.new(0.8, 0.8, DOOR_HALF * 2 + 1.6), at(side * (HALL_X - 0.2), DOOR_HEIGHT + 0.4, z), glow, Enum.Material.Neon)
-		local signPos = at(side * (HALL_X - 0.5), DOOR_HEIGHT + 2.9, z)
-		Props.neonSign(model, "DoorSign", Vector3.new(16, 4, 0.5), CFrame.lookAt(signPos, signPos + Vector3.new(-side, 0, 0)), door.title, glow)
+		local signPos = at(side * (HALL_X - 0.5), DOOR_HEIGHT + 2.6, z)
+		Props.neonSign(model, "DoorSign", Vector3.new(18, 4, 0.5), CFrame.lookAt(signPos, signPos + Vector3.new(-side, 0, 0)), door.title, glow)
 	end
 	-- Front wall around the portal opening (opening = 2 x radius wide).
 	local gap = PORTAL_RADIUS * 1.05
@@ -177,6 +284,12 @@ local function buildHall(model: Model)
 	local signPosition = at(0, 25, -HALL_Z + 0.2)
 	Props.neonSign(model, "BunkerSign", Vector3.new(36, 9, 0.6), CFrame.lookAt(signPosition, signPosition + Vector3.new(0, 0, 1)), "SLIME SHOWDOWN", Color3.fromRGB(190, 255, 150))
 
+	-- How-to-play board on the front wall, in the clear space between the
+	-- purple tube and the portal (so no tube hides it).
+	local board = at(-17, 12, -HALL_Z + 0.2)
+	Props.neonSign(model, "HowToPlay", Vector3.new(12, 9, 0.4), CFrame.lookAt(board, board + Vector3.new(0, 0, 1)),
+		"HOW TO PLAY\nPress PLAY, or stand on a pad\nin the hallway to queue\nLeft doors: WEAPONS, ROBUX SHOP\nRight doors: PRACTICE RANGE,\nDAILY SQUISHY", Color3.fromRGB(200, 255, 180))
+
 	-- Ceiling lamps.
 	for _, x in { -20, 0, 20 } do
 		for _, z in { -15, 15 } do
@@ -187,20 +300,22 @@ local function buildHall(model: Model)
 end
 
 local function buildSlime(model: Model)
-	-- Tubes along the walls, a big tank on the right, a pedestal in the middle.
-	Props.slimeTube(model, at(-34, 0, -26), 20, 6, GREEN)
+	-- Tubes along the walls (clear of the doorways), a big tank on the
+	-- right, a pedestal in the middle.
+	Props.slimeTube(model, at(-34, 0, -27), 20, 6, GREEN)
 	Props.slimeTube(model, at(-26, 0, -29), 16, 5, PURPLE)
-	Props.slimeTube(model, at(-35, 0, 12), 18, 6, GREEN)
-	Props.slimeTube(model, at(32, 0, -24), 22, 11, GREEN)
-	Props.slimeTube(model, at(35, 0, 9), 14, 7, CYAN)
+	Props.slimeTube(model, at(-35, 0, 5.5), 18, 6, GREEN)
+	Props.slimeTube(model, at(31, 0, -27), 22, 11, GREEN)
+	Props.slimeTube(model, at(35, 0, 7), 14, 7, CYAN)
 	Props.slimeTube(model, at(24, 0, 30), 14, 7, PURPLE)
 	box(model, "PedestalBase", Vector3.new(12, 1, 12), at(0, 0.5, -10), METAL_DARK, Enum.Material.DiamondPlate)
 	Props.slimeTube(model, at(0, 1, -10), 9, 5, GREEN)
 
-	-- Pipes: along the side walls (with glowing glass sections) and overhead.
+	-- Pipes: along the side walls (above the door signs, with glowing glass
+	-- sections) and overhead.
 	for _, side in { -1, 1 } do
-		Props.pipe(model, at(side * 38.5, 24, -HALL_Z + 2), at(side * 38.5, 24, HALL_Z - 2), 3, GREEN)
-		Props.pipe(model, at(side * 38.5, 20.5, -HALL_Z + 2), at(side * 38.5, 20.5, HALL_Z - 2), 2, nil) -- above the door signs
+		Props.pipe(model, at(side * 38.5, 26.5, -HALL_Z + 2), at(side * 38.5, 26.5, HALL_Z - 2), 3, GREEN)
+		Props.pipe(model, at(side * 38.5, 23, -HALL_Z + 2), at(side * 38.5, 23, HALL_Z - 2), 2, nil)
 	end
 	Props.pipe(model, at(-HALL_X + 1, 30, -12), at(HALL_X - 1, 30, -12), 2.5, GREEN)
 	Props.pipe(model, at(-HALL_X + 1, 31, 10), at(HALL_X - 1, 31, 10), 2, PURPLE)
@@ -211,17 +326,6 @@ local function buildSlime(model: Model)
 	Props.puddle(model, at(6, 0, 18), 6, GREEN)
 	Props.puddle(model, at(14, 0, -22), 4, GREEN)
 	Props.puddle(model, at(22, 0, 4), 5, PURPLE)
-end
-
-local function prompt(parent: BasePart, name: string, action: string, object: string)
-	local p = Instance.new("ProximityPrompt")
-	p.Name = name
-	p.ActionText = action
-	p.ObjectText = object
-	p.HoldDuration = 0
-	p.MaxActivationDistance = 12
-	p.RequiresLineOfSight = false
-	p.Parent = parent
 end
 
 -- A real squishy from the shop (Cosmetics/HatBuilder), standing on `base`
@@ -244,183 +348,313 @@ local function displaySquishy(model: Model, hatId: string, base: Vector3, faceDi
 	built.Parent = model
 end
 
-local function buildDailyMachine(model: Model)
-	-- (On the left wall, beside the ROBUX SHOP doorway: one more slime tube.)
-	Props.slimeTube(model, at(-35, 0, 4), 16, 6, PURPLE)
-
-	-- The DAILY SQUISHY room, through the doorway on the right wall (like
-	-- the practice range room next to it).
-	local cx, cz, halfX, halfZ, height = 51, DAILY_Z, 9, 8, 16
-	box(model, "DailyRoomFloor", Vector3.new(halfX * 2, 2, halfZ * 2), at(cx, -1, cz), METAL_DARK, Enum.Material.DiamondPlate)
-	box(model, "DailyRoomCeiling", Vector3.new(halfX * 2, 2, halfZ * 2), at(cx, height + 1, cz), METAL_DARK)
-	box(model, "DailyRoomWall", Vector3.new(2, height, halfZ * 2 + 2), at(cx + halfX + 1, height / 2, cz), METAL)
-	for _, side in { -1, 1 } do
-		box(model, "DailyRoomWall", Vector3.new(halfX * 2 + 2, height, 2), at(cx, height / 2, cz + side * (halfZ + 1)), METAL)
-		-- Shelves of real squishies (the ones from the shop) along the side walls,
-		-- turned to face you as you come in.
-		box(model, "DailyShelf", Vector3.new(14, 0.5, 2.6), at(cx, 7, cz + side * (halfZ - 0.9)), METAL_DARK, Enum.Material.DiamondPlate)
-		Kit.part(model, "DailyShelfGlow", Vector3.new(14, 0.15, 0.2), CFrame.new(at(cx, 7.2, cz + side * (halfZ - 2.25))), GREEN, { material = Enum.Material.Neon, collide = false, shadow = false })
-		local shelfSquishies = if side > 0
-			then { "Squishy_DumplingPeach", "Squishy_Donut", "Squishy_JellyCubePink", "Squishy_IceCream", "Squishy_Popcorn" }
-			else { "Squishy_DumplingLilac", "Squishy_Butter", "Squishy_JellyCubeBlue", "Squishy_Cake", "Squishy_DumplingMint" }
-		for i, hatId in shelfSquishies do
-			try(`shelf squishy {hatId}`, function()
-				displaySquishy(model, hatId, at(cx - 5.4 + (i - 1) * 2.7, 7.27, cz + side * (halfZ - 0.9)), Vector3.new(-1, 0, -side * 0.8), 0.95)
-			end)
-		end
-	end
-	local lamp = box(model, "DailyRoomLamp", Vector3.new(8, 0.4, 1.2), at(cx, height - 0.3, cz), Color3.fromRGB(220, 255, 220), Enum.Material.Neon)
-	Props.light(lamp, GREEN, 26, 1.2)
-	local signPos = at(cx + halfX + 0.1, 12.5, cz)
-	Props.neonSign(model, "DailySign", Vector3.new(14, 3.5, 0.4), CFrame.lookAt(signPos, signPos + Vector3.new(-1, 0, 0)), "DAILY SQUISHY", GREEN)
-
-	-- The machine: a glass dome with a squishy inside, in the middle of the room.
-	local base = box(model, "DailyBase", Vector3.new(8, 3, 8), at(cx + 1, 1.5, cz), METAL_DARK, Enum.Material.DiamondPlate)
-	Kit.cylinder(model, "DailyBaseGlow", at(cx + 1, 3, cz), 0.3, 8.6, GREEN, { material = Enum.Material.Neon, collide = false, shadow = false })
-	Kit.part(model, "DailyDome", Vector3.new(7.5, 7.5, 7.5), CFrame.new(at(cx + 1, 6.6, cz)), Color3.fromRGB(220, 240, 255), { shape = Enum.PartType.Ball, material = Enum.Material.Glass, transparency = 0.75 })
-	-- Inside the dome: this month's themed squishy, big and lit from below.
-	try("dome squishy", function()
-		local month = ShopConfig.currentMonth()
-		local featured = "Squishy_DumplingPeach"
-		for _, theme in ShopConfig.Themes do
-			if theme.Month == month then
-				featured = `Theme_{theme.Key}_Squishy`
-			end
-		end
-		displaySquishy(model, featured, at(cx + 1, 3.2, cz), Vector3.new(-1, 0, 0), 1.6)
-	end)
-	local glowHolder = Kit.part(model, "DailyDomeLight", Vector3.new(0.4, 0.4, 0.4), CFrame.new(at(cx + 1, 4, cz)), GREEN, { collide = false, transparency = 1, shadow = false })
-	if glowHolder then
-		Props.light(glowHolder, Color3.fromRGB(220, 255, 220), 14, 1.4)
-	end
-	try("Daily Squishy prompt", function()
-		prompt(base, "DailySquishy", "Open", "Daily Squishy")
-	end)
-	-- "READY!" / "NEXT IN 5h" (each player's own client fills this in).
-	try("Daily Squishy sign", function()
-		local status = Instance.new("BillboardGui")
-		status.Size = UDim2.fromScale(6, 1.5) -- in studs, so it shrinks with distance
-		status.StudsOffset = Vector3.new(0, 7.5, 0)
-		status.MaxDistance = 80
-		status.LightInfluence = 0
-		status.Parent = base
-		local label = Instance.new("TextLabel")
-		label.Name = "DailyStatus"
-		label.BackgroundTransparency = 1
-		label.Size = UDim2.fromScale(1, 1)
-		label.Font = Enum.Font.LuckiestGuy
-		label.TextScaled = true
-		label.TextColor3 = Color3.new(1, 1, 1)
-		label.TextStrokeTransparency = 0.2
-		label.Text = "READY!"
-		label.Parent = status
-	end)
-
-	-- How-to-play board on the front wall, in the clear space between the
-	-- purple tube and the portal (so no tube hides it).
-	local board = at(-17, 12, -HALL_Z + 0.2)
-	Props.neonSign(model, "HowToPlay", Vector3.new(12, 9, 0.4), CFrame.lookAt(board, board + Vector3.new(0, 0, 1)),
-		"HOW TO PLAY\nPress PLAY, or stand on a pad\nin the hallway to queue\nLeft doors: WEAPONS, ROBUX SHOP\nRight doors: PRACTICE RANGE,\nDAILY SQUISHY", Color3.fromRGB(200, 255, 180))
-end
-
 --[[
-	The ROBUX SHOP room behind the gold doorway on the left wall (opposite the
-	Daily Squishy room): piles of gold coins, this month's themed squishy on a
-	stand, and a counter that opens the shop's ROBUX tab (coin packs and bundles).
+	The DAILY SQUISHY room behind the right wall's front doorway: two rows
+	of shelves full of squishies on each side wall, and in the middle the
+	machine: a glass dome with a big squishy ball floating inside (on your
+	screen it slowly bobs, looks around and changes colour).
 ]]
-local function buildRobuxRoom(model: Model)
-	local cx, cz, halfX, halfZ, height = -51, DAILY_Z, 9, 8, 16
-	box(model, "RobuxRoomFloor", Vector3.new(halfX * 2, 2, halfZ * 2), at(cx, -1, cz), METAL_DARK, Enum.Material.DiamondPlate)
-	box(model, "RobuxRoomCeiling", Vector3.new(halfX * 2, 2, halfZ * 2), at(cx, height + 1, cz), METAL_DARK)
-	box(model, "RobuxRoomWall", Vector3.new(2, height, halfZ * 2 + 2), at(cx - halfX - 1, height / 2, cz), METAL)
-	for _, side in { -1, 1 } do
-		box(model, "RobuxRoomWall", Vector3.new(halfX * 2 + 2, height, 2), at(cx, height / 2, cz + side * (halfZ + 1)), METAL)
-		-- Piles of gold coins in the corners.
-		for pile = 0, 1 do
-			local base = at(cx - 4 + pile * 6, 0, cz + side * (halfZ - 2.5))
-			for level = 0, 4 - pile do
-				local spread = (4 - level) * 0.35
-				Kit.cylinder(model, "CoinStack", base + Vector3.new(spread, level * 0.5, -spread * 0.5 * side), 0.5, 2.4, GOLD, { material = Enum.Material.Metal, collide = false })
-				Kit.cylinder(model, "CoinStack", base + Vector3.new(-spread, level * 0.5, spread * 0.3 * side), 0.5, 2.4, GOLD, { material = Enum.Material.Metal, collide = false })
-			end
-		end
+local function buildDailyRoom(model: Model)
+	local room = DAILY_ROOM
+	local doorward = towardDoor(room)
+	shell(model, room)
+	lamps(model, room, GREEN, 3)
+	local signPos = inRoom(room, ROOM_DEPTH - 0.1, 18, 0)
+	Props.neonSign(model, "DailySign", Vector3.new(16, 4.5, 0.4), CFrame.lookAt(signPos, signPos + doorward), "DAILY SQUISHY", GREEN)
+	-- Slime tubes in the back corners.
+	for _, sign in { -1, 1 } do
+		Props.slimeTube(model, inRoom(room, ROOM_DEPTH - 3.5, 0, sign * 10.3), 20, 4.5, GREEN)
 	end
-	local lamp = box(model, "RobuxRoomLamp", Vector3.new(8, 0.4, 1.2), at(cx, height - 0.3, cz), Color3.fromRGB(255, 240, 200), Enum.Material.Neon)
-	Props.light(lamp, GOLD, 26, 1.2)
-	local signPos = at(cx - halfX - 0.1, 12.5, cz)
-	Props.neonSign(model, "RobuxSign", Vector3.new(14, 3.5, 0.4), CFrame.lookAt(signPos, signPos + Vector3.new(1, 0, 0)), "COINS & BUNDLES", GOLD)
 
-	-- The counter: opens the shop on its ROBUX tab.
-	local counter = box(model, "RobuxCounter", Vector3.new(4, 3.5, 10), at(cx - 3, 1.75, cz), METAL_DARK, Enum.Material.DiamondPlate)
-	box(model, "RobuxCounterTop", Vector3.new(4.4, 0.3, 10.4), at(cx - 3, 3.65, cz), GOLD, Enum.Material.Neon)
-	-- This month's themed squishy on a stand on the counter.
-	try("robux shop squishy", function()
-		local month = ShopConfig.currentMonth()
-		for _, theme in ShopConfig.Themes do
-			if theme.Month == month then
-				displaySquishy(model, `Theme_{theme.Key}_Squishy`, at(cx - 3, 3.8, cz - 2.6), Vector3.new(1, 0, 0), 1.1)
+	-- Shelves: two rows on each side wall, five squishies on each row, all
+	-- turned to face you as you come in.
+	local squishies = {
+		"Squishy_DumplingPeach", "Squishy_Donut", "Squishy_JellyCubePink", "Squishy_IceCream", "Squishy_Popcorn",
+		"Squishy_DumplingLilac", "Squishy_Butter", "Squishy_JellyCubeBlue", "Squishy_Cake", "Squishy_DumplingMint",
+	}
+	for _, sign in { -1, 1 } do
+		local across = sign * (room.halfZ - 1.6)
+		for row, y in { 4.5, 10 } do
+			box(model, "DailyShelf", Vector3.new(30, 0.5, 3.2), inRoom(room, ROOM_DEPTH / 2, y - 0.25, across), METAL_DARK, Enum.Material.DiamondPlate)
+			glowPart(model, "DailyShelfGlow", Vector3.new(30, 0.15, 0.2), CFrame.new(inRoom(room, ROOM_DEPTH / 2, y - 0.05, across - sign * 1.5)), GREEN)
+			for i = 1, 5 do
+				local index = (row - 1) * 5 + i
+				local hatId = squishies[if sign > 0 then index else #squishies + 1 - index]
+				try(`shelf squishy {hatId}`, function()
+					displaySquishy(model, hatId, inRoom(room, 10 + (i - 1) * 6, y, across), Vector3.new(doorward.X * 0.5, 0, -sign), 1.25)
+				end)
 			end
 		end
-	end)
-	-- A big gold coin standing on the counter.
-	local coin = Kit.part(model, "BigCoin", Vector3.new(0.6, 3.2, 3.2), CFrame.new(at(cx - 3, 5.5, cz + 2.4)) * CFrame.Angles(0, math.rad(90), 0), GOLD, { material = Enum.Material.Metal, collide = false })
-	if coin then
-		coin.Shape = Enum.PartType.Cylinder
-		coin.Reflectance = 0.25
-		Props.light(coin, GOLD, 10, 1)
 	end
-	if counter then
-		try("robux shop prompt", function()
-			prompt(counter, "RobuxCounter", "Open Robux shop", "Coins & bundles")
+
+	-- The machine in the middle: a glass dome on a glowing base, with a ring
+	-- of light on the floor round it.
+	local middle = ROOM_DEPTH / 2
+	Kit.cylinder(model, "DailyFloorRing", inRoom(room, middle, 0, 0), 0.06, 17, GREEN, { material = Enum.Material.Neon, collide = false, shadow = false })
+	Kit.cylinder(model, "DailyFloorInner", inRoom(room, middle, 0, 0), 0.08, 16, METAL_DARK, { material = Enum.Material.DiamondPlate, collide = false, shadow = false })
+	local base = box(model, "DailyBase", Vector3.new(10, 3, 10), inRoom(room, middle, 1.5, 0), METAL_DARK, Enum.Material.DiamondPlate)
+	Kit.cylinder(model, "DailyBaseGlow", inRoom(room, middle, 3, 0), 0.3, 10.8, GREEN, { material = Enum.Material.Neon, collide = false, shadow = false })
+	Kit.part(model, "DailyDome", Vector3.one * 10, CFrame.new(inRoom(room, middle, 7.6, 0)), Color3.fromRGB(220, 240, 255), { shape = Enum.PartType.Ball, material = Enum.Material.Glass, transparency = 0.78 })
+	-- Inside the dome: a big round squishy ball with a face.
+	try("dome squishy ball", function()
+		local center = inRoom(room, middle, 7.4, 0)
+		local ball = HatBuilder.buildBall(Color3.fromRGB(255, 170, 210), CFrame.lookAt(center, center + doorward), 5.2)
+		ball:SetAttribute("LobbyBob", 0.35)
+		ball:SetAttribute("LobbySway", 18)
+		ball:SetAttribute("LobbyPivot", ball.WorldPivot)
+		local body = ball:FindFirstChild("Body")
+		if body then
+			body:SetAttribute("LobbyHue", 16) -- a slow pastel rainbow
+		end
+		ball.Parent = model
+	end)
+	local glowHolder = Kit.part(model, "DailyDomeLight", Vector3.one * 0.4, CFrame.new(inRoom(room, middle, 4, 0)), GREEN, { collide = false, transparency = 1, shadow = false })
+	if glowHolder then
+		Props.light(glowHolder, Color3.fromRGB(230, 255, 230), 16, 1.4)
+	end
+	if base then
+		try("Daily Squishy prompt", function()
+			prompt(base, "DailySquishy", "Open", "Daily Squishy", 14)
+		end)
+		-- "READY!" / "NEXT IN 5h" (each player's own client fills this in).
+		try("Daily Squishy sign", function()
+			local status = Instance.new("BillboardGui")
+			status.Size = UDim2.fromScale(8, 2) -- in studs, so it shrinks with distance
+			status.StudsOffset = Vector3.new(0, 12.5, 0)
+			status.MaxDistance = 90
+			status.LightInfluence = 0
+			status.Parent = base
+			local label = Instance.new("TextLabel")
+			label.Name = "DailyStatus"
+			label.BackgroundTransparency = 1
+			label.Size = UDim2.fromScale(1, 1)
+			label.Font = Enum.Font.LuckiestGuy
+			label.TextScaled = true
+			label.TextColor3 = Color3.new(1, 1, 1)
+			label.TextStrokeTransparency = 0.2
+			label.Text = "READY!"
+			label.Parent = status
 		end)
 	end
 end
 
--- WEAPONS room behind the left doorway: every gun on a display table with
--- its price, and a counter that opens the shop's Guns tab.
-local function buildWeaponsRoom(model: Model)
-	local cx, cz, halfX, halfZ, height = -59, 20, 17, 14, 16
-	box(model, "WeaponsFloor", Vector3.new(halfX * 2, 2, halfZ * 2), at(cx, -1, cz), METAL_DARK, Enum.Material.DiamondPlate)
-	box(model, "WeaponsCeiling", Vector3.new(halfX * 2, 2, halfZ * 2), at(cx, height + 1, cz), METAL_DARK)
-	box(model, "WeaponsWall", Vector3.new(2, height, halfZ * 2 + 2), at(cx - halfX - 1, height / 2, cz), METAL)
-	for _, side in { -1, 1 } do
-		box(model, "WeaponsWall", Vector3.new(halfX * 2 + 2, height, 2), at(cx, height / 2, cz + side * (halfZ + 1)), METAL)
-	end
-	-- A big target painted on the floor.
-	local rings = { 24, 18, 12, 6, 2 }
-	for index, diameter in rings do
-		Kit.cylinder(model, "FloorRing", at(cx, 0.02 + index * 0.01, cz), 0.04, diameter, if index % 2 == 1 then Color3.fromRGB(150, 36, 52) else Color3.fromRGB(70, 24, 36), { material = Enum.Material.SmoothPlastic, collide = false, shadow = false })
-	end
-	-- Lights and the sign on the back wall.
-	for _, z in { cz - 7, cz + 7 } do
-		local lamp = box(model, "WeaponsLamp", Vector3.new(12, 0.4, 1.2), at(cx, height - 0.3, z), Color3.fromRGB(235, 230, 255), Enum.Material.Neon)
-		Props.light(lamp, Color3.fromRGB(230, 215, 255), 30, 1)
-	end
-	local signPos = at(cx - halfX + 0.1, 11, cz)
-	Props.neonSign(model, "WeaponsSign", Vector3.new(16, 4.5, 0.4), CFrame.lookAt(signPos, signPos + Vector3.new(1, 0, 0)), "WEAPONS", PURPLE)
+--[[
+	The ROBUX SHOP behind the left wall's front doorway, dressed as a gold
+	vault: a red carpet leads to a giant spinning coin, a huge round vault
+	door glows on the back wall, and lit glass cases along the walls show
+	each coin pack and bundle with its price. Every case (and the coin's
+	stand) opens the shop's ROBUX tab.
+]]
+local function buildRobuxRoom(model: Model)
+	local room = ROBUX_ROOM
+	local doorward = towardDoor(room)
+	local wallColor = Color3.fromRGB(34, 29, 44)
+	local panelColor = Color3.fromRGB(48, 41, 60)
+	shell(model, room, wallColor, Color3.fromRGB(30, 27, 36), Enum.Material.Marble)
+	local random = Random.new(777) -- the same treasure every time
+	local month = ShopConfig.currentMonth()
+	local theme = RobuxShopConfig.themeFor(month)
 
-	-- Display tables: four along the back wall, two on each side wall.
-	local spots = {
-		Vector3.new(cx - halfX + 2.5, 0, cz - 9), Vector3.new(cx - halfX + 2.5, 0, cz - 3),
-		Vector3.new(cx - halfX + 2.5, 0, cz + 3), Vector3.new(cx - halfX + 2.5, 0, cz + 9),
-		Vector3.new(cx - 6, 0, cz - halfZ + 2.5), Vector3.new(cx + 5, 0, cz - halfZ + 2.5),
-		Vector3.new(cx - 6, 0, cz + halfZ - 2.5), Vector3.new(cx + 5, 0, cz + halfZ - 2.5),
+	-- Dark lining on the inside of the hall's wall, so the whole room matches.
+	try("robux room lining", function()
+		local width = room.halfZ - DOOR_HALF
+		for _, sign in { -1, 1 } do
+			box(model, "RobuxLining", Vector3.new(0.4, ROOM_HEIGHT, width), inRoom(room, 0.2, ROOM_HEIGHT / 2, sign * (DOOR_HALF + width / 2)), wallColor, Enum.Material.SmoothPlastic)
+		end
+		box(model, "RobuxLining", Vector3.new(0.4, ROOM_HEIGHT - DOOR_HEIGHT, DOOR_HALF * 2), inRoom(room, 0.2, (DOOR_HEIGHT + ROOM_HEIGHT) / 2, 0), wallColor, Enum.Material.SmoothPlastic)
+	end)
+
+	-- Gold trim: a glowing line along the bottom of the walls, a gold band
+	-- near the top, and glowing strips up the side walls.
+	try("robux room trim", function()
+		for _, sign in { -1, 1 } do
+			local wallAcross = sign * (room.halfZ - 0.1)
+			glowPart(model, "GoldBaseboard", Vector3.new(ROOM_DEPTH, 0.3, 0.2), CFrame.new(inRoom(room, ROOM_DEPTH / 2, 0.55, wallAcross)), GOLD)
+			Kit.part(model, "GoldBand", Vector3.new(ROOM_DEPTH, 0.8, 0.3), CFrame.new(inRoom(room, ROOM_DEPTH / 2, ROOM_HEIGHT - 1.6, wallAcross)), ShopProps.GOLD_DARK, { material = Enum.Material.Metal, collide = false, shadow = false })
+			for _, depth in { 13.5, 27.5 } do
+				glowPart(model, "GoldStrip", Vector3.new(0.4, 14, 0.3), CFrame.new(inRoom(room, depth, 9, sign * (room.halfZ - 0.15))), GOLD)
+			end
+		end
+		Kit.part(model, "GoldBand", Vector3.new(0.3, 0.8, room.halfZ * 2), CFrame.new(inRoom(room, ROOM_DEPTH - 0.1, ROOM_HEIGHT - 1.6, 0)), ShopProps.GOLD_DARK, { material = Enum.Material.Metal, collide = false, shadow = false })
+	end)
+
+	-- A red carpet with gold edges, from the doorway to the vault.
+	try("robux carpet", function()
+		local length = ROOM_DEPTH - 4
+		local middle = inRoom(room, length / 2 + 0.3, 0.05, 0)
+		Kit.part(model, "RedCarpet", Vector3.new(length, 0.1, 6), CFrame.new(middle), Color3.fromRGB(140, 24, 48), { material = Enum.Material.Fabric, collide = false, shadow = false })
+		for _, sign in { -1, 1 } do
+			glowPart(model, "CarpetEdge", Vector3.new(length, 0.14, 0.3), CFrame.new(middle + Vector3.new(0, 0.02, sign * 3.1)), GOLD)
+		end
+	end)
+
+	-- The giant coin, spinning and bobbing above a glowing stand.
+	try("giant coin", function()
+		local standBase = inRoom(room, 27, 0, 0)
+		local top, step = ShopProps.dais(model, standBase, 9, 13)
+		local center = standBase + Vector3.new(0, top + 5, 0)
+		local coin = ShopProps.giantCoin(model, CFrame.lookAt(center, center + doorward), 8.4)
+		coin:SetAttribute("LobbySpin", 45)
+		coin:SetAttribute("LobbyBob", 0.45)
+		coin:SetAttribute("LobbyPivot", coin.WorldPivot)
+		prompt(step, "RobuxCounter", "Open Robux shop", "Coins & bundles", 12)
+	end)
+
+	-- The vault door on the back wall, with the sign above it.
+	try("vault door", function()
+		local wallPoint = inRoom(room, ROOM_DEPTH, 8.5, 0)
+		ShopProps.vaultDoor(model, CFrame.lookAt(wallPoint, wallPoint + doorward), 13)
+		local signPos = inRoom(room, ROOM_DEPTH - 0.1, 19.6, 0)
+		Props.neonSign(model, "RobuxSign", Vector3.new(20, 4, 0.4), CFrame.lookAt(signPos, signPos + doorward), "COINS & BUNDLES", GOLD)
+	end)
+
+	-- The coin packs in glass cases along the walls (smallest nearest the
+	-- door). "Left" is as you walk in.
+	local packSpots = {
+		{ depth = 9, across = 9.4 }, -- pouch (left)
+		{ depth = 9, across = -9.4 }, -- jar (right)
+		{ depth = 18, across = 9.4 }, -- bucket (left)
+		{ depth = 18, across = -9.4 }, -- vault (right)
 	}
-	local roomCenter = at(cx, 3.6, cz)
+	for index, pack in RobuxShopConfig.CoinPacks do
+		local spot = packSpots[index]
+		if spot then
+			try(`coin pack {pack.Id}`, function()
+				local sign = math.sign(spot.across)
+				local base = inRoom(room, spot.depth, 0, spot.across)
+				local look = Vector3.new(doorward.X * 0.35, 0, -sign).Unit -- toward the carpet, a little toward the door
+				wallPanel(model, inRoom(room, spot.depth, 8, sign * room.halfZ), Vector3.new(0, 0, -sign), 6.6, 13, panelColor, GOLD)
+				local plinth, top = ShopProps.displayStand(model, CFrame.lookAt(base, base + look), 4.4, {
+					title = pack.DisplayName,
+					detail = `+{pack.Coins} COINS`,
+					price = `R$ {pack.Robux}`,
+					badge = pack.Badge,
+					badgeColor = if pack.Badge == "BEST VALUE" then Color3.fromRGB(255, 90, 140) else Color3.fromRGB(70, 160, 255),
+				})
+				if index == 1 then
+					ShopProps.pouch(model, top, 1, random)
+				elseif index == 2 then
+					ShopProps.jar(model, top, 1, random)
+				elseif index == 3 then
+					ShopProps.bucket(model, top, 0.95, random)
+				else
+					ShopProps.safe(model, top, 1)
+				end
+				prompt(plinth, "RobuxCounter", "Buy coins", pack.DisplayName, 10)
+			end)
+		end
+	end
+
+	-- The bundles in bigger cases near the back: a treasure chest (Coin
+	-- Rush) and a present in this month's colours (Monthly Collection).
+	local bundleSpots = { { depth = 37.5, across = 9.2 }, { depth = 37.5, across = -9.2 } }
+	for index, bundle in RobuxShopConfig.Bundles do
+		local spot = bundleSpots[index]
+		if spot then
+			try(`bundle {bundle.Id}`, function()
+				local sign = math.sign(spot.across)
+				local base = inRoom(room, spot.depth, 0, spot.across)
+				local look = Vector3.new(doorward.X * 0.5, 0, -sign).Unit
+				wallPanel(model, inRoom(room, spot.depth, 8.5, sign * room.halfZ), Vector3.new(0, 0, -sign), 7.6, 14, panelColor, GOLD)
+				local _, coins, worth = RobuxShopConfig.bundleContents(bundle, month)
+				local saving = if worth > 0 then math.floor((1 - bundle.Robux / worth) * 100 + 0.5) else 0
+				local items = #bundle.Themed
+				local detail = if bundle.Coins > 0
+					then `{coins} COINS + {items} ITEMS`
+					elseif theme then `{string.upper(theme.Name)} SET`
+					else `{items} THEMED ITEMS`
+				local plinth, top = ShopProps.displayStand(model, CFrame.lookAt(base, base + look), 5.2, {
+					title = bundle.DisplayName,
+					detail = detail,
+					price = `R$ {bundle.Robux}`,
+					badge = if saving > 0 then `SAVE {saving}%` else nil,
+					badgeColor = Color3.fromRGB(255, 90, 140),
+				})
+				if bundle.Coins > 0 then
+					ShopProps.chest(model, top, 1.05, random)
+				else
+					local boxColor = if theme then theme.Main else Color3.fromRGB(255, 120, 170)
+					local ribbon = if theme then theme.Accent else GOLD
+					ShopProps.giftBox(model, top, 2.8, boxColor, ribbon)
+				end
+				prompt(plinth, "RobuxCounter", "See bundle", bundle.DisplayName, 10)
+			end)
+		end
+	end
+
+	-- Treasure in the corners: heaps of gold (with a gem) by the doorway,
+	-- stacks of gold bars at the back.
+	try("robux treasure", function()
+		for _, sign in { -1, 1 } do
+			ShopProps.coinPile(model, inRoom(room, 3.2, 0, sign * 10.6), 3.6, random)
+			local gem = CharmBuilder.build("Gem", { scale = 2.4 })
+			local gemAt = inRoom(room, 3.1, 1.9, sign * 10.4)
+			gem:PivotTo(CFrame.lookAt(gemAt, inRoom(room, 0, 1.9, 0)) * CFrame.Angles(math.rad(-20), 0, math.rad(15)))
+			gem.Parent = model
+			ShopProps.goldBars(model, CFrame.new(inRoom(room, ROOM_DEPTH - 1.8, 0, sign * 10.8)), 4)
+		end
+	end)
+
+	-- Light: a ring of light above the coin and two long warm strips.
+	try("robux lights", function()
+		local ringCenter = inRoom(room, 27, ROOM_HEIGHT - 0.4, 0)
+		local segments, radius = 20, 6.5
+		local segmentLength = 2 * math.pi * radius / segments * 1.05
+		for i = 0, segments - 1 do
+			local angle = i * 2 * math.pi / segments
+			local position = ringCenter + Vector3.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+			glowPart(model, "RingLight", Vector3.new(0.5, 0.3, segmentLength), CFrame.lookAt(position, ringCenter) * CFrame.Angles(0, math.rad(90), 0), ShopProps.GOLD_LIGHT)
+		end
+		local hub = Kit.part(model, "RingLightHub", Vector3.one * 0.5, CFrame.new(ringCenter), GOLD, { collide = false, transparency = 1, shadow = false })
+		if hub then
+			Props.light(hub, Color3.fromRGB(255, 225, 170), 40, 1.3)
+		end
+		for _, sign in { -1, 1 } do
+			local strip = box(model, "RobuxLamp", Vector3.new(30, 0.4, 1), inRoom(room, 20, ROOM_HEIGHT - 0.3, sign * 8), Color3.fromRGB(255, 240, 215), Enum.Material.Neon)
+			if strip then
+				Props.light(strip, GOLD, 30, 0.9)
+			end
+		end
+	end)
+end
+
+--[[
+	WEAPONS room behind the left wall's back doorway: every gun on its own
+	display table with its price (rarest at the back), and a counter at the
+	back that opens the shop's Guns tab.
+]]
+local function buildWeaponsRoom(model: Model)
+	local room = WEAPONS_ROOM
+	local doorward = towardDoor(room)
+	shell(model, room)
+	lamps(model, room, Color3.fromRGB(230, 215, 255), 3)
+	-- A big target painted on the floor.
+	for index, diameter in { 26, 20, 14, 8, 3 } do
+		Kit.cylinder(model, "FloorRing", inRoom(room, ROOM_DEPTH / 2, 0.02 + index * 0.01, 0), 0.04, diameter, if index % 2 == 1 then Color3.fromRGB(150, 36, 52) else Color3.fromRGB(70, 24, 36), { material = Enum.Material.SmoothPlastic, collide = false, shadow = false })
+	end
+	local signPos = inRoom(room, ROOM_DEPTH - 0.1, 16, 0)
+	Props.neonSign(model, "WeaponsSign", Vector3.new(18, 5, 0.4), CFrame.lookAt(signPos, signPos + doorward), "WEAPONS", PURPLE)
+
+	-- Display tables: four along each side wall, in pairs from the door back.
+	local roomCenter = inRoom(room, ROOM_DEPTH / 2, 3.6, 0)
 	for index, item in ShopConfig.Weapons do
-		local spot = spots[index]
 		local stats = WeaponConfig.get(item.WeaponId)
-		if spot and stats then
+		local pair = math.ceil(index / 2) - 1
+		local across = if index % 2 == 1 then -(room.halfZ - 3) else room.halfZ - 3
+		if stats and pair <= 3 then
 			try(`weapon display {item.WeaponId}`, function()
-				local base = at(spot.X, 0, spot.Z)
+				local depth = 8 + pair * 9.5
+				local sign = math.sign(across)
+				wallPanel(model, inRoom(room, depth, 7, sign * room.halfZ), Vector3.new(0, 0, -sign), 7, 9, Color3.fromRGB(40, 36, 56), PURPLE)
+				local base = inRoom(room, depth, 0, across)
 				box(model, "DisplayTable", Vector3.new(4, 3, 4), base + Vector3.new(0, 1.5, 0), METAL_DARK, Enum.Material.DiamondPlate)
 				box(model, "DisplayGlow", Vector3.new(4.3, 0.2, 4.3), base + Vector3.new(0, 3.05, 0), PURPLE, Enum.Material.Neon)
 				-- The gun lies side-on to the middle of the room, so you see its full length.
 				local gunPos = base + Vector3.new(0, 3.9, 0)
 				local face = CFrame.lookAt(gunPos, Vector3.new(roomCenter.X, gunPos.Y, roomCenter.Z))
 				local gun = GunModel.display(stats, CFrame.lookAt(gunPos, gunPos + face.RightVector) * CFrame.Angles(0, 0, math.rad(10)), 1.5)
-				local box = gun:GetBoundingBox()
-				gun:PivotTo(gun:GetPivot() + (gunPos - box.Position)) -- centred on the table
+				local bounds = gun:GetBoundingBox()
+				gun:PivotTo(gun:GetPivot() + (gunPos - bounds.Position)) -- centred on the table
 				gun.Parent = model
 				-- Name and price floating above.
 				local tag = Kit.part(model, "PriceTag", Vector3.new(1, 1, 1), CFrame.new(base + Vector3.new(0, 5.8, 0)), PURPLE, { collide = false, transparency = 1, shadow = false })
@@ -455,39 +689,59 @@ local function buildWeaponsRoom(model: Model)
 		end
 	end
 
-	-- The counter: opens the Guns tab of the shop.
-	-- (Off to one side, so it doesn't block the doorway.)
-	local counter = box(model, "WeaponsCounter", Vector3.new(8, 3.5, 3), at(cx + 6, 1.75, cz - 7), METAL_DARK, Enum.Material.DiamondPlate)
-	box(model, "WeaponsCounterTop", Vector3.new(8.4, 0.3, 3.4), at(cx + 6, 3.65, cz - 7), PURPLE, Enum.Material.Neon)
-	try("weapons prompt", function()
-		prompt(counter, "WeaponsCounter", "Browse weapons", "Unlock guns with coins")
-	end)
+	-- The counter at the back (under the sign) opens the Guns tab of the shop.
+	local counter = box(model, "WeaponsCounter", Vector3.new(3.2, 3.5, 12), inRoom(room, ROOM_DEPTH - 3.5, 1.75, 0), METAL_DARK, Enum.Material.DiamondPlate)
+	box(model, "WeaponsCounterTop", Vector3.new(3.6, 0.3, 12.4), inRoom(room, ROOM_DEPTH - 3.5, 3.65, 0), PURPLE, Enum.Material.Neon)
+	if counter then
+		try("weapons prompt", function()
+			prompt(counter, "WeaponsCounter", "Browse weapons", "Unlock guns with coins", 12)
+		end)
+	end
 end
 
--- PRACTICE RANGE doorway on the right: a small room with a glowing pad.
-local function buildRangeDoor(model: Model): BasePart?
-	local cx, cz, halfX, halfZ, height = 51, DOOR_Z, 9, 8, 16
-	box(model, "RangeRoomFloor", Vector3.new(halfX * 2, 2, halfZ * 2), at(cx, -1, cz), METAL_DARK, Enum.Material.DiamondPlate)
-	box(model, "RangeRoomCeiling", Vector3.new(halfX * 2, 2, halfZ * 2), at(cx, height + 1, cz), METAL_DARK)
-	box(model, "RangeRoomWall", Vector3.new(2, height, halfZ * 2 + 2), at(cx + halfX + 1, height / 2, cz), METAL)
-	for _, side in { -1, 1 } do
-		box(model, "RangeRoomWall", Vector3.new(halfX * 2 + 2, height, 2), at(cx, height / 2, cz + side * (halfZ + 1)), METAL)
-	end
-	local lamp = box(model, "RangeRoomLamp", Vector3.new(8, 0.4, 1.2), at(cx, height - 0.3, cz), Color3.fromRGB(220, 250, 255), Enum.Material.Neon)
-	Props.light(lamp, CYAN, 26, 1.2)
-	local signPos = at(cx + halfX + 0.1, 11, cz)
-	Props.neonSign(model, "RangeSign", Vector3.new(14, 4, 0.4), CFrame.lookAt(signPos, signPos + Vector3.new(-1, 0, 0)), "PRACTICE RANGE", CYAN)
+--[[
+	PRACTICE RANGE room behind the right wall's back doorway: a big glowing
+	pad (step on it to go to the range), a glowing line leading to it and
+	targets on the walls.
+]]
+local function buildRangeRoom(model: Model): BasePart?
+	local room = RANGE_ROOM
+	local doorward = towardDoor(room)
+	shell(model, room)
+	lamps(model, room, CYAN, 3)
+	local signPos = inRoom(room, ROOM_DEPTH - 0.1, 18, 0)
+	Props.neonSign(model, "RangeSign", Vector3.new(18, 4.5, 0.4), CFrame.lookAt(signPos, signPos + doorward), "PRACTICE RANGE", CYAN)
+	try("range targets", function()
+		wallTarget(model, inRoom(room, ROOM_DEPTH, 8.5, 0), doorward, 8)
+		for _, sign in { -1, 1 } do
+			for _, depth in { 12, 26, 38 } do
+				wallTarget(model, inRoom(room, depth, 9, sign * room.halfZ), Vector3.new(0, 0, -sign), 5)
+			end
+		end
+	end)
 
-	local pad = Kit.cylinder(model, "RangePad", at(cx + 1, 0, cz), 0.3, 8, CYAN, { material = Enum.Material.Neon, collide = false, shadow = false })
-	Kit.cylinder(model, "RangePadRing", at(cx + 1, 0, cz), 0.2, 9.4, Color3.fromRGB(40, 60, 80), { material = Enum.Material.DiamondPlate, collide = false, shadow = false })
+	-- A glowing line from the doorway to the pad.
+	local padDepth = 26
+	local lineLength = padDepth - RANGE_PAD_RADIUS - 1.5
+	glowPart(model, "RangeFloorLine", Vector3.new(lineLength, 0.1, 0.6), CFrame.new(inRoom(room, lineLength / 2 + 0.5, 0.05, 0)), CYAN)
+
+	local pad = Kit.cylinder(model, "RangePad", inRoom(room, padDepth, 0, 0), 0.3, RANGE_PAD_RADIUS * 2, CYAN, { material = Enum.Material.Neon, collide = false, shadow = false })
+	Kit.cylinder(model, "RangePadRing", inRoom(room, padDepth, 0, 0), 0.2, RANGE_PAD_RADIUS * 2 + 1.6, Color3.fromRGB(40, 60, 80), { material = Enum.Material.DiamondPlate, collide = false, shadow = false })
+	-- Glowing posts all round it.
+	for i = 0, 7 do
+		local angle = math.rad(i * 45 + 22.5)
+		local post = inRoom(room, padDepth, 2.5, 0) + Vector3.new(math.cos(angle), 0, math.sin(angle)) * (RANGE_PAD_RADIUS + 1.6)
+		glowPart(model, "RangePadPost", Vector3.new(0.6, 5, 0.6), CFrame.new(post), CYAN)
+	end
 	if pad then
 		pad:SetAttribute("RangePad", true)
-		Props.light(pad, CYAN, 14, 1.5)
+		pad:SetAttribute("PadRadius", RANGE_PAD_RADIUS)
+		Props.light(pad, CYAN, 18, 1.5)
 		try("range pad sign", function()
 			local billboard = Instance.new("BillboardGui")
-			billboard.Size = UDim2.fromScale(7, 2) -- in studs
-			billboard.StudsOffset = Vector3.new(0, 6, 0)
-			billboard.MaxDistance = 80
+			billboard.Size = UDim2.fromScale(8, 2.2) -- in studs
+			billboard.StudsOffset = Vector3.new(0, 7, 0)
+			billboard.MaxDistance = 90
 			billboard.LightInfluence = 0
 			billboard.Parent = pad
 			local label = Instance.new("TextLabel")
@@ -503,6 +757,8 @@ local function buildRangeDoor(model: Model): BasePart?
 	end
 	return pad
 end
+
+-- Hallway ---------------------------------------------------------------------
 
 --[[
 	The big screen behind a queue pad: a glowing frame, the "0/2" count, the
@@ -671,9 +927,6 @@ function LobbyBuilder.build(): Lobby
 	try("slime decorations", function()
 		buildSlime(model)
 	end)
-	try("Daily Squishy machine", function()
-		buildDailyMachine(model)
-	end)
 	local pads: { Pad } = {}
 	local ffaPad: Pad? = nil
 	try("hallway and queue pads", function()
@@ -685,9 +938,12 @@ function LobbyBuilder.build(): Lobby
 	try("robux shop room", function()
 		buildRobuxRoom(model)
 	end)
+	try("daily squishy room", function()
+		buildDailyRoom(model)
+	end)
 	local rangePad: BasePart? = nil
-	try("practice range door", function()
-		rangePad = buildRangeDoor(model)
+	try("practice range room", function()
+		rangePad = buildRangeRoom(model)
 	end)
 
 	model.Parent = Workspace

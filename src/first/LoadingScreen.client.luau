@@ -14,6 +14,12 @@
 
 	Everything is built right here (no shared modules yet, they may not
 	have arrived), so its colours copy the game's sci-fi theme (UI/Theme).
+
+	ORDER MATTERS: our dark screen goes up FIRST and only then is Roblox's
+	own loading screen (the blurry picture made from the game's thumbnail)
+	removed, so there is never a gap where that picture or the half-loaded
+	world shows through. (The very first moment, while Roblox is still
+	connecting and no game code can run yet, always shows Roblox's screen.)
 ]]
 
 local Players = game:GetService("Players")
@@ -21,8 +27,6 @@ local ReplicatedFirst = game:GetService("ReplicatedFirst")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
-
-ReplicatedFirst:RemoveDefaultLoadingScreen()
 
 local MIN_TIME = 1.8 -- seconds: long enough to read, so it never just flashes
 local MAX_WAIT = 30 -- seconds: never keep someone waiting forever
@@ -87,6 +91,11 @@ make("UIGradient", {
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(18, 14, 36)),
 	}),
 }, background)
+
+-- On screen straight away (just the dark background for now), and only
+-- THEN take Roblox's loading screen away: no gap, no blurry picture.
+gui.Parent = player:WaitForChild("PlayerGui")
+ReplicatedFirst:RemoveDefaultLoadingScreen()
 
 -- The bouncing slime.
 local slimeHolder = make("Frame", {
@@ -220,8 +229,6 @@ local tip = make("TextLabel", {
 	TextColor3 = TEXT,
 	Text = "TIP: " .. TIPS[math.random(1, #TIPS)],
 }, tipBox)
-
-gui.Parent = player:WaitForChild("PlayerGui")
 
 -- What's done so far.
 local function serverReady(): boolean

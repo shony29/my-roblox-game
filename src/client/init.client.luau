@@ -55,6 +55,9 @@ end)
 run("MapLightingController", function()
 	require(Controllers.MapLightingController).start() -- each map's own sky, light and haze (this screen only)
 end)
+run("LobbyAnimator", function()
+	require(Controllers.LobbyAnimator).start() -- the lobby's spinning coin, bobbing squishy ball...
+end)
 
 -- The shop goes before the UI, because the menu's Shop button opens it.
 run("ShopController", function()

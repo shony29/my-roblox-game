@@ -159,9 +159,15 @@ shop look jagged. A game can't change this setting, so turn it up yourself:
 1. Press **Play** (F5) at the top of Studio.
 2. A sci-fi **loading screen** (bouncing slime, progress bar, tips) shows while the game
    starts; then the main menu appears. Click **PLAY**: you appear in the **slime bunker** lobby.
+   (For the very first moment, while Roblox is still connecting, every game shows Roblox's
+   own loading picture, a blurry version of the game's **thumbnail**. No game code can run
+   that early. Once the game is published, upload a thumbnail on the Creator Dashboard and
+   that moment will match the game.)
 3. Look around: slime tubes, the shop (press **B**, or **SHOP** on the left) and the
-   **DAILY SQUISHY** room (the green doorway on the right; press **E** at the machine, then
-   tap the squishy until it bursts).
+   **DAILY SQUISHY** room (the green doorway on the right): two rows of shelves full of
+   squishies on each wall, and in the middle a glass dome with a big **squishy ball** floating
+   inside (it bobs, looks around and slowly changes colour). Press **E** at the machine, then
+   tap the squishy until it bursts. All four side rooms are big, so a whole server fits.
    Prizes can be items (sometimes one you already own) or **gun upgrades**
    (red → orange → yellow → green → blue → purple; upgrades change your gun's colour,
    not its damage).
@@ -177,11 +183,15 @@ shop look jagged. A game can't change this setting, so turn it up yourself:
    round starts in a new arena. Leave any time with **LEAVE** or **L**.
 5. **Testing alone?** The **vs BOTS** pads (right side of the hallway) start a practice
    match with bots (no coins or XP from practice). Teams have **blue** and **red** outlines.
-6. **Left doors: WEAPONS room and ROBUX SHOP.** In the ROBUX SHOP (gold doorway), press **E**
-   at the counter to open the shop's ROBUX tab (coin packs and bundles).
-   In the WEAPONS room, every gun sits on a table with its price. Press **E** at the
-   counter to open the shop's Guns tab. Coins come from eliminations, wins and tasks.
-7. **Right door: PRACTICE RANGE.** Step on the glowing pad. You get your guns and endless
+6. **Left doors: WEAPONS room and ROBUX SHOP.** The ROBUX SHOP (gold doorway) is a gold
+   vault: a red carpet leads to a giant spinning coin, a round vault door glows on the back
+   wall, and lit glass cases show each coin pack (pouch, jar, bucket, safe) and bundle
+   (treasure chest, present) with its price. Press **E** at any case, or at the coin's stand,
+   to open the shop's ROBUX tab.
+   In the WEAPONS room, every gun sits on its own table with its price (the rarest at the
+   back). Press **E** at the counter at the back to open the shop's Guns tab. Coins come from
+   eliminations, wins and tasks.
+7. **Right door: PRACTICE RANGE.** Step on the big glowing pad. You get your guns and endless
    ammo on a floating sky island: a long lane with a coloured stripe every 25 studs and slime
    targets, plus bullseyes floating all around. Shot targets pop and come back. Leave with the
    **BACK TO LOBBY** pad or press **L**.
@@ -351,11 +361,14 @@ src/
                  Map, Lobby, Match, Queue, Vote
     Components/  Slime rig, blob, gun model, combat rules, team balancer,
                  rate limiter, practice dummy
-    Map/         Jelly Arena, Mossy Keep, the slime bunker lobby and shared map helpers
+    Map/         Jelly Arena, Mossy Keep, the slime bunker lobby (LobbyBuilder; LobbyProps
+                 for the bunker pieces, ShopProps for the Robux shop's treasure) and shared
+                 map helpers
   first/     → ReplicatedFirst (LoadingScreen: the loading screen you see when you join)
   client/    → StarterPlayerScripts.Client (init.client.luau starts everything in order)
     Controllers/ Graphics, Shop, UI, Movement, Weapon, Camera, Viewmodel,
-                 BlobAnimator, MatchHud, Lobby, Transition, Results, Feedback
+                 BlobAnimator, MatchHud, Lobby, LobbyAnimator (the lobby's spinning coin
+                 and bobbing squishy ball), Transition, Results, Feedback
     UI/          Menu, HUD, kill feed, scoreboard, weapon HUD, dash badge, shop previews
     Effects/     Tracers, muzzle flashes, impact puffs
 ```
