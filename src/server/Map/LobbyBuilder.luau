@@ -394,7 +394,12 @@ local function buildDailyRoom(model: Model)
 	Kit.cylinder(model, "DailyFloorInner", inRoom(room, middle, 0, 0), 0.08, 16, METAL_DARK, { material = Enum.Material.DiamondPlate, collide = false, shadow = false })
 	local base = box(model, "DailyBase", Vector3.new(10, 3, 10), inRoom(room, middle, 1.5, 0), METAL_DARK, Enum.Material.DiamondPlate)
 	Kit.cylinder(model, "DailyBaseGlow", inRoom(room, middle, 3, 0), 0.3, 10.8, GREEN, { material = Enum.Material.Neon, collide = false, shadow = false })
-	Kit.part(model, "DailyDome", Vector3.one * 10, CFrame.new(inRoom(room, middle, 7.6, 0)), Color3.fromRGB(220, 240, 255), { shape = Enum.PartType.Ball, material = Enum.Material.Glass, transparency = 0.78 })
+	-- (See-through plastic, not Roblox's Glass material: Glass would hide the
+	-- ball's blush and shine, and anything else see-through behind it.)
+	local dome = Kit.part(model, "DailyDome", Vector3.one * 10, CFrame.new(inRoom(room, middle, 7.6, 0)), Color3.fromRGB(220, 240, 255), { shape = Enum.PartType.Ball, material = Enum.Material.SmoothPlastic, transparency = 0.8 })
+	if dome then
+		dome.Reflectance = 0.12
+	end
 	-- Inside the dome: a big round squishy ball with a face.
 	try("dome squishy ball", function()
 		local center = inRoom(room, middle, 7.4, 0)

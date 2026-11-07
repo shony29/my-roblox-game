@@ -14,7 +14,11 @@
 	  displayStand  a pedestal with a lit glass case and a price tag
 
 	Decorations never collide (only pedestals and big furniture do), so a
-	crowd can always walk around them. `base` CFrames sit on the floor and
+	crowd can always walk around them.
+
+	See-through pieces (the glass cases, the jar) are see-through plastic,
+	not Roblox's Glass material: Glass hides everything see-through behind
+	it (sparkles, the jar's glass...). `base` CFrames sit on the floor and
 	an item's front looks along the base's LookVector.
 ]]
 
@@ -336,8 +340,8 @@ function ShopProps.jar(parent: Instance, base: CFrame, s: number, random: Random
 		local position = base * CFrame.new(random:NextNumber(-0.5, 0.5) * s, 2.15 * s + random:NextNumber(0, 0.2) * s, random:NextNumber(-0.5, 0.5) * s)
 		looseCoin(model, position.Position, 0.55 * s, random, 40)
 	end
-	column(model, "JarGlass", 2.6 * s, 2 * s, base, GLASS, Enum.Material.Glass).Transparency = 0.6
-	column(model, "JarNeck", 0.2 * s, 1.7 * s, base * CFrame.new(0, 2.6 * s, 0), GLASS, Enum.Material.Glass).Transparency = 0.5
+	column(model, "JarGlass", 2.6 * s, 2 * s, base, GLASS).Transparency = 0.6
+	column(model, "JarNeck", 0.2 * s, 1.7 * s, base * CFrame.new(0, 2.6 * s, 0), GLASS).Transparency = 0.5
 	column(model, "JarLid", 0.4 * s, 1.9 * s, base * CFrame.new(0, 2.8 * s, 0), Color3.fromRGB(225, 60, 80))
 	column(model, "JarLidTop", 0.1 * s, 1.5 * s, base * CFrame.new(0, 3.2 * s, 0), Color3.fromRGB(245, 95, 110))
 	model.Parent = parent
@@ -409,8 +413,9 @@ function ShopProps.displayStand(parent: Instance, base: CFrame, width: number, t
 	deco(parent, "PlinthTrim", Vector3.new(width + 0.2, 0.2, width + 0.2), base * CFrame.new(0, plinthHeight + 0.05, 0), GOLD, Enum.Material.Neon)
 	deco(parent, "PlinthFoot", Vector3.new(width + 0.3, 0.3, width + 0.3), base * CFrame.new(0, 0.15, 0), GOLD_DARK, Enum.Material.Metal)
 	local caseHeight = width * 1.05
-	local glass = deco(parent, "DisplayGlass", Vector3.new(width - 0.3, caseHeight, width - 0.3), base * CFrame.new(0, plinthHeight + 0.15 + caseHeight / 2, 0), GLASS, Enum.Material.Glass)
+	local glass = deco(parent, "DisplayGlass", Vector3.new(width - 0.3, caseHeight, width - 0.3), base * CFrame.new(0, plinthHeight + 0.15 + caseHeight / 2, 0), GLASS)
 	glass.Transparency = 0.85
+	glass.Reflectance = 0.12
 	glass.CanCollide = true -- nobody can climb inside the case
 	local cap = deco(parent, "DisplayCap", Vector3.new(width, 0.3, width), base * CFrame.new(0, plinthHeight + 0.3 + caseHeight, 0), GOLD, Enum.Material.Metal)
 	LobbyProps.light(cap, Color3.fromRGB(255, 236, 190), width * 2.2, 1.5)

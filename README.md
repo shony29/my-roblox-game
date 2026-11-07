@@ -163,7 +163,8 @@ shop look jagged. A game can't change this setting, so turn it up yourself:
    own loading picture, a blurry version of the game's **thumbnail**. No game code can run
    that early. Once the game is published, upload a thumbnail on the Creator Dashboard and
    that moment will match the game.)
-3. Look around: slime tubes, the shop (press **B**, or **SHOP** on the left) and the
+3. Look around: glass tubes full of glowing slime (bubbles rise through it and its top
+   wobbles), the shop (press **B**, or **SHOP** on the left) and the
    **DAILY SQUISHY** room (the green doorway on the right): two rows of shelves full of
    squishies on each wall, and in the middle a glass dome with a big **squishy ball** floating
    inside (it bobs, looks around and slowly changes colour). Press **E** at the machine, then
@@ -367,8 +368,9 @@ src/
   first/     → ReplicatedFirst (LoadingScreen: the loading screen you see when you join)
   client/    → StarterPlayerScripts.Client (init.client.luau starts everything in order)
     Controllers/ Graphics, Shop, UI, Movement, Weapon, Camera, Viewmodel,
-                 BlobAnimator, MatchHud, Lobby, LobbyAnimator (the lobby's spinning coin
-                 and bobbing squishy ball), Transition, Results, Feedback
+                 BlobAnimator, MatchHud, Lobby, LobbyAnimator (the lobby's bubbling slime
+                 tubes, spinning coin and bobbing squishy ball), Transition, Results,
+                 Feedback
     UI/          Menu, HUD, kill feed, scoreboard, weapon HUD, dash badge, shop previews
     Effects/     Tracers, muzzle flashes, impact puffs
 ```

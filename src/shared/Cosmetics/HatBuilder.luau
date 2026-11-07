@@ -198,9 +198,11 @@ end
 local function jellyCube(b: Builder, hat: HatItem, base: number)
 	local size = 2.0
 	for _, part in roundedBox(b, "Jelly", Vector3.one * size, 0.35, hat.MainColor, CFrame.new(0, base, 0), true) do
-		part.Material = Enum.Material.Glass
+		-- See-through plastic, not Glass: Glass would hide the see-through
+		-- core and bubbles inside.
+		part.Material = Enum.Material.SmoothPlastic
 		part.Transparency = 0.3
-		part.Reflectance = 0.08
+		part.Reflectance = 0.1
 	end
 	local middle = base + size / 2
 	local core = addPart(b, "JellyCore", Vector3.one * 1.3, hat.MainColor:Lerp(WHITE, 0.15), CFrame.new(0, middle, 0))

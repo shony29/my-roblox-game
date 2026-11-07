@@ -24,14 +24,60 @@ local function light(parent: Instance, color: Color3, range: number, brightness:
 end
 LobbyProps.light = light
 
--- A tall glass tube full of glowing slime, with metal caps.
-function LobbyProps.slimeTube(parent: Instance, base: Vector3, height: number, diameter: number, slimeColor: Color3)
+--[[
+	A tall glass tube full of glowing slime, with metal caps and a glowing
+	ring at each end. The slime is a bright core inside a softer outer
+	layer, with a rounded top. On each player's screen the client's
+	LobbyAnimator brings it to life: bubbles rise through it, the top
+	wobbles and sloshes, and the glow gently breathes.
+
+	The glass is see-through plastic, NOT Roblox's Glass material: Glass
+	hides everything see-through behind it, which made the slime vanish.
+	Returns the tube's model.
+]]
+function LobbyProps.slimeTube(parent: Instance, base: Vector3, height: number, diameter: number, slimeColor: Color3): Model
+	local model = Instance.new("Model")
+	model.Name = "SlimeTube"
 	local cap = 1.6
-	MapKit.cylinder(parent, "TubeBase", base, cap, diameter + 1.4, LobbyProps.METAL_DARK, { material = Enum.Material.DiamondPlate })
-	local slime = MapKit.cylinder(parent, "TubeSlime", base + Vector3.new(0, cap, 0), (height - cap * 2) * 0.85, diameter - 0.5, slimeColor, { material = Enum.Material.Neon, collide = false, transparency = 0.1 })
-	light(slime, slimeColor, 16, 1.4)
-	MapKit.cylinder(parent, "TubeGlass", base + Vector3.new(0, cap, 0), height - cap * 2, diameter, Color3.fromRGB(210, 235, 255), { material = Enum.Material.Glass, transparency = 0.65 })
-	MapKit.cylinder(parent, "TubeCap", base + Vector3.new(0, height - cap, 0), cap, diameter + 1.4, LobbyProps.METAL_DARK, { material = Enum.Material.DiamondPlate })
+	local inside = height - cap * 2 -- the glass between the two caps
+	local level = inside * 0.88 -- how high the slime reaches
+	local slimeDiameter = diameter - 0.4
+	local bottom = base + Vector3.new(0, cap, 0)
+	local glow: MapKit.Options = { material = Enum.Material.Neon, collide = false, shadow = false }
+
+	MapKit.cylinder(model, "TubeBase", base, cap, diameter + 1.4, LobbyProps.METAL_DARK, { material = Enum.Material.DiamondPlate })
+	MapKit.cylinder(model, "TubeCap", base + Vector3.new(0, height - cap, 0), cap, diameter + 1.4, LobbyProps.METAL_DARK, { material = Enum.Material.DiamondPlate })
+	for _, y in { cap, height - cap - 0.25 } do
+		MapKit.cylinder(model, "TubeRing", base + Vector3.new(0, y, 0), 0.25, diameter + 0.5, slimeColor, glow)
+	end
+
+	-- The slime: a bright core, a softer outer layer and a rounded top.
+	local core = MapKit.cylinder(model, "TubeSlimeCore", bottom, level - 0.3, slimeDiameter * 0.6, slimeColor, glow)
+	light(core, slimeColor, 18, 1.5)
+	MapKit.cylinder(model, "TubeSlime", bottom, level, slimeDiameter, slimeColor, { material = Enum.Material.Neon, collide = false, shadow = false, transparency = 0.45 })
+	local surface = MapKit.part(model, "TubeSurface", Vector3.new(slimeDiameter, math.min(1.4, slimeDiameter * 0.3), slimeDiameter), CFrame.new(bottom + Vector3.new(0, level, 0)),
+		slimeColor:Lerp(Color3.new(1, 1, 1), 0.25), { material = Enum.Material.Neon, collide = false, shadow = false, transparency = 0.2 })
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Sphere -- a squashed ball
+	mesh.Parent = surface
+
+	-- The glass, with two soft shines down its front.
+	local glass = MapKit.cylinder(model, "TubeGlass", bottom, inside, diameter, Color3.fromRGB(215, 240, 255), { material = Enum.Material.SmoothPlastic, transparency = 0.86, shadow = false })
+	glass.Reflectance = 0.08
+	for index, angle in { 100, 116 } do
+		local direction = Vector3.new(math.cos(math.rad(angle)), 0, math.sin(math.rad(angle)))
+		local spot = bottom + Vector3.new(0, inside / 2, 0) + direction * (diameter / 2 + 0.03)
+		MapKit.part(model, "TubeShine", Vector3.new(if index == 1 then 0.32 else 0.14, inside * 0.84, 0.06), CFrame.lookAt(spot, spot + direction), Color3.new(1, 1, 1), { collide = false, shadow = false, transparency = 0.55 })
+	end
+
+	-- What the client's LobbyAnimator needs to move the slime.
+	model:SetAttribute("SlimeTube", true)
+	model:SetAttribute("SlimeColor", slimeColor)
+	model:SetAttribute("SlimeBottom", bottom)
+	model:SetAttribute("SlimeLevel", level)
+	model:SetAttribute("SlimeDiameter", slimeDiameter)
+	model.Parent = parent
+	return model
 end
 
 -- A straight pipe between two points, with a glowing glass section in the middle.
