@@ -22,6 +22,7 @@ local LobbyProps = require(script.Parent.LobbyProps)
 local GunModel = require(script.Parent.Parent.Components.GunModel)
 local WeaponConfig = require(ReplicatedStorage.Shared.Config.WeaponConfig)
 local ShopConfig = require(ReplicatedStorage.Shared.Config.ShopConfig)
+local HatBuilder = require(ReplicatedStorage.Shared.Cosmetics.HatBuilder)
 
 export type Pad = {
 	part: BasePart,
@@ -50,7 +51,8 @@ local HALL_LENGTH, HALL_HALF_WIDTH, HALL_HEIGHT_2 = 92, 22, 26 -- the hallway
 local PORTAL_RADIUS = 8
 local PAD_RADIUS = 6.5
 local DOOR_Z, DOOR_HALF, DOOR_HEIGHT = 22, 6, 14 -- the side doorways (weapons room, practice range)
-local DAILY_Z = -11 -- the DAILY SQUISHY room's doorway (right wall)
+local DAILY_Z = -11 -- the DAILY SQUISHY room's doorway (right wall) and the ROBUX SHOP's (left wall)
+local GOLD = Color3.fromRGB(255, 200, 60)
 
 local METAL, METAL_DARK = LobbyProps.METAL, LobbyProps.METAL_DARK
 local GREEN, PURPLE, CYAN = LobbyProps.GREEN, LobbyProps.PURPLE, LobbyProps.CYAN
@@ -113,10 +115,11 @@ local function buildHall(model: Model)
 	Props.hazardLine(model, at(8.6, 0, HALL_Z - 2), at(8.6, 0, -HALL_Z + 2), 1.2)
 	box(model, "Ceiling", Vector3.new(HALL_X * 2, 2, HALL_Z * 2), at(0, HALL_HEIGHT + 1, 0), METAL_DARK)
 	box(model, "WallBack", Vector3.new(HALL_X * 2, HALL_HEIGHT, 2), at(0, HALL_HEIGHT / 2, HALL_Z + 1), METAL)
-	-- Side walls with doorways: WEAPONS on the left; PRACTICE RANGE and
-	-- DAILY SQUISHY on the right.
+	-- Side walls with doorways: WEAPONS and ROBUX SHOP on the left;
+	-- PRACTICE RANGE and DAILY SQUISHY on the right.
 	local doors = {
 		{ side = -1, z = DOOR_Z, title = "WEAPONS", glow = PURPLE },
+		{ side = -1, z = DAILY_Z, title = "ROBUX SHOP", glow = GOLD },
 		{ side = 1, z = DOOR_Z, title = "PRACTICE RANGE", glow = CYAN },
 		{ side = 1, z = DAILY_Z, title = "DAILY SQUISHY", glow = GREEN },
 	}
@@ -141,7 +144,7 @@ local function buildHall(model: Model)
 		end
 		box(model, "WallSide", Vector3.new(2, HALL_HEIGHT, HALL_Z - cursor), at(x, HALL_HEIGHT / 2, (cursor + HALL_Z) / 2), METAL)
 		-- Dark panels on the wall, clear of the doorways.
-		for _, z in (if side < 0 then { -20, 0 } else { -28, 4 }) do
+		for _, z in { -28, 4 } do
 			box(model, "WallPanel", Vector3.new(0.6, 14, 12), at(side * (HALL_X - 0.2), 9, z), METAL_DARK)
 		end
 	end
@@ -221,9 +224,29 @@ local function prompt(parent: BasePart, name: string, action: string, object: st
 	p.Parent = parent
 end
 
+-- A real squishy from the shop (Cosmetics/HatBuilder), standing on `base`
+-- with its face toward `faceDirection`, anchored as a display piece.
+local function displaySquishy(model: Model, hatId: string, base: Vector3, faceDirection: Vector3, scale: number)
+	local built = HatBuilder.build(ShopConfig.getHat(hatId), CFrame.lookAt(base, base + faceDirection), Vector3.new(1, 0.6, 1))
+	if built == nil then
+		return
+	end
+	built.Name = "DisplaySquishy"
+	for _, part in built:GetDescendants() do
+		if part:IsA("BasePart") then
+			part.Anchored = true
+		end
+	end
+	if scale ~= 1 then
+		built.WorldPivot = CFrame.new(base) -- grow from where it stands
+		built:ScaleTo(scale)
+	end
+	built.Parent = model
+end
+
 local function buildDailyMachine(model: Model)
-	-- (Where the shop counter used to be, on the left wall: one more slime tube.)
-	Props.slimeTube(model, at(-35, 0, -1), 16, 6, PURPLE)
+	-- (On the left wall, beside the ROBUX SHOP doorway: one more slime tube.)
+	Props.slimeTube(model, at(-35, 0, 4), 16, 6, PURPLE)
 
 	-- The DAILY SQUISHY room, through the doorway on the right wall (like
 	-- the practice range room next to it).
@@ -233,11 +256,17 @@ local function buildDailyMachine(model: Model)
 	box(model, "DailyRoomWall", Vector3.new(2, height, halfZ * 2 + 2), at(cx + halfX + 1, height / 2, cz), METAL)
 	for _, side in { -1, 1 } do
 		box(model, "DailyRoomWall", Vector3.new(halfX * 2 + 2, height, 2), at(cx, height / 2, cz + side * (halfZ + 1)), METAL)
-		-- Shelves of squishies along the side walls.
-		box(model, "DailyShelf", Vector3.new(12, 0.5, 2), at(cx, 7, cz + side * (halfZ - 0.6)), METAL_DARK, Enum.Material.DiamondPlate)
-		for i = 0, 4 do
-			local colors = { Color3.fromRGB(255, 150, 200), Color3.fromRGB(255, 220, 90), Color3.fromRGB(120, 220, 255), Color3.fromRGB(150, 235, 160), Color3.fromRGB(200, 160, 255) }
-			Kit.part(model, "ShelfSquishy", Vector3.one * 1.6, CFrame.new(at(cx - 4.8 + i * 2.4, 8.05, cz + side * (halfZ - 0.6))), colors[i + 1], { shape = Enum.PartType.Ball, collide = false })
+		-- Shelves of real squishies (the ones from the shop) along the side walls,
+		-- turned to face you as you come in.
+		box(model, "DailyShelf", Vector3.new(14, 0.5, 2.6), at(cx, 7, cz + side * (halfZ - 0.9)), METAL_DARK, Enum.Material.DiamondPlate)
+		Kit.part(model, "DailyShelfGlow", Vector3.new(14, 0.15, 0.2), CFrame.new(at(cx, 7.2, cz + side * (halfZ - 2.25))), GREEN, { material = Enum.Material.Neon, collide = false, shadow = false })
+		local shelfSquishies = if side > 0
+			then { "Squishy_DumplingPeach", "Squishy_Donut", "Squishy_JellyCubePink", "Squishy_IceCream", "Squishy_Popcorn" }
+			else { "Squishy_DumplingLilac", "Squishy_Butter", "Squishy_JellyCubeBlue", "Squishy_Cake", "Squishy_DumplingMint" }
+		for i, hatId in shelfSquishies do
+			try(`shelf squishy {hatId}`, function()
+				displaySquishy(model, hatId, at(cx - 5.4 + (i - 1) * 2.7, 7.27, cz + side * (halfZ - 0.9)), Vector3.new(-1, 0, -side * 0.8), 0.95)
+			end)
 		end
 	end
 	local lamp = box(model, "DailyRoomLamp", Vector3.new(8, 0.4, 1.2), at(cx, height - 0.3, cz), Color3.fromRGB(220, 255, 220), Enum.Material.Neon)
@@ -248,9 +277,22 @@ local function buildDailyMachine(model: Model)
 	-- The machine: a glass dome with a squishy inside, in the middle of the room.
 	local base = box(model, "DailyBase", Vector3.new(8, 3, 8), at(cx + 1, 1.5, cz), METAL_DARK, Enum.Material.DiamondPlate)
 	Kit.cylinder(model, "DailyBaseGlow", at(cx + 1, 3, cz), 0.3, 8.6, GREEN, { material = Enum.Material.Neon, collide = false, shadow = false })
-	Kit.part(model, "DailyDome", Vector3.new(7.5, 7.5, 7.5), CFrame.new(at(cx + 1, 6.6, cz)), Color3.fromRGB(220, 240, 255), { shape = Enum.PartType.Ball, material = Enum.Material.Glass, transparency = 0.6 })
-	local squishy = Kit.part(model, "DailySquishyToy", Vector3.new(4.2, 4.2, 4.2), CFrame.new(at(cx + 1, 5.2, cz)), Color3.fromRGB(120, 230, 160), { shape = Enum.PartType.Ball, collide = false })
-	Props.light(squishy, GREEN, 12, 1.2)
+	Kit.part(model, "DailyDome", Vector3.new(7.5, 7.5, 7.5), CFrame.new(at(cx + 1, 6.6, cz)), Color3.fromRGB(220, 240, 255), { shape = Enum.PartType.Ball, material = Enum.Material.Glass, transparency = 0.75 })
+	-- Inside the dome: this month's themed squishy, big and lit from below.
+	try("dome squishy", function()
+		local month = ShopConfig.currentMonth()
+		local featured = "Squishy_DumplingPeach"
+		for _, theme in ShopConfig.Themes do
+			if theme.Month == month then
+				featured = `Theme_{theme.Key}_Squishy`
+			end
+		end
+		displaySquishy(model, featured, at(cx + 1, 3.2, cz), Vector3.new(-1, 0, 0), 1.6)
+	end)
+	local glowHolder = Kit.part(model, "DailyDomeLight", Vector3.new(0.4, 0.4, 0.4), CFrame.new(at(cx + 1, 4, cz)), GREEN, { collide = false, transparency = 1, shadow = false })
+	if glowHolder then
+		Props.light(glowHolder, Color3.fromRGB(220, 255, 220), 14, 1.4)
+	end
 	try("Daily Squishy prompt", function()
 		prompt(base, "DailySquishy", "Open", "Daily Squishy")
 	end)
@@ -278,7 +320,60 @@ local function buildDailyMachine(model: Model)
 	-- purple tube and the portal (so no tube hides it).
 	local board = at(-17, 12, -HALL_Z + 0.2)
 	Props.neonSign(model, "HowToPlay", Vector3.new(12, 9, 0.4), CFrame.lookAt(board, board + Vector3.new(0, 0, 1)),
-		"HOW TO PLAY\nPress PLAY, or stand on a pad\nin the hallway to queue\nLeft door: WEAPONS\nRight doors: PRACTICE RANGE\nand DAILY SQUISHY", Color3.fromRGB(200, 255, 180))
+		"HOW TO PLAY\nPress PLAY, or stand on a pad\nin the hallway to queue\nLeft doors: WEAPONS, ROBUX SHOP\nRight doors: PRACTICE RANGE,\nDAILY SQUISHY", Color3.fromRGB(200, 255, 180))
+end
+
+--[[
+	The ROBUX SHOP room behind the gold doorway on the left wall (opposite the
+	Daily Squishy room): piles of gold coins, this month's themed squishy on a
+	stand, and a counter that opens the shop's ROBUX tab (coin packs and bundles).
+]]
+local function buildRobuxRoom(model: Model)
+	local cx, cz, halfX, halfZ, height = -51, DAILY_Z, 9, 8, 16
+	box(model, "RobuxRoomFloor", Vector3.new(halfX * 2, 2, halfZ * 2), at(cx, -1, cz), METAL_DARK, Enum.Material.DiamondPlate)
+	box(model, "RobuxRoomCeiling", Vector3.new(halfX * 2, 2, halfZ * 2), at(cx, height + 1, cz), METAL_DARK)
+	box(model, "RobuxRoomWall", Vector3.new(2, height, halfZ * 2 + 2), at(cx - halfX - 1, height / 2, cz), METAL)
+	for _, side in { -1, 1 } do
+		box(model, "RobuxRoomWall", Vector3.new(halfX * 2 + 2, height, 2), at(cx, height / 2, cz + side * (halfZ + 1)), METAL)
+		-- Piles of gold coins in the corners.
+		for pile = 0, 1 do
+			local base = at(cx - 4 + pile * 6, 0, cz + side * (halfZ - 2.5))
+			for level = 0, 4 - pile do
+				local spread = (4 - level) * 0.35
+				Kit.cylinder(model, "CoinStack", base + Vector3.new(spread, level * 0.5, -spread * 0.5 * side), 0.5, 2.4, GOLD, { material = Enum.Material.Metal, collide = false })
+				Kit.cylinder(model, "CoinStack", base + Vector3.new(-spread, level * 0.5, spread * 0.3 * side), 0.5, 2.4, GOLD, { material = Enum.Material.Metal, collide = false })
+			end
+		end
+	end
+	local lamp = box(model, "RobuxRoomLamp", Vector3.new(8, 0.4, 1.2), at(cx, height - 0.3, cz), Color3.fromRGB(255, 240, 200), Enum.Material.Neon)
+	Props.light(lamp, GOLD, 26, 1.2)
+	local signPos = at(cx - halfX - 0.1, 12.5, cz)
+	Props.neonSign(model, "RobuxSign", Vector3.new(14, 3.5, 0.4), CFrame.lookAt(signPos, signPos + Vector3.new(1, 0, 0)), "COINS & BUNDLES", GOLD)
+
+	-- The counter: opens the shop on its ROBUX tab.
+	local counter = box(model, "RobuxCounter", Vector3.new(4, 3.5, 10), at(cx - 3, 1.75, cz), METAL_DARK, Enum.Material.DiamondPlate)
+	box(model, "RobuxCounterTop", Vector3.new(4.4, 0.3, 10.4), at(cx - 3, 3.65, cz), GOLD, Enum.Material.Neon)
+	-- This month's themed squishy on a stand on the counter.
+	try("robux shop squishy", function()
+		local month = ShopConfig.currentMonth()
+		for _, theme in ShopConfig.Themes do
+			if theme.Month == month then
+				displaySquishy(model, `Theme_{theme.Key}_Squishy`, at(cx - 3, 3.8, cz - 2.6), Vector3.new(1, 0, 0), 1.1)
+			end
+		end
+	end)
+	-- A big gold coin standing on the counter.
+	local coin = Kit.part(model, "BigCoin", Vector3.new(0.6, 3.2, 3.2), CFrame.new(at(cx - 3, 5.5, cz + 2.4)) * CFrame.Angles(0, math.rad(90), 0), GOLD, { material = Enum.Material.Metal, collide = false })
+	if coin then
+		coin.Shape = Enum.PartType.Cylinder
+		coin.Reflectance = 0.25
+		Props.light(coin, GOLD, 10, 1)
+	end
+	if counter then
+		try("robux shop prompt", function()
+			prompt(counter, "RobuxCounter", "Open Robux shop", "Coins & bundles")
+		end)
+	end
 end
 
 -- WEAPONS room behind the left doorway: every gun on a display table with
@@ -586,6 +681,9 @@ function LobbyBuilder.build(): Lobby
 	end)
 	try("weapons room", function()
 		buildWeaponsRoom(model)
+	end)
+	try("robux shop room", function()
+		buildRobuxRoom(model)
 	end)
 	local rangePad: BasePart? = nil
 	try("practice range door", function()

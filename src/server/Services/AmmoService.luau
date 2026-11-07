@@ -4,9 +4,11 @@
 
 	  * Each map lists spots for crates (mirrored left/right so neither team
 	    has an advantage). Walk over a crate during a match and the server
-	    gives each of your guns one more magazine of spare ammo, up to its
-	    maximum. The crate vanishes and comes back after RESPAWN_TIME.
-	    If your ammo is already full, the crate stays for someone who needs it.
+	    gives each of your guns two more magazines of spare ammo, up to its
+	    maximum (every life starts with just one spare magazine, so crates
+	    matter). Your ammo counter goes up, a "+60 AMMO" pops up, and an
+	    empty gun reloads by itself. The crate comes back after RESPAWN_TIME.
+	    If you already carry the most you can, it stays for someone else.
 	  * Every eliminated player drops a crate where they fell (it disappears
 	    after DROP_LIFETIME seconds, or once someone takes it).
 	  * A crate is a green box with bullets on top, a glowing ring on the
@@ -22,6 +24,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local MatchState = require(ReplicatedStorage.Shared.Match.MatchState)
+local Net = require(ReplicatedStorage.Shared.Net.Net)
 local WeaponService = require(script.Parent.WeaponService)
 
 type Pickup = {
@@ -200,7 +203,9 @@ local function check()
 				if root and root:IsA("BasePart") and humanoid and humanoid.Health > 0 then
 					local offset = root.Position - pickup.position
 					if Vector2.new(offset.X, offset.Z).Magnitude <= PICKUP_RADIUS and math.abs(offset.Y) <= 6 then
-						if WeaponService.refillReserve(player) then
+						local refilled, gained = WeaponService.refillReserve(player)
+						if refilled then
+							Net.event("AmmoPickup"):FireClient(player, gained)
 							if pickup.expiresAt then
 								-- A dropped crate is used up.
 								pickup.model:Destroy()

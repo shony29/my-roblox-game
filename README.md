@@ -176,7 +176,9 @@ shop look jagged. A game can't change this setting, so turn it up yourself:
    round starts in a new arena. Leave any time with **LEAVE** or **L**.
 5. **Testing alone?** The **vs BOTS** pads (right side of the hallway) start a practice
    match with bots (no coins or XP from practice). Teams have **blue** and **red** outlines.
-6. **Left door: WEAPONS room.** Every gun sits on a table with its price. Press **E** at the
+6. **Left doors: WEAPONS room and ROBUX SHOP.** In the ROBUX SHOP (gold doorway), press **E**
+   at the counter to open the shop's ROBUX tab (coin packs and bundles).
+   In the WEAPONS room, every gun sits on a table with its price. Press **E** at the
    counter to open the shop's Guns tab. Coins come from eliminations, wins and tasks.
 7. **Right door: PRACTICE RANGE.** Step on the glowing pad. You get your guns and endless
    ammo on a floating sky island: a long lane with a coloured stripe every 25 studs and slime
@@ -186,7 +188,8 @@ shop look jagged. A game can't change this setting, so turn it up yourself:
    slide 3 times) and daily quests (play matches, get eliminations, win). Each one pays coins
    the moment it's done.
 9. **Top right:** three round buttons. The **gear** opens Settings (sound, mouse sensitivity,
-   field of view; saved for next time), the **calendar** shows a short list of your tasks,
+   field of view, saved for next time; and a **CONTROLS** tab listing every key and button
+   for keyboard and mouse, touch screens and game controllers), the **calendar** shows a short list of your tasks,
    and the **bell** lists your notifications (rewards, level ups, win streaks, the Daily
    Squishy being ready). A small number on a button means something new.
 10. Above every player's head: their **level** and **win streak** (matches won in a row).
@@ -239,7 +242,8 @@ and your eliminations show **ELIMINATED <name>** at the bottom of the screen.
 | B | Shop |
 | T | Tasks |
 | G | Shop: Guns tab (in the lobby) |
-| L | Leave the practice range |
+| L | Leave the practice range or free for all |
+| RT / RB (game controller) | Shoot / reload (see Settings → CONTROLS for every button) |
 
 Press **Stop** (Shift+F5) when you're done.
 
@@ -271,7 +275,7 @@ Things to check:
 - [ ] Shop: Colors and Squishies show the real 3D slime; each gun in the Guns tab has its own toy design (click its picture for the details window); the Skins tab has the Glue, Activator, Foam, Clay and Water guns plus this month's themed gun.
 - [ ] The practice range: targets pop when shot, the TASKS list counts them, coins arrive with a message.
 - [ ] Stand on the **FREE FOR ALL** pad at the end of the hallway: you're in the free-for-all arena at once. With 2+ player windows everyone can hit everyone, you respawn, and the top shows the timer and the leader. **L** takes you back to the lobby.
-- [ ] Eliminated players drop a green **AMMO** crate; walking over one (or the crates on the map) refills spare ammo.
+- [ ] Every life starts with one spare magazine. Walking over a green **AMMO** crate (on the map, or dropped by an eliminated player) adds two magazines to every gun: the counter goes up, "+60 AMMO" pops up, and an empty gun reloads by itself.
 
 > **About saving:** coins and stats only *save* in a published game. In
 > Studio you'll see a yellow warning in the Output that says progress will not

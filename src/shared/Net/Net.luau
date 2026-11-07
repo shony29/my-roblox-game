@@ -44,6 +44,7 @@ export type EventName =
 	| "RewardToast" -- server -> owner: (text, coins) a task or reward was earned
 	| "SettingsSave" -- client -> server: (volume, sensitivity, fieldOfView) Settings window
 	| "FreeForAllLeave" -- client -> server: () leave the free-for-all arena
+	| "AmmoPickup" -- server -> owner: (bullets) you picked up an ammo crate (for the gun in your hand)
 
 export type FunctionName =
 	"ShopBuyItem" -- client asks: (itemId) -> (ok, message)
@@ -72,6 +73,7 @@ local EVENTS: { EventName } = {
 	"RewardToast",
 	"SettingsSave",
 	"FreeForAllLeave",
+	"AmmoPickup",
 }
 local FUNCTIONS: { FunctionName } = { "ShopBuyItem", "ShopEquipItem", "DailyClaim", "ShopUpgradeGun" }
 

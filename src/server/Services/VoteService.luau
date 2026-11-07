@@ -3,7 +3,7 @@
 	VoteService: map voting for one match (the voting logic only; the
 	cards on screen are client/Controllers/TransitionController).
 
-	  * Up to MapConfig.MaxChoices maps are offered, picked at random.
+	  * Every map is offered, always in the same order (MapConfig.Order).
 	  * Only the match's players can vote, only for an offered map, and not
 	    faster than a few times a second. Changing your vote is allowed.
 	  * Live counts are shared as attributes (Votes<MapId>) on MatchState.
@@ -22,12 +22,22 @@ local VoteService = {}
 local random = Random.new()
 local limiter = RateLimiter.new(4, 1)
 
--- Picks up to MaxChoices different maps at random.
+-- The maps to vote on, always in the same order (MapConfig.Order). If there
+-- are more maps than MaxChoices, a random few are offered, still in that order.
 function VoteService.pickOptions(): { string }
+	if #MapConfig.Order <= MapConfig.MaxChoices then
+		return table.clone(MapConfig.Order)
+	end
+	local chosen: { [string]: boolean } = {}
 	local pool = table.clone(MapConfig.Order)
+	for _ = 1, MapConfig.MaxChoices do
+		chosen[table.remove(pool, random:NextInteger(1, #pool)) :: string] = true
+	end
 	local options: { string } = {}
-	while #pool > 0 and #options < MapConfig.MaxChoices do
-		table.insert(options, table.remove(pool, random:NextInteger(1, #pool)) :: string)
+	for _, mapId in MapConfig.Order do
+		if chosen[mapId] then
+			table.insert(options, mapId)
+		end
 	end
 	return options
 end

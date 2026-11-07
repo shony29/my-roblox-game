@@ -40,6 +40,7 @@ local TasksController = require(script.Parent:WaitForChild("TasksController"))
 
 local PATTR = MatchState.PlayerAttr
 local WEAPONS_PROMPT = "WeaponsCounter" -- the counter in the weapons room
+local ROBUX_PROMPT = "RobuxCounter" -- the counter in the ROBUX SHOP room
 local REFRESH_INTERVAL = 0.25
 local Sci = Theme.SciFi -- the bunker's sci-fi look (same as the menu and shop)
 local SCI_FONT = Theme.SciFiFonts.Title
@@ -248,6 +249,8 @@ function LobbyController.start()
 	ProximityPromptService.PromptTriggered:Connect(function(prompt: ProximityPrompt)
 		if prompt.Name == WEAPONS_PROMPT then
 			ShopController.openTab("Weapon")
+		elseif prompt.Name == ROBUX_PROMPT then
+			ShopController.openTab("Robux")
 		end
 	end)
 

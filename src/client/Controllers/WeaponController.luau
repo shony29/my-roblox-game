@@ -329,6 +329,36 @@ local function damageNumber(position: Vector3, amount: number, headshot: boolean
 	end)
 end
 
+-- "+60 AMMO" in green under the crosshair when you pick up an ammo crate.
+local function showAmmoPickup(bullets: number)
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "AmmoPickup"
+	gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true
+	gui.DisplayOrder = 6
+	gui.Parent = localPlayer:WaitForChild("PlayerGui")
+	local label = Instance.new("TextLabel")
+	label.AnchorPoint = Vector2.new(0.5, 0.5)
+	label.Position = UDim2.new(0.5, 0, 0.5, 60)
+	label.Size = UDim2.fromOffset(260, 34)
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.Michroma
+	label.TextSize = 20
+	label.TextColor3 = Color3.fromRGB(120, 255, 100)
+	label.TextStrokeTransparency = 0.4
+	label.Text = if bullets > 0 then `+{bullets} AMMO` else "+AMMO"
+	label.Parent = gui
+	local tweenService = game:GetService("TweenService")
+	tweenService:Create(label, TweenInfo.new(0.9, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Position = UDim2.new(0.5, 0, 0.5, 30) }):Play()
+	task.delay(0.6, function()
+		tweenService:Create(label, TweenInfo.new(0.4), { TextTransparency = 1, TextStrokeTransparency = 1 }):Play()
+	end)
+	task.delay(1.1, function()
+		gui:Destroy()
+	end)
+	Effects.playSound(WeaponConfig.HitSoundId, 0.6, 0.7) -- a soft "clink"
+end
+
 -- "ELIMINATED <name>" at the bottom of the screen when you knock someone out.
 local eliminatedLabel: TextLabel? = nil
 local eliminatedToken = 0
@@ -442,6 +472,10 @@ local WeaponController = {}
 function WeaponController.start()
 	remotes.State.OnClientEvent:Connect(onState)
 	remotes.HitConfirm.OnClientEvent:Connect(onHitConfirm)
+	-- Ammo crates: show what you got (the counter updates from the server's state).
+	Net.event("AmmoPickup").OnClientEvent:Connect(function(bullets: unknown)
+		showAmmoPickup(if typeof(bullets) == "number" then bullets else 0)
+	end)
 	-- Your eliminations get a big "ELIMINATED <name>" (the kill feed tells everyone).
 	Net.event("KillFeed").OnClientEvent:Connect(function(killerName: unknown, victimName: unknown)
 		if killerName == localPlayer.DisplayName and typeof(victimName) == "string" then
@@ -455,9 +489,13 @@ function WeaponController.start()
 		if gameProcessed then
 			return
 		end
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			triggerHeld = true
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.KeyCode == Enum.KeyCode.ButtonR2 then
+			triggerHeld = true -- (ButtonR2 = a game controller's right trigger)
 			tryFire()
+			return
+		end
+		if input.KeyCode == Enum.KeyCode.ButtonR1 then
+			requestReload() -- a game controller's right bumper
 			return
 		end
 		local slot = SLOT_KEYS[input.KeyCode]
@@ -523,7 +561,7 @@ function WeaponController.start()
 	end
 
 	UserInputService.InputEnded:Connect(function(input: InputObject)
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.KeyCode == Enum.KeyCode.ButtonR2 then
 			triggerHeld = false
 		end
 	end)

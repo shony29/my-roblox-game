@@ -17,7 +17,9 @@
 	  FalloffStart        damage starts dropping after this many studs
 	  FalloffMinMultiplier  share of damage left at MaxRange (0.4 = 40%)
 	  MagazineSize        bullets before you must reload
-	  ReserveAmmo         spare bullets for reloading (refilled on respawn)
+	  ReserveAmmo         the most spare bullets you can carry for reloading.
+	                      Every life starts with one spare magazine; ammo
+	                      crates on the map give two more (see AmmoService).
 	  ReloadTime          seconds a reload takes
 	  RecoilKick          degrees the view kicks up per shot
 ]]
@@ -35,7 +37,7 @@ export type WeaponStats = {
 	FalloffStart: number,
 	FalloffMinMultiplier: number,
 	MagazineSize: number,
-	ReserveAmmo: number, -- spare bullets carried (refilled on respawn)
+	ReserveAmmo: number, -- the most spare bullets you can carry
 	ReloadTime: number,
 	RecoilKick: number, -- degrees the view kicks up per shot (recovers by itself)
 	Burst: number?, -- rounds fired per trigger pull (burst rifles); nil = 1

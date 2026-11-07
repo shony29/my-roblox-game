@@ -79,10 +79,16 @@ local function fullAmmo(): { [string]: number }
 	return ammo
 end
 
+-- Spare ammo at the start of every life: one spare magazine per gun (ammo
+-- crates on the map give more, up to the gun's ReserveAmmo).
+local START_MAGAZINES = 1
+-- What one ammo crate gives every gun.
+local PICKUP_MAGAZINES = 2
+
 local function fullReserve(): { [string]: number }
 	local reserve = {}
 	for id, stats in WeaponConfig.Weapons do
-		reserve[id] = stats.ReserveAmmo
+		reserve[id] = math.min(stats.MagazineSize * START_MAGAZINES, stats.ReserveAmmo)
 	end
 	return reserve
 end
@@ -512,27 +518,38 @@ end
 local WeaponService = {}
 
 --[[
-	Slime ammo pickups (AmmoService): gives each of the player's guns one more
-	magazine of spare ammo, up to its maximum. Returns false if they were
-	already full (so the pickup stays for someone else).
+	Ammo crates (AmmoService): gives each of the player's guns PICKUP_MAGAZINES
+	more magazines of spare ammo, up to its maximum. If the gun in their hand
+	is empty, it reloads straight away. Returns whether anything was added
+	(false = already carrying the most, so the crate stays for someone else)
+	and how many bullets the gun in their hand got.
 ]]
-function WeaponService.refillReserve(player: Player): boolean
+function WeaponService.refillReserve(player: Player): (boolean, number)
 	local state = states[player]
 	if not state then
-		return false
+		return false, 0
 	end
 	local added = false
+	local equippedGain = 0
 	for id, stats in WeaponConfig.Weapons do
 		local current = state.reserve[id] or 0
 		if current < stats.ReserveAmmo then
-			state.reserve[id] = math.min(current + stats.MagazineSize, stats.ReserveAmmo)
+			local newAmount = math.min(current + stats.MagazineSize * PICKUP_MAGAZINES, stats.ReserveAmmo)
+			state.reserve[id] = newAmount
 			added = true
+			if id == state.equipped then
+				equippedGain = newAmount - current
+			end
 		end
 	end
 	if added then
 		sendState(player, state)
+		-- An empty gun loads itself with the new ammo.
+		if (state.ammo[state.equipped] or 0) <= 0 and not state.reloading then
+			startReload(player, state)
+		end
 	end
-	return added
+	return added, equippedGain
 end
 
 function WeaponService.start()
