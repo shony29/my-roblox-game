@@ -164,17 +164,20 @@ function LobbyProps.queuePad(parent: Instance, center: Vector3, radius: number, 
 	local diameter = radius * 2
 	MapKit.cylinder(parent, "PadGlow", center, 0.25, diameter + 0.6, color, { material = Enum.Material.Neon, collide = false, shadow = false })
 	local pad = MapKit.cylinder(parent, "Pad", center + Vector3.new(0, 0.05, 0), 0.3, diameter - 1, LobbyProps.METAL_DARK, { material = Enum.Material.DiamondPlate, collide = false, shadow = false })
-	for i = 0, 5 do
-		local angle = math.rad(i * 60 + 30)
+	-- Glowing posts round the edge (more on bigger pads). They don't block
+	-- anyone, so a crowd can walk on and off from any side.
+	local posts = if radius >= 9 then 8 else 6
+	for i = 0, posts - 1 do
+		local angle = math.rad((i + 0.5) * 360 / posts)
 		local post = center + Vector3.new(math.cos(angle) * (radius + 0.4), 1.5, math.sin(angle) * (radius + 0.4))
-		MapKit.part(parent, "PadPost", Vector3.new(0.5, 3, 0.5), CFrame.new(post), color, { material = Enum.Material.Neon, shadow = false })
+		MapKit.part(parent, "PadPost", Vector3.new(0.5, 3, 0.5), CFrame.new(post), color, { material = Enum.Material.Neon, collide = false, shadow = false })
 	end
-	light(pad, color, 14, 1)
+	light(pad, color, math.min(radius * 2.2, 40), 1)
 
-	local anchor = MapKit.part(parent, "PadCounter", Vector3.new(1, 1, 1), CFrame.new(center + Vector3.new(0, 8, 0)), color, { collide = false, transparency = 1, shadow = false })
+	local anchor = MapKit.part(parent, "PadCounter", Vector3.new(1, 1, 1), CFrame.new(center + Vector3.new(0, 6 + radius * 0.35, 0)), color, { collide = false, transparency = 1, shadow = false })
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "Counter"
-	billboard.Size = UDim2.fromScale(7, 3.5) -- in studs, so it shrinks with distance
+	billboard.Size = UDim2.fromScale(radius * 1.1, radius * 0.55) -- in studs, so it shrinks with distance
 	billboard.LightInfluence = 0
 	billboard.MaxDistance = 120
 	billboard.Parent = anchor

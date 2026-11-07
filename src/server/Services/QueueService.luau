@@ -10,6 +10,10 @@
 	  * step off         -> you leave it,
 	  * the pad's counter shows "players / needed",
 	  * when a queue is full and no match is running, the match starts.
+	    Until players are moved to the arena (after the map vote) they must
+	    STAY on the pad: anyone who steps off leaves the match (see
+	    MatchService). Jumping on the spot is fine: only stepping off the
+	    pad counts.
 	Practice pads (vs bots) start as soon as one player stands on them;
 	bots fill the empty places (BotService). Until bots exist those pads
 	just show "SOON".
@@ -40,7 +44,7 @@ local quickPlayLimiter = RateLimiter.new(1, 2)
 
 local PATTR = MatchState.PlayerAttr
 local CHECK_INTERVAL = 0.25
-local PAD_HEIGHT_TOLERANCE = 6
+local PAD_HEIGHT_TOLERANCE = 15 -- studs above the pad that still count (so jumping on it is fine)
 
 local QueueService = {}
 
@@ -123,15 +127,21 @@ local function updateCounter(pad: Pad)
 	updateAvatars(pad)
 end
 
-local function padUnder(player: Player): Pad?
+-- Is the player standing on (or jumping above) this pad? Uses the server's
+-- view of their character, so it can't be faked.
+local function isOnPad(player: Player, pad: Pad): boolean
 	local character = player.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if not root or not root:IsA("BasePart") then
-		return nil
+		return false
 	end
+	local offset = root.Position - pad.part.Position
+	return Vector2.new(offset.X, offset.Z).Magnitude <= pad.radius and offset.Y >= -2 and offset.Y <= PAD_HEIGHT_TOLERANCE
+end
+
+local function padUnder(player: Player): Pad?
 	for pad in queues do
-		local offset = root.Position - pad.part.Position
-		if Vector2.new(offset.X, offset.Z).Magnitude <= pad.radius and math.abs(offset.Y) <= PAD_HEIGHT_TOLERANCE then
+		if isOnPad(player, pad) then
 			return pad
 		end
 	end
@@ -224,7 +234,10 @@ function QueueService.tryStart()
 				table.insert(players, player)
 			end
 			updateCounter(pad)
-			MatchService.startMatch(mode, players, pad.bots)
+			-- They must stay on the pad until they are moved to the arena.
+			MatchService.startMatch(mode, players, pad.bots, function(player: Player): boolean
+				return isOnPad(player, pad)
+			end)
 			return
 		end
 	end

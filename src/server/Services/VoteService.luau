@@ -44,14 +44,19 @@ end
 
 --[[
 	Runs a vote among `voters` for `seconds` and returns the winning map Id.
-	Yields. `stateFolder` is ReplicatedStorage.MatchState.
+	Yields. `stateFolder` is ReplicatedStorage.MatchState. `keepGoing` (if
+	given) is asked several times a second; when it says false, the vote
+	ends early (the match was called off). Only players still in `voters`
+	are counted, so someone who left the match no longer has a say.
 ]]
-function VoteService.run(stateFolder: Folder, voters: { [Player]: any }, options: { string }, seconds: number): string
+function VoteService.run(stateFolder: Folder, voters: { [Player]: any }, options: { string }, seconds: number, keepGoing: (() -> boolean)?): string
 	local votes: { [Player]: string } = {}
 	local function publish()
 		local counts: { [string]: number } = {}
-		for _, mapId in votes do
-			counts[mapId] = (counts[mapId] or 0) + 1
+		for player, mapId in votes do
+			if voters[player] ~= nil then
+				counts[mapId] = (counts[mapId] or 0) + 1
+			end
 		end
 		for _, mapId in options do
 			stateFolder:SetAttribute("Votes" .. mapId, counts[mapId] or 0)
@@ -73,7 +78,13 @@ function VoteService.run(stateFolder: Folder, voters: { [Player]: any }, options
 		publish()
 	end)
 
-	task.wait(seconds)
+	local deadline = os.clock() + seconds
+	while os.clock() < deadline do
+		if keepGoing and not keepGoing() then
+			break
+		end
+		task.wait(0.1)
+	end
 	connection:Disconnect()
 
 	-- Count, then break ties at random.

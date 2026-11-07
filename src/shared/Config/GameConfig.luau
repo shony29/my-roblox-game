@@ -8,7 +8,7 @@ local GameConfig = table.freeze({
 	GameName = "Slime Showdown",
 	-- Shown in the corner of the main menu. Bump it with every update, so
 	-- you can tell at a glance that Studio has the newest code.
-	Version = "0.9.7",
+	Version = "0.9.8",
 
 	-- Print extra "[debug]" lines in the Output window while developing.
 	DebugLogging = false,

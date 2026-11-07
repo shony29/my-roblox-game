@@ -58,9 +58,10 @@ export type Lobby = {
 local ORIGIN = Vector3.new(0, 300, 700) -- centre of the main hall's floor
 local HALL_X, HALL_Z, HALL_HEIGHT = 40, 35, 34 -- half width, half depth, height
 local HALL_FRONT = ORIGIN.Z - HALL_Z -- the wall with the sign and the portal
-local HALL_LENGTH, HALL_HALF_WIDTH, HALL_HEIGHT_2 = 92, 22, 26 -- the hallway
+local HALL_LENGTH, HALL_HALF_WIDTH, HALL_HEIGHT_2 = 124, 28, 26 -- the hallway (long and wide enough for the big pads)
 local PORTAL_RADIUS = 8
-local PAD_RADIUS = 6.5
+local PAD_RADIUS = 9 -- the queue pads in the hallway (big enough for a whole team)
+local FFA_PAD_RADIUS = 13 -- the FREE FOR ALL pad at the end of the hallway
 local DOOR_Z, DOOR_HALF, DOOR_HEIGHT = 22, 8, 16 -- the back pair of side doorways (weapons room, practice range); wide enough for a crowd
 local DAILY_Z = -11 -- the front pair: the DAILY SQUISHY room's doorway (right wall) and the ROBUX SHOP's (left wall)
 local ROOM_DEPTH, ROOM_HEIGHT = 44, 24 -- every side room: how far back it goes from the hall wall, and how tall it is
@@ -837,14 +838,14 @@ local function buildHallway(model: Model): ({ Pad }, Pad?)
 		box(model, "HallwayCeiling", Vector3.new(HALL_HALF_WIDTH * 2, 2, HALL_LENGTH), Vector3.new(ORIGIN.X, ORIGIN.Y + HALL_HEIGHT_2 + 1, midZ), METAL_DARK)
 		for _, side in { -1, 1 } do
 			box(model, "HallwayWall", Vector3.new(2, HALL_HEIGHT_2, HALL_LENGTH), Vector3.new(ORIGIN.X + side * (HALL_HALF_WIDTH + 1), ORIGIN.Y + HALL_HEIGHT_2 / 2, midZ), METAL)
-			Props.hazardLine(model, Vector3.new(ORIGIN.X + side * 4.5, ORIGIN.Y, startZ - 2), Vector3.new(ORIGIN.X + side * 4.5, ORIGIN.Y, endZ + 2), 1)
+			Props.hazardLine(model, Vector3.new(ORIGIN.X + side * 6, ORIGIN.Y, startZ - 2), Vector3.new(ORIGIN.X + side * 6, ORIGIN.Y, endZ + 2), 1)
 		end
 		box(model, "HallwayEnd", Vector3.new(HALL_HALF_WIDTH * 2, HALL_HEIGHT_2, 2), Vector3.new(ORIGIN.X, ORIGIN.Y + HALL_HEIGHT_2 / 2, endZ - 1), METAL)
 		-- Angled light strips along the ceiling.
-		for i = 0, 10 do
+		for i = 0, math.floor((HALL_LENGTH - 10) / 8) do
 			local z = startZ - 6 - i * 8
 			for _, side in { -1, 1 } do
-				local strip = Vector3.new(ORIGIN.X + side * 9, ORIGIN.Y + HALL_HEIGHT_2 - 0.4, z)
+				local strip = Vector3.new(ORIGIN.X + side * 12, ORIGIN.Y + HALL_HEIGHT_2 - 0.4, z)
 				local part = Kit.part(model, "LightStrip", Vector3.new(8, 0.3, 0.6), CFrame.new(strip) * CFrame.Angles(0, math.rad(side * 25), 0), Color3.fromRGB(255, 120, 150), { material = Enum.Material.Neon, collide = false, shadow = false })
 				if i % 3 == 0 then
 					Props.light(part, Color3.fromRGB(255, 190, 210), 24, 0.6)
@@ -858,15 +859,15 @@ local function buildHallway(model: Model): ({ Pad }, Pad?)
 	padsFolder.Name = "QueuePads"
 	padsFolder.Parent = model
 	local layout = {
-		{ z = -18, left = { mode = "Duel", title = "1v1 DUEL", color = GREEN }, right = { mode = "Duel", title = "1v1 vs BOT", color = PURPLE } },
-		{ z = -42, left = { mode = "TeamDuel", title = "2v2 TEAMS", color = CYAN }, right = { mode = "TeamDuel", title = "2v2 BOTS", color = PURPLE } },
-		{ z = -66, left = { mode = "TeamCombat", title = "4v4 SQUADS", color = Color3.fromRGB(255, 170, 70) }, right = { mode = "TeamCombat", title = "4v4 BOTS", color = PURPLE } },
+		{ z = -20, left = { mode = "Duel", title = "1v1 DUEL", color = GREEN }, right = { mode = "Duel", title = "1v1 vs BOT", color = PURPLE } },
+		{ z = -47, left = { mode = "TeamDuel", title = "2v2 TEAMS", color = CYAN }, right = { mode = "TeamDuel", title = "2v2 BOTS", color = PURPLE } },
+		{ z = -74, left = { mode = "TeamCombat", title = "4v4 SQUADS", color = Color3.fromRGB(255, 170, 70) }, right = { mode = "TeamCombat", title = "4v4 BOTS", color = PURPLE } },
 	}
 	local pads: { Pad } = {}
 	for _, row in layout do
 		for _, side in { -1, 1 } do
 			local info = if side < 0 then row.left else row.right
-			local center = Vector3.new(ORIGIN.X + side * 13, ORIGIN.Y, startZ + row.z)
+			local center = Vector3.new(ORIGIN.X + side * (HALL_HALF_WIDTH - 12), ORIGIN.Y, startZ + row.z)
 			local pad, counter = Props.queuePad(padsFolder, center, PAD_RADIUS, info.color, info.title)
 			-- The big screen on the wall behind the pad.
 			local screenPos = Vector3.new(ORIGIN.X + side * (HALL_HALF_WIDTH - 0.3), ORIGIN.Y + 8.5, center.Z)
@@ -892,8 +893,8 @@ local function buildHallway(model: Model): ({ Pad }, Pad?)
 	local ffaPad: Pad? = nil
 	try("free for all pad", function()
 		local ffaColor = Color3.fromRGB(255, 80, 120)
-		local ffaRadius = 10
-		local center = Vector3.new(ORIGIN.X, ORIGIN.Y, endZ + 13)
+		local ffaRadius = FFA_PAD_RADIUS
+		local center = Vector3.new(ORIGIN.X, ORIGIN.Y, endZ + ffaRadius + 4)
 		local pad, counter = Props.queuePad(padsFolder, center, ffaRadius, ffaColor, "FREE FOR ALL")
 		local screenPos = Vector3.new(ORIGIN.X, ORIGIN.Y + 8.5, endZ + 0.3)
 		local screenCount: TextLabel?, avatars: Frame? = nil, nil

@@ -5,6 +5,12 @@
 
 	  1. QueueService hands over players when a mode's queue is full
 	     (MatchService.startMatch). Teams are balanced (MatchFound).
+	  2. Map vote, then the map is built (Loading). Until players are moved
+	     to the arena they are still standing on their queue pad, and only
+	     those who STAY on it go: anyone who steps off leaves the match
+	     right there (they stay in the lobby). A real match that is no
+	     longer full is called off and everyone else simply queues again;
+	     practice against bots goes on while one player is left.
 	  3. Each round: everyone respawns on their team's side, frozen, with full
 	     health and ammo (Countdown) -> combat (InMatch) -> RoundEnd.
 	     Eliminated players sit out until the next round.
@@ -81,6 +87,10 @@ type Match = {
 	forfeitWinner: TeamId?,
 	withBots: boolean, -- practice: bots fill the empty places
 	bots: { [Model]: BotEntry },
+	startCount: number, -- how many players the match started with
+	-- Until everyone is moved to the arena: is this player still on their
+	-- queue pad? (nil = no pad to check, e.g. a rematch.)
+	stillWaiting: ((Player) -> boolean)?,
 }
 
 local MATCH_FOUND_TIME = 2
@@ -306,6 +316,94 @@ local function removeParticipant(match: Match, player: Player, toLobby: boolean?
 		if toLobby ~= false then
 			task.spawn(LobbyService.spawn, player) -- ...and back to the lobby
 		end
+	end
+end
+
+-- Takes a player out of a match that hasn't moved anyone yet: they are
+-- still in the lobby, so their character stays where it is.
+local function releaseParticipant(match: Match, player: Player)
+	local participant = match.participants[player]
+	if not participant then
+		return
+	end
+	for _, connection in participant.connections do
+		connection:Disconnect()
+	end
+	match.participants[player] = nil
+	if player.Parent == Players then
+		player:SetAttribute(PATTR.Team, nil)
+		setStatus(player, "Lobby")
+	end
+end
+
+local function tell(player: Player, text: string)
+	if player.Parent == Players then
+		Net.event("RewardToast"):FireClient(player, text, 0)
+	end
+end
+
+--[[
+	Before anyone is moved to the arena: whoever stepped off their queue pad
+	(or left the game) leaves the match. Returns false when the match can't
+	go ahead any more: a real match needs everyone it started with, a free
+	for all needs its minimum, practice needs one player.
+	Matches that didn't start from a pad (a rematch) are left alone: the
+	usual forfeit rules handle anyone who leaves those.
+]]
+local function dropLeavers(match: Match): boolean
+	local stillWaiting = match.stillWaiting
+	if stillWaiting == nil then
+		return true
+	end
+	local leavers: { Player } = {}
+	for player in match.participants do
+		if player.Parent ~= Players or not stillWaiting(player) then
+			table.insert(leavers, player)
+		end
+	end
+	for _, player in leavers do
+		releaseParticipant(match, player)
+		tell(player, "You stepped off the pad, so you left the match.")
+	end
+	local remaining = 0
+	for _ in match.participants do
+		remaining += 1
+	end
+	local needed = if match.withBots then 1 elseif match.mode.FreeForAll then (match.mode.MinPlayers or 2) else match.startCount
+	return remaining >= needed
+end
+
+-- Waits `seconds`, dropping anyone who steps off their pad. False = called off.
+local function holdOnPads(match: Match, seconds: number): boolean
+	local deadline = os.clock() + seconds
+	while os.clock() < deadline do
+		if not dropLeavers(match) then
+			return false
+		end
+		task.wait(POLL)
+	end
+	return dropLeavers(match)
+end
+
+-- Calls off a match before anyone was moved: everyone left stays in the
+-- lobby (still on the pad, so they simply queue again).
+local function cancelMatch(match: Match)
+	local remaining: { Player } = {}
+	for player in match.participants do
+		table.insert(remaining, player)
+	end
+	for _, player in remaining do
+		releaseParticipant(match, player)
+		tell(player, "Someone left before the match began. Stay on the pad to find another player.")
+		if player.Parent == Players and player.Character == nil then
+			task.spawn(LobbyService.spawn, player) -- (just in case they have no body in the lobby)
+		end
+	end
+	stateFolder:SetAttribute(ATTR.VoteOptions, "")
+	current = nil
+	setState("Lobby")
+	for _, listener in endedListeners do
+		task.spawn(listener)
 	end
 end
 
@@ -613,18 +711,32 @@ local function runMatch(match: Match, players: { Player })
 	stateFolder:SetAttribute(ATTR.MatchWinner, "")
 	publishScore(match)
 	setState("MatchFound", MATCH_FOUND_TIME)
-	waitFor(match, MATCH_FOUND_TIME)
+	if not holdOnPads(match, MATCH_FOUND_TIME) then
+		cancelMatch(match)
+		return
+	end
 
 	-- Map voting (only when there are 2+ maps), then build the chosen map.
 	local mapId = MapService.currentId() or MapConfig.Default
 	local options = VoteService.pickOptions()
 	if #options >= 2 and not match.forfeitWinner then
 		setState("MapVoting", MapConfig.VoteTime)
-		mapId = VoteService.run(stateFolder, match.participants, options, MapConfig.VoteTime)
+		local goingAhead = true
+		mapId = VoteService.run(stateFolder, match.participants, options, MapConfig.VoteTime, function(): boolean
+			goingAhead = dropLeavers(match)
+			return goingAhead
+		end)
+		if not goingAhead then
+			cancelMatch(match)
+			return
+		end
 	end
 	stateFolder:SetAttribute(ATTR.MapId, mapId)
 	-- Themed arenas are sized for the number of players (1v1 small ... free for all big).
-	local playerCount = #players
+	local playerCount = 0 -- (whoever is still in after the vote)
+	for _ in match.participants do
+		playerCount += 1
+	end
 	if match.withBots then
 		playerCount = match.mode.TeamSize * match.mode.TeamCount -- bots fill the places
 	end
@@ -635,6 +747,13 @@ local function runMatch(match: Match, players: { Player })
 		MapService.load(MapConfig.Default) -- fall back to a map we know works
 		stateFolder:SetAttribute(ATTR.MapId, MapConfig.Default)
 	end
+	-- Last check, right before anyone is moved: only players still on their
+	-- pad go to the arena. From here on, the pads don't matter any more.
+	if not dropLeavers(match) then
+		cancelMatch(match)
+		return
+	end
+	match.stillWaiting = nil
 
 	local ffaWinner: Player? = nil
 	if match.mode.FreeForAll then
@@ -749,8 +868,13 @@ function MatchService.onMatchEnded(listener: () -> ())
 	table.insert(endedListeners, listener)
 end
 
--- Starts a match for exactly these players. Returns false if one is already running.
-function MatchService.startMatch(mode: Mode, players: { Player }, withBots: boolean?): boolean
+--[[
+	Starts a match for exactly these players. Returns false if one is
+	already running. `stillWaiting` (optional) says whether a player is
+	still standing on their queue pad: until they are moved to the arena,
+	anyone who steps off leaves the match.
+]]
+function MatchService.startMatch(mode: Mode, players: { Player }, withBots: boolean?, stillWaiting: ((Player) -> boolean)?): boolean
 	if current then
 		return false
 	end
@@ -763,6 +887,8 @@ function MatchService.startMatch(mode: Mode, players: { Player }, withBots: bool
 		forfeitWinner = nil,
 		withBots = withBots == true,
 		bots = {},
+		startCount = #players,
+		stillWaiting = stillWaiting,
 	}
 	current = match -- set before anything yields, so two matches can never start
 	task.spawn(runMatch, match, players)

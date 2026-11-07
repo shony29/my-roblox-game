@@ -175,8 +175,12 @@ shop look jagged. A game can't change this setting, so turn it up yourself:
 4. Press the big green **PLAY** button at the bottom: you're put on a queue pad
    (alone in the server, that's **1v1 vs BOT**, so a practice match starts right away).
    Or walk through the round **portal** under the big sign into the hallway and stand on
-   any glowing pad (**1v1**, **2v2**, **4v4**); step off to leave. The big screen behind
-   each pad shows **0/2** and the faces of everyone waiting.
+   any of the big glowing pads (**1v1**, **2v2**, **4v4**); step off to leave. The big
+   screen behind each pad shows **0/2** and the faces of everyone waiting.
+   **Stay on the pad until you're moved to the arena** (after the map vote): if you step
+   off before then, you leave the match and stay in the lobby. Jumping on the spot is fine.
+   If a real match loses a player this way, it's called off and everyone still on the pad
+   simply waits for someone new.
    At the very end of the hallway is the big **FREE FOR ALL** pad: step on it and you
    jump straight into the free-for-all arena (no waiting, no minimum, up to 25 players).
    Everyone for themselves; you respawn after being eliminated; first to
