@@ -219,6 +219,9 @@ ReplicatedStorage:GetAttributeChangedSignal("RangeProblems"):Connect(refreshRepo
 player:GetAttributeChangedSignal("MatchStatus"):Connect(refreshReport)
 refreshReport()
 
+-- Tells the loading screen (ReplicatedFirst/LoadingScreen) that everything has started.
+player:SetAttribute("ClientReady", true)
+
 if #problems == 0 then
 	print(`[Slime Showdown] Client started: all systems OK (version {GameConfig.Version})`)
 else

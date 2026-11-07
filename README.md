@@ -157,7 +157,8 @@ shop look jagged. A game can't change this setting, so turn it up yourself:
 ## Step 5: Try it alone
 
 1. Press **Play** (F5) at the top of Studio.
-2. The main menu appears. Click **PLAY**: you appear in the **slime bunker** lobby.
+2. A sci-fi **loading screen** (bouncing slime, progress bar, tips) shows while the game
+   starts; then the main menu appears. Click **PLAY**: you appear in the **slime bunker** lobby.
 3. Look around: slime tubes, the shop (press **B**, or **SHOP** on the left) and the
    **DAILY SQUISHY** room (the green doorway on the right; press **E** at the machine, then
    tap the squishy until it bursts).
@@ -351,6 +352,7 @@ src/
     Components/  Slime rig, blob, gun model, combat rules, team balancer,
                  rate limiter, practice dummy
     Map/         Jelly Arena, Mossy Keep, the slime bunker lobby and shared map helpers
+  first/     → ReplicatedFirst (LoadingScreen: the loading screen you see when you join)
   client/    → StarterPlayerScripts.Client (init.client.luau starts everything in order)
     Controllers/ Graphics, Shop, UI, Movement, Weapon, Camera, Viewmodel,
                  BlobAnimator, MatchHud, Lobby, Transition, Results, Feedback

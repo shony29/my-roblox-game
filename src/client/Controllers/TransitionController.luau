@@ -186,20 +186,44 @@ function TransitionController.start()
 	end
 
 	-- Loading -----------------------------------------------------------------
+	-- (Sci-fi, like the loading screen you see when you join.)
 	local loading = UIHelpers.frame("Loading", UDim2.fromScale(1, 1), UDim2.new())
-	loading.BackgroundColor3 = Colors.Ink
-	loading.BackgroundTransparency = 0.1
+	loading.BackgroundColor3 = Sci.Void
+	loading.BackgroundTransparency = 0.04
 	loading.Visible = false
 	loading.Parent = gui
-	local loadingText = UIHelpers.label("Text", "Loading...", 34, Theme.Fonts.Title)
-	loadingText.Size = UDim2.new(1, 0, 0, 50)
-	loadingText.Position = UDim2.fromScale(0, 0.45)
+	local loadingGlow = Instance.new("UIGradient")
+	loadingGlow.Rotation = 90
+	loadingGlow.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(14, 30, 34)),
+		ColorSequenceKeypoint.new(0.6, Sci.Void),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(18, 14, 36)),
+	})
+	loadingGlow.Parent = loading
+	local loadingText = UIHelpers.label("Text", "LOADING...", 26, SCI_FONT)
+	loadingText.Size = UDim2.new(1, 0, 0, 44)
+	loadingText.Position = UDim2.fromScale(0, 0.4)
+	loadingText.TextColor3 = Sci.Green
 	loadingText.Parent = loading
-	local spinner = UIHelpers.frame("Spinner", UDim2.fromOffset(36, 36), UDim2.fromScale(0.5, 0.58), Vector2.new(0.5, 0.5))
-	spinner.BackgroundColor3 = Colors.Yolk
-	spinner.BackgroundTransparency = 0
-	UIHelpers.corner(spinner, UDim.new(0, 8))
+	local loadingAbout = UIHelpers.label("About", "", 16, BODY_FONT)
+	loadingAbout.Size = UDim2.new(1, 0, 0, 26)
+	loadingAbout.Position = UDim2.new(0, 0, 0.4, 48)
+	loadingAbout.TextColor3 = Sci.Dim
+	loadingAbout.Parent = loading
+	-- A spinning neon ring (half of it fades out, so it reads as a turning arc).
+	local spinner = UIHelpers.frame("Spinner", UDim2.fromOffset(46, 46), UDim2.fromScale(0.5, 0.6), Vector2.new(0.5, 0.5))
+	spinner.BackgroundTransparency = 1
+	UIHelpers.corner(spinner, UDim.new(1, 0))
 	spinner.Parent = loading
+	local ring = UIHelpers.stroke(spinner, Sci.Cyan, 4)
+	local arc = Instance.new("UIGradient")
+	arc.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.5, 0),
+		NumberSequenceKeypoint.new(0.55, 1),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	arc.Parent = ring
 
 	-- Updating ------------------------------------------------------------------
 	local function refresh()
@@ -233,7 +257,8 @@ function TransitionController.start()
 		loading.Visible = isLoading
 		if isLoading then
 			local info = MapConfig.get(stateFolder:GetAttribute(ATTR.MapId))
-			loadingText.Text = if info then `Loading {info.DisplayName}...` else "Loading..."
+			loadingText.Text = if info then `LOADING {string.upper(info.DisplayName)}` else "LOADING..."
+			loadingAbout.Text = if info then info.Description else ""
 			spinner.Rotation = (spinner.Rotation + 12) % 360
 		end
 	end
